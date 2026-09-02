@@ -121,13 +121,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { supabase } from '../supabase'
 import html2pdf from 'html2pdf.js'
 
 const props = defineProps(['session', 'userRole'])
 
-const viewMode = ref('form') // 'list' 或 'form'
+const viewMode = ref('form')
 const assignedReports = ref([])
 const isLoading = ref(true)
 
@@ -160,9 +160,11 @@ const roleName = computed(() => {
 
 const isStudentDraft = computed(() => currentRole.value === 'student' && report.value.status === 'draft')
 
-onMounted(async () => {
+watch(() => props.userRole, async (newRole) => {
+  if (!newRole) return
+  
   isLoading.value = true
-  if (currentRole.value === 'student') {
+  if (newRole === 'student') {
     viewMode.value = 'form'
     await loadStudentReport()
   } else {
@@ -170,7 +172,7 @@ onMounted(async () => {
     await loadReviewerReports()
   }
   isLoading.value = false
-})
+}, { immediate: true })
 
 async function loadStudentReport() {
   const { data, error } = await supabase
@@ -191,7 +193,6 @@ async function loadStudentReport() {
 async function loadReviewerReports() {
   const column = currentRole.value === 'teacher' ? 'teacher_id' : 'supervisor_id'
   
-  // 1. 抓取分配給自己的學生清單
   const { data: assignments } = await supabase
     .from('assignments')
     .select('*')
@@ -204,19 +205,16 @@ async function loadReviewerReports() {
 
   const studentIds = assignments.map(a => a.student_id)
 
-  // 2. 抓取學生姓名
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, name, email')
     .in('id', studentIds)
 
-  // 3. 抓取對應的表單資料
   const { data: reports } = await supabase
     .from('feedback_reports')
     .select('*')
     .in('student_id', studentIds)
 
-  // 4. 合併顯示狀態
   assignedReports.value = profiles.map(profile => {
     const rData = reports?.find(r => r.student_id === profile.id)
     return {
@@ -256,7 +254,7 @@ function openReport(r) {
 
 function backToList() {
   viewMode.value = 'list'
-  loadReviewerReports() // 返回時刷新狀態
+  loadReviewerReports() 
 }
 
 async function submitStudent() {
@@ -398,7 +396,18 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.app-container { background-color: #f0f2f5; min-height: 100vh; padding: 20px; font-family: "微軟正黑體", sans-serif; }
+.app-container { 
+  background-color: #f0f2f5; 
+  min-height: 100vh; 
+  width: 100vw;       
+  position: absolute; 
+  top: 0;
+  left: 0;
+  padding: 30px 20px; 
+  font-family: "微軟正黑體", sans-serif; 
+  box-sizing: border-box;
+}
+
 .system-header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 20px; background: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .header-text { color: #333333; font-size: 16px; font-weight: bold; }
 .role-tag { background: #3498db; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
@@ -410,7 +419,6 @@ async function handleLogout() {
 .warning-btn { background: #e67e22; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 
-/* 列表畫面樣式 */
 .loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }
 .list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
@@ -427,7 +435,6 @@ async function handleLogout() {
 .disabled-btn:hover { background: #bdc3c7; }
 .empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
 
-/* A4 表單樣式 */
 .paper-wrapper { max-width: 800px; margin: 0 auto; overflow-x: auto; }
 .paper { background: white; padding: 15mm 20mm; width: 800px; box-sizing: border-box; font-family: "DFKai-SB", "BiauKai", "標楷體", serif; color: black; }
 .paper-title { text-align: center; font-size: 26px; font-weight: normal; margin-bottom: 30px; letter-spacing: 2px; }
