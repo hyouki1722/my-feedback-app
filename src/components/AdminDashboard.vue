@@ -140,7 +140,7 @@
           </div>
           <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管 (點擊欄位可直接搜尋姓名)：</p>
           
-          <div class="table-responsive" style="min-height: 400px;"> <!-- 保留空間給彈跳選單 -->
+          <div class="table-responsive" style="min-height: 400px;">
             <table class="assignment-table">
               <thead>
                 <tr>
@@ -303,15 +303,15 @@ const accountPage = ref(1)
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 10 
-const activeDropdown = ref(null) // 記錄目前展開的下拉選單 (例: 'uuid_teacher')
-const dropdownSearch = ref('') // 下拉選單內的搜尋字串
+const activeDropdown = ref(null) 
+const dropdownSearch = ref('') 
 
 const editModalOpen = ref(false)
 const editForm = ref({ id: '', originalName: '', cleanName: '', role: '', profession: '', department: '' })
 
 onMounted(() => {
   loadUsers()
-  document.addEventListener('click', closeDropdown) // 點擊畫面其他地方自動關閉選單
+  document.addEventListener('click', closeDropdown) 
 })
 
 onUnmounted(() => {
@@ -344,6 +344,24 @@ function scrollToTop() {
   if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+// 監聽新增帳號的身分切換，自動預設職別為「護理師」
+watch(() => newUser.value.role, (newRole) => {
+  if (newRole === 'teacher') {
+    newUser.value.profession = '護理師'
+  } else {
+    newUser.value.profession = ''
+  }
+})
+
+// 監聽編輯帳號的身分切換，自動預設職別為「護理師」
+watch(() => editForm.value.role, (newRole) => {
+  if (newRole === 'teacher' && !editForm.value.profession) {
+    editForm.value.profession = '護理師'
+  } else if (newRole !== 'teacher') {
+    editForm.value.profession = ''
+  }
+})
+
 // === 自訂搜尋下拉選單邏輯 ===
 function toggleDropdown(studentId, type) {
   const target = `${studentId}${type}`
@@ -351,7 +369,7 @@ function toggleDropdown(studentId, type) {
     closeDropdown()
   } else {
     activeDropdown.value = target
-    dropdownSearch.value = '' // 打開時清空搜尋
+    dropdownSearch.value = '' 
   }
 }
 
@@ -377,7 +395,6 @@ function getSupervisorName(id) {
   return s ? extractCleanName(s.name) : '-- 尚未指派 --'
 }
 
-// 根據搜尋字串動態過濾並分組 (支援老師與主管)
 function getFilteredGroups(type, search) {
   const isTeacher = type === 'teacher'
   const sourceList = isTeacher ? teachers.value : supervisors.value
@@ -402,7 +419,6 @@ function getFilteredGroups(type, search) {
     }
   })
   
-  // 移除空的群組
   Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
   if (ungrouped.length > 0) groups['其他 / 未分類'] = ungrouped
   
@@ -486,6 +502,8 @@ function openEditModal(user) {
     profession: user.role === 'teacher' ? getPrefix(user.name) : '',
     department: user.role === 'supervisor' ? getPrefix(user.name) : ''
   }
+  // 若為老師但沒有職級標籤，補上預設
+  if (editForm.value.role === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
   editModalOpen.value = true
 }
 
