@@ -28,6 +28,18 @@
               </select>
             </div>
           </div>
+
+          <!-- 當選擇身分為「老師」時，才顯示職別選單 -->
+          <div class="form-row" v-if="newUser.role === 'teacher'">
+            <div class="form-group">
+              <label>臨床老師職別：</label>
+              <select v-model="newUser.profession" required>
+                <option value="" disabled>請選擇職別</option>
+                <option v-for="prof in professionOptions" :key="prof" :value="prof">{{ prof }}</option>
+              </select>
+            </div>
+            <div class="form-group"></div>
+          </div>
           
           <div class="form-row">
             <div class="form-group">
@@ -76,9 +88,20 @@
                   <div class="user-email">{{ student.email }}</div>
                 </td>
                 <td>
+                  <!-- 老師下拉選單：加入群組分類 -->
                   <select v-model="student.teacher_id" class="table-select">
                     <option :value="null">-- 尚未指派 --</option>
-                    <option v-for="t in teachers" :key="t.id" :value="t.id">{{ t.name || t.email }}</option>
+                    <optgroup v-for="(teachersInProf, profName) in groupedTeachers" :key="profName" :label="profName">
+                      <option v-for="t in teachersInProf" :key="t.id" :value="t.id">
+                        {{ extractCleanName(t.name) || t.email }}
+                      </option>
+                    </optgroup>
+                    <!-- 處理舊資料沒有職別標籤的老師 -->
+                    <optgroup v-if="ungroupedTeachers.length > 0" label="其他 / 未分類">
+                      <option v-for="t in ungroupedTeachers" :key="t.id" :value="t.id">
+                        {{ t.name || t.email }}
+                      </option>
+                    </optgroup>
                   </select>
                 </td>
                 <td>
@@ -115,8 +138,6 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 
-// 建立一個不記憶登入狀態的獨立 Supabase 連線
-// 確保管理員建立新帳號時，不會覆蓋掉原本的管理員 Session
 const authClient = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -133,12 +154,17 @@ const students = ref([])
 const teachers = ref([])
 const supervisors = ref([])
 
+const professionOptions = [
+  '護理師', '藥師', '呼吸治療師', '物理治療師', '職能治療師', '醫事放射師', '其他'
+]
+
 const isCreating = ref(false)
 const newUser = ref({
   name: '',
   role: '',
   email: '',
-  password: ''
+  password: '',
+  profession: '' // 新增職別欄位
 })
 
 const searchQuery = ref('')
@@ -169,6 +195,41 @@ async function loadUsers() {
   }
 }
 
+// 將老師依照 [職別] 分組的計算屬性
+const groupedTeachers = computed(() => {
+  const groups = {}
+  professionOptions.forEach(p => groups[p] = [])
+  
+  teachers.value.forEach(t => {
+    const match = t.name?.match(/^\[(.*?)\]\s*(.*)$/)
+    if (match && professionOptions.includes(match[1])) {
+      groups[match[1]].push(t)
+    }
+  })
+  
+  // 移除空的群組
+  Object.keys(groups).forEach(key => {
+    if (groups[key].length === 0) delete groups[key]
+  })
+  
+  return groups
+})
+
+// 處理沒有職別標籤的舊有老師資料
+const ungroupedTeachers = computed(() => {
+  return teachers.value.filter(t => {
+    const match = t.name?.match(/^\[(.*?)\]\s*(.*)$/)
+    return !match || !professionOptions.includes(match[1])
+  })
+})
+
+// 為了在下拉選單中去掉 [職別] 前綴，讓畫面乾淨
+function extractCleanName(fullName) {
+  if (!fullName) return ''
+  const match = fullName.match(/^\[.*?\]\s*(.*)$/)
+  return match ? match[1] : fullName
+}
+
 const filteredStudents = computed(() => {
   if (!searchQuery.value) return students.value
   const query = searchQuery.value.toLowerCase()
@@ -195,7 +256,6 @@ watch(searchQuery, () => {
 async function handleCreateUser() {
   isCreating.value = true
   
-  // 關鍵：使用 authClient 進行註冊，防止管理員被自動登出
   const { data, error } = await authClient.auth.signUp({
     email: newUser.value.email,
     password: newUser.value.password,
@@ -204,10 +264,15 @@ async function handleCreateUser() {
   if (error) {
     alert('建立失敗：' + error.message)
   } else if (data?.user) {
-    // 寫入 profile 依然使用原本擁有管理員權限的 supabase 連線
+    // 組合名字。如果是老師，將職別包在括號內加上名字前綴
+    let finalName = newUser.value.name
+    if (newUser.value.role === 'teacher' && newUser.value.profession) {
+      finalName = `[${newUser.value.profession}] ${finalName}`
+    }
+
     const { error: profileError } = await supabase.from('profiles').insert([{
       id: data.user.id,
-      name: newUser.value.name,
+      name: finalName, // 存入組合好的名字
       role: newUser.value.role,
       email: newUser.value.email
     }])
@@ -215,8 +280,8 @@ async function handleCreateUser() {
     if (profileError) {
       alert('Auth 建立成功，但寫入 profile 失敗：' + profileError.message)
     } else {
-      alert(`✅ 帳號 ${newUser.value.name} (${newUser.value.role}) 建立成功！`)
-      newUser.value = { name: '', role: '', email: '', password: '' }
+      alert(`✅ 帳號 ${finalName} (${newUser.value.role}) 建立成功！`)
+      newUser.value = { name: '', role: '', email: '', password: '', profession: '' }
       await loadUsers() 
     }
   }
@@ -273,6 +338,8 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .user-name { font-weight: bold; color: #2c3e50; }
 .user-email { font-size: 13px; color: #7f8c8d; margin-top: 4px; }
 .table-select { width: 100%; min-width: 150px; cursor: pointer; }
+optgroup { font-weight: bold; color: #2980b9; font-style: normal; }
+option { color: #333; font-weight: normal; }
 .empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
 .pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; }
 .page-info { font-size: 14px; font-weight: bold; color: #2c3e50; }
@@ -282,7 +349,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .btn { border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
 .primary-btn { background-color: #3498db; color: white; }
 .primary-btn:hover:not(:disabled) { background-color: #2980b9; }
-.primary-btn:disabled { background-color: #cad2d8; cursor: not-allowed; }
+.primary-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
 .success-btn { background-color: #2ecc71; color: white; padding: 8px 16px; }
 .success-btn:hover { background-color: #27ae60; }
 .logout-btn { background-color: #e74c3c; color: white; padding: 10px 20px; }
