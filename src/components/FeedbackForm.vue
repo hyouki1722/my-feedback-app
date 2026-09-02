@@ -5,83 +5,117 @@
       <button @click="handleLogout" class="btn logout-btn">登出系統</button>
     </div>
 
-    <!-- A4 實體文件區塊 -->
-    <div class="paper-wrapper">
-      <div id="pdf-content" class="paper">
-        <h1 class="paper-title">基礎訓練心得</h1>
+    <div v-if="isLoading" class="loading">載入資料中...</div>
 
-        <!-- 訓練類別勾選區 -->
-        <div class="checkbox-section">
-          <div class="check-row">
-            <label><input type="radio" value="第一年：到職訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：到職訓練</label>
-            <label><input type="radio" value="第一年：三個月新進人員訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：三個月新進人員訓練</label>
-          </div>
-          <div class="check-row">
-            <label><input type="radio" value="第一年：基層護理人員臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：基層護理人員臨床專業能力訓練</label>
-          </div>
-          <div class="check-row">
-            <label><input type="radio" value="第二年：基層護理人員臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第二年：基層護理人員臨床專業能力訓練</label>
-          </div>
-          <div class="check-row">
-            <label>
-              <input type="radio" value="換照人員：臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 
-              換照人員：臨床專業能力訓練 ( 領證日：
-              <input type="text" class="inline-input" placeholder="年 月 日" v-model="report.cert_date" :disabled="!isStudentDraft"> )
-            </label>
-          </div>
-        </div>
+    <!-- 老師/主管的學生清單畫面 -->
+    <div v-else-if="viewMode === 'list'" class="list-container">
+      <h2>🧑‍🎓 負責學員清單</h2>
+      <table class="assignment-table">
+        <thead>
+          <tr>
+            <th>學員姓名</th>
+            <th>訓練類別</th>
+            <th>目前狀態</th>
+            <th>更新時間</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in assignedReports" :key="r.student_id">
+            <td>{{ r.student_name }}</td>
+            <td>{{ r.training_category || '尚未選擇' }}</td>
+            <td><span class="status-badge" :class="r.status">{{ getStatusText(r) }}</span></td>
+            <td>{{ formatDate(r.teacher_submitted_at || r.created_at) || '-' }}</td>
+            <td>
+              <button 
+                @click="openReport(r)" 
+                class="btn primary-btn small-btn" 
+                :disabled="r.status === 'not_started' || r.status === 'draft'" 
+                :class="{ 'disabled-btn': r.status === 'not_started' || r.status === 'draft' }">
+                {{ r.status === 'completed' ? '查看 / 匯出' : '進入審核' }}
+              </button>
+            </td>
+          </tr>
+          <tr v-if="assignedReports.length === 0">
+            <td colspan="5" class="empty-state">系統尚未指派任何學員給您</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-        <!-- 框線表格區 -->
-        <div class="feedback-table">
-          <!-- 學生區塊 -->
-          <div class="table-row">
-            <div class="row-header">
-              <div class="row-title">一、學員心得回饋</div>
-              <div class="row-timestamp" v-if="report.created_at">{{ formatDate(report.created_at) }}</div>
+    <!-- A4 實體文件區塊 (僅在 viewMode === 'form' 顯示) -->
+    <div v-else-if="viewMode === 'form'">
+      <div class="paper-wrapper">
+        <div id="pdf-content" class="paper">
+          <h1 class="paper-title">基礎訓練心得</h1>
+
+          <!-- 訓練類別勾選區 -->
+          <div class="checkbox-section">
+            <div class="check-row">
+              <label><input type="radio" value="第一年：到職訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：到職訓練</label>
+              <label><input type="radio" value="第一年：三個月新進人員訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：三個月新進人員訓練</label>
             </div>
-            <textarea v-model="report.student_content" class="paper-textarea" rows="4" :disabled="!isStudentDraft"></textarea>
+            <div class="check-row">
+              <label><input type="radio" value="第一年：基層護理人員臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：基層護理人員臨床專業能力訓練</label>
+            </div>
+            <div class="check-row">
+              <label><input type="radio" value="第二年：基層護理人員臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第二年：基層護理人員臨床專業能力訓練</label>
+            </div>
+            <div class="check-row">
+              <label>
+                <input type="radio" value="換照人員：臨床專業能力訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 
+                換照人員：臨床專業能力訓練 ( 領證日：
+                <input type="text" class="inline-input" placeholder="年 月 日" v-model="report.cert_date" :disabled="!isStudentDraft"> )
+              </label>
+            </div>
           </div>
-          
-          <!-- 老師區塊 -->
-          <div class="table-row">
-            <div class="row-header">
-              <div class="row-title">二、指導老師回饋</div>
-              <div class="row-timestamp" v-if="report.teacher_submitted_at">{{ formatDate(report.teacher_submitted_at) }}</div>
+
+          <!-- 框線表格區 -->
+          <div class="feedback-table">
+            <div class="table-row">
+              <div class="row-header">
+                <div class="row-title">一、學員心得回饋 <span v-if="report.student_name" style="font-size:14px; font-weight:normal; color:#555;">({{ report.student_name }})</span></div>
+                <div class="row-timestamp" v-if="report.created_at">{{ formatDate(report.created_at) }}</div>
+              </div>
+              <textarea v-model="report.student_content" class="paper-textarea" rows="4" :disabled="!isStudentDraft"></textarea>
             </div>
-            <textarea v-model="report.teacher_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'teacher' || report.status === 'completed'"></textarea>
-          </div>
-          
-          <!-- 主管區塊 -->
-          <div class="table-row last-row">
-            <div class="row-header">
-              <div class="row-title">三、單位主管回饋</div>
-              <div class="row-timestamp" v-if="report.supervisor_submitted_at">{{ formatDate(report.supervisor_submitted_at) }}</div>
+            
+            <div class="table-row">
+              <div class="row-header">
+                <div class="row-title">二、指導老師回饋</div>
+                <div class="row-timestamp" v-if="report.teacher_submitted_at">{{ formatDate(report.teacher_submitted_at) }}</div>
+              </div>
+              <textarea v-model="report.teacher_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'teacher' || report.status === 'completed'"></textarea>
             </div>
-            <textarea v-model="report.supervisor_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'supervisor' || report.status === 'completed'"></textarea>
+            
+            <div class="table-row last-row">
+              <div class="row-header">
+                <div class="row-title">三、單位主管回饋</div>
+                <div class="row-timestamp" v-if="report.supervisor_submitted_at">{{ formatDate(report.supervisor_submitted_at) }}</div>
+              </div>
+              <textarea v-model="report.supervisor_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'supervisor' || report.status === 'completed'"></textarea>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 系統操作面板 -->
-    <div class="action-panel">
-      <!-- 學員專屬 -->
-      <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">學員送出表單</button>
-      
-      <!-- 老師專屬 -->
-      <template v-if="currentRole === 'teacher' && report.status === 'submitted'">
-        <button @click="saveTeacher" class="btn primary-btn">儲存指導老師回饋</button>
-        <button @click="rejectToStudent" class="btn warning-btn">退回給學員修改</button>
-      </template>
+      <!-- 系統操作面板 -->
+      <div class="action-panel">
+        <button v-if="viewMode === 'form' && currentRole !== 'student'" @click="backToList" class="btn dark-btn">🔙 返回列表</button>
 
-      <!-- 主管專屬 -->
-      <button v-if="currentRole === 'supervisor' && report.status === 'submitted'" @click="completeSupervisor" class="btn danger-btn">儲存並完成結案</button>
-      
-      <!-- 老師與主管：將結案資料拉回重新編輯 -->
-      <button v-if="(currentRole === 'teacher' || currentRole === 'supervisor') && report.status === 'completed'" @click="unlockForm" class="btn warning-btn">🔓 將資料拉回重新編輯</button>
+        <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">學員送出表單</button>
+        
+        <template v-if="currentRole === 'teacher' && report.status === 'submitted'">
+          <button @click="saveTeacher" class="btn primary-btn">儲存指導老師回饋</button>
+          <button @click="rejectToStudent" class="btn warning-btn">退回給學員修改</button>
+        </template>
 
-      <!-- 匯出 PDF -->
-      <button v-if="report.status === 'completed'" @click="exportPDF" class="btn dark-btn">📄 匯出 PDF 文件</button>
+        <button v-if="currentRole === 'supervisor' && report.status === 'submitted'" @click="completeSupervisor" class="btn danger-btn">儲存並完成結案</button>
+        
+        <button v-if="(currentRole === 'teacher' || currentRole === 'supervisor') && report.status === 'completed'" @click="unlockForm" class="btn warning-btn">🔓 將資料拉回重新編輯</button>
+
+        <button v-if="report.status === 'completed'" @click="exportPDF" class="btn dark-btn">📄 匯出 PDF 文件</button>
+      </div>
     </div>
   </div>
 </template>
@@ -93,6 +127,10 @@ import html2pdf from 'html2pdf.js'
 
 const props = defineProps(['session', 'userRole'])
 
+const viewMode = ref('form') // 'list' 或 'form'
+const assignedReports = ref([])
+const isLoading = ref(true)
+
 const report = ref({
   id: null,
   training_category: '',
@@ -103,7 +141,8 @@ const report = ref({
   status: 'draft',
   created_at: null,
   teacher_submitted_at: null,
-  supervisor_submitted_at: null
+  supervisor_submitted_at: null,
+  student_name: ''
 })
 
 function formatDate(dateString) {
@@ -112,41 +151,114 @@ function formatDate(dateString) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-const currentRole = computed(() => {
-  return props.userRole || ''
-})
+const currentRole = computed(() => props.userRole || '')
 
 const roleName = computed(() => {
-  const map = {
-    student: '學員',
-    teacher: '臨床老師',
-    supervisor: '單位主管',
-    admin: '系統管理員'
-  }
+  const map = { student: '學員', teacher: '臨床老師', supervisor: '單位主管', admin: '系統管理員' }
   return map[currentRole.value] || '讀取中...'
 })
 
-const isStudentDraft = computed(() => {
-  return currentRole.value === 'student' && report.value.status === 'draft'
-})
+const isStudentDraft = computed(() => currentRole.value === 'student' && report.value.status === 'draft')
 
 onMounted(async () => {
+  isLoading.value = true
+  if (currentRole.value === 'student') {
+    viewMode.value = 'form'
+    await loadStudentReport()
+  } else {
+    viewMode.value = 'list'
+    await loadReviewerReports()
+  }
+  isLoading.value = false
+})
+
+async function loadStudentReport() {
   const { data, error } = await supabase
     .from('feedback_reports')
     .select('*')
+    .eq('student_id', props.session.user.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
-    
-  if (data) {
-    if (currentRole.value === 'student' && data.status === 'completed') {
-      return 
-    }
-    report.value = data
-  }
-})
 
-// 1. 學員送出檢查 (加入確認視窗與寄信觸發)
+  if (data) {
+    Object.assign(report.value, data)
+  }
+  const { data: profile } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).single()
+  if (profile) report.value.student_name = profile.name
+}
+
+async function loadReviewerReports() {
+  const column = currentRole.value === 'teacher' ? 'teacher_id' : 'supervisor_id'
+  
+  // 1. 抓取分配給自己的學生清單
+  const { data: assignments } = await supabase
+    .from('assignments')
+    .select('*')
+    .eq(column, props.session.user.id)
+
+  if (!assignments || assignments.length === 0) {
+    assignedReports.value = []
+    return
+  }
+
+  const studentIds = assignments.map(a => a.student_id)
+
+  // 2. 抓取學生姓名
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, email')
+    .in('id', studentIds)
+
+  // 3. 抓取對應的表單資料
+  const { data: reports } = await supabase
+    .from('feedback_reports')
+    .select('*')
+    .in('student_id', studentIds)
+
+  // 4. 合併顯示狀態
+  assignedReports.value = profiles.map(profile => {
+    const rData = reports?.find(r => r.student_id === profile.id)
+    return {
+      student_id: profile.id,
+      student_name: profile.name || profile.email,
+      id: rData?.id || null,
+      status: rData?.status || 'not_started',
+      training_category: rData?.training_category || '',
+      created_at: rData?.created_at || null,
+      teacher_submitted_at: rData?.teacher_submitted_at || null,
+      supervisor_submitted_at: rData?.supervisor_submitted_at || null,
+      reportData: rData 
+    }
+  })
+}
+
+function getStatusText(r) {
+  if (r.status === 'not_started') return '⚪ 尚未填寫'
+  if (r.status === 'draft') return '✏️ 學員填寫中'
+  if (r.status === 'submitted') {
+     if (!r.reportData?.teacher_feedback) return '⏳ 待老師回饋'
+     return '⏳ 待主管結案'
+  }
+  if (r.status === 'completed') return '✅ 已結案'
+  return '未知狀態'
+}
+
+function openReport(r) {
+  if (r.status === 'not_started' || r.status === 'draft') {
+    alert('學員尚未送出表單，目前無法進入審核！')
+    return
+  }
+  Object.assign(report.value, r.reportData)
+  report.value.student_name = r.student_name
+  viewMode.value = 'form'
+}
+
+function backToList() {
+  viewMode.value = 'list'
+  loadReviewerReports() // 返回時刷新狀態
+}
+
 async function submitStudent() {
   if (!report.value.training_category) return alert('請先勾選最上方的「訓練類別」！')
   if (!report.value.student_content?.trim()) return alert('請填寫「學員心得回饋」內容！')
@@ -183,7 +295,6 @@ async function submitStudent() {
   }
 }
 
-// 觸發通知信函式
 async function sendNotificationEmails(teacherId, supervisorId) {
   try {
     const { data: teacherData } = await supabase.from('profiles').select('email').eq('id', teacherId).single()
@@ -203,7 +314,6 @@ async function sendNotificationEmails(teacherId, supervisorId) {
   }
 }
 
-// 2. 老師儲存檢查
 async function saveTeacher() {
   if (!report.value.teacher_feedback?.trim()) return alert('請填寫「指導老師回饋」內容！')
 
@@ -220,7 +330,6 @@ async function saveTeacher() {
   }
 }
 
-// 3. 主管結案檢查
 async function completeSupervisor() {
   if (!report.value.teacher_feedback?.trim()) return alert('指導老師尚未填寫回饋，無法進行結案！')
   if (!report.value.supervisor_feedback?.trim()) return alert('請填寫「單位主管回饋」內容！')
@@ -233,19 +342,23 @@ async function completeSupervisor() {
       supervisor_submitted_at: currentTime
     })
     .eq('id', report.value.id)
-  if (!error) location.reload()
+  if (!error) {
+    alert('已成功結案！')
+    location.reload()
+  }
 }
 
-// 4. PDF 匯出檢查
 function exportPDF() {
   if (!report.value.student_content?.trim() || !report.value.teacher_feedback?.trim() || !report.value.supervisor_feedback?.trim()) {
     return alert('表單尚未全部填寫完畢，無法匯出 PDF！')
   }
 
   const element = document.getElementById('pdf-content')
+  const fileName = `${report.value.student_name || '學員'}_基礎訓練心得.pdf`
+
   const opt = {
     margin: 0, 
-    filename: '基礎訓練心得.pdf',
+    filename: fileName,
     image: { type: 'jpeg', quality: 1 },
     html2canvas: { scale: 2, windowWidth: 800 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -253,7 +366,6 @@ function exportPDF() {
   html2pdf().set(opt).from(element).save()
 }
 
-// 5. 將資料拉回重新編輯 (解除結案狀態)
 async function unlockForm() {
   if (!confirm('確定要將表單拉回重新編輯嗎？這將會暫時解除「結案」狀態。')) return
 
@@ -264,12 +376,9 @@ async function unlockForm() {
   if (!error) {
     alert('表單已成功拉回！您現在可以重新編輯內容了。')
     location.reload()
-  } else {
-    alert('拉回失敗：' + error.message)
   }
 }
 
-// 6. 退回給學員修改
 async function rejectToStudent() {
   if (!confirm('確定要將此心得退回給學員重新修改嗎？')) return
 
@@ -280,8 +389,6 @@ async function rejectToStudent() {
   if (!error) {
     alert('表單已成功退回給學員！')
     location.reload()
-  } else {
-    alert('退回失敗：' + error.message)
   }
 }
 
@@ -303,22 +410,36 @@ async function handleLogout() {
 .warning-btn { background: #e67e22; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 
+/* 列表畫面樣式 */
+.loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }
+.list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
+.assignment-table { width: 100%; border-collapse: collapse; }
+.assignment-table th, .assignment-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; }
+.assignment-table th { background-color: #f8f9fa; font-weight: bold; color: #333; }
+.status-badge { padding: 5px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; text-align: center; }
+.status-badge.not_started { background: #ecf0f1; color: #7f8c8d; }
+.status-badge.draft { background: #f1c40f; color: #8e44ad; }
+.status-badge.submitted { background: #3498db; color: white; }
+.status-badge.completed { background: #2ecc71; color: white; }
+.small-btn { padding: 6px 12px; font-size: 14px; }
+.disabled-btn { background: #bdc3c7; cursor: not-allowed; }
+.disabled-btn:hover { background: #bdc3c7; }
+.empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
+
+/* A4 表單樣式 */
 .paper-wrapper { max-width: 800px; margin: 0 auto; overflow-x: auto; }
 .paper { background: white; padding: 15mm 20mm; width: 800px; box-sizing: border-box; font-family: "DFKai-SB", "BiauKai", "標楷體", serif; color: black; }
 .paper-title { text-align: center; font-size: 26px; font-weight: normal; margin-bottom: 30px; letter-spacing: 2px; }
-
 .checkbox-section { margin-bottom: 30px; font-size: 16px; }
 .check-row { margin-bottom: 12px; display: flex; gap: 20px; align-items: center; }
 input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer; }
 .inline-input { border: none; border-bottom: 1px solid black; width: 120px; font-family: inherit; font-size: inherit; text-align: center; outline: none; background: transparent; margin: 0 5px; }
-
 .feedback-table { width: 100%; border: 1px solid black; border-bottom: none; box-sizing: border-box; }
 .table-row { border-bottom: 1px solid black; padding: 15px; box-sizing: border-box; }
-
 .row-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
 .row-title { font-size: 18px; font-weight: bold; }
 .row-timestamp { font-size: 13px; color: #555; font-family: "微軟正黑體", sans-serif; }
-
 .paper-textarea { width: 100%; border: none; resize: none; font-family: inherit; font-size: 16px; line-height: 1.6; outline: none; background: transparent; color: black; padding: 0; box-sizing: border-box; }
 .paper-textarea:disabled { color: black; } 
 </style>
