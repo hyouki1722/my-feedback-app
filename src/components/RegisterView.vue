@@ -94,15 +94,42 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-.login-container { max-width: 380px; margin: 40px auto; padding: 25px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); font-family: "微軟正黑體", sans-serif; }
-h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+.register-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f2f5;
+  box-sizing: border-box;
+  overflow-y: auto; /* 避免螢幕太小時內容被截斷 */
+}
+
+.register-container { 
+  width: 100%;
+  max-width: 400px; 
+  padding: 30px; 
+  background: white; 
+  border: 1px solid #ddd; 
+  border-radius: 8px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+  font-family: "微軟正黑體", sans-serif; 
+  box-sizing: border-box;
+  margin: auto;
+}
+
+/* 以下保留原本的元件樣式 */
+h2 { text-align: center; color: #2c3e50; margin-top: 0; margin-bottom: 20px; }
 .form-group { margin-bottom: 15px; }
 label { font-size: 14px; font-weight: bold; color: #333; display: block; margin-bottom: 5px; }
-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
-.role-select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: #fff; cursor: pointer; }
-.primary-btn { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
+input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+.primary-btn { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
 .primary-btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
-.error { color: #e74c3c; font-size: 14px; margin-top: 10px; text-align: center; }
+.primary-btn:hover:not(:disabled) { background-color: #2ecc71; }
+.error { color: #e74c3c; font-size: 14px; margin-top: 10px; text-align: center; font-weight: bold; }
 .switch-mode { margin-top: 20px; text-align: center; font-size: 14px; }
 .switch-mode a { color: #3498db; text-decoration: none; font-weight: bold; }
 </style>
