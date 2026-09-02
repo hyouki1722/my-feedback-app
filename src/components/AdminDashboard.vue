@@ -144,25 +144,30 @@ async function loadUsers() {
 async function handleCreateUser() {
   isCreating.value = true
   
+  // 1. 建立 Auth 身分驗證帳號
   const { data, error } = await supabase.auth.signUp({
     email: newUser.value.email,
     password: newUser.value.password,
-    options: {
-      data: {
-        name: newUser.value.name,
-        role: newUser.value.role
-      }
-    }
   })
 
   if (error) {
     alert('建立失敗：' + error.message)
-  } else {
-    alert(`✅ 帳號 ${newUser.value.name} (${newUser.value.role}) 建立成功！`)
-    // 清空表單
-    newUser.value = { name: '', role: '', email: '', password: '' }
-    // 重新讀取清單，讓新建立的人出現在配對表格中
-    await loadUsers() 
+  } else if (data?.user) {
+    // 2. 關鍵修正：將新建的帳號資料，同步手動寫入 profiles 資料表
+    const { error: profileError } = await supabase.from('profiles').insert([{
+      id: data.user.id,
+      name: newUser.value.name,
+      role: newUser.value.role,
+      email: newUser.value.email
+    }])
+
+    if (profileError) {
+      alert('Auth 建立成功，但寫入 profile 失敗：' + profileError.message)
+    } else {
+      alert(`✅ 帳號 ${newUser.value.name} (${newUser.value.role}) 建立成功！`)
+      newUser.value = { name: '', role: '', email: '', password: '' }
+      await loadUsers() 
+    }
   }
   
   isCreating.value = false

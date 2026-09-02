@@ -61,7 +61,7 @@
       </table>
     </div>
 
-    <!-- A4 實體文件區塊 (僅在 viewMode === 'form' 顯示) -->
+    <!-- A4 實體文件區塊 -->
     <div v-else-if="viewMode === 'form'">
       <div class="paper-wrapper">
         <div id="pdf-content" class="paper">
@@ -202,12 +202,12 @@ async function loadStudentReport() {
     .eq('student_id', props.session.user.id)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (data) {
     Object.assign(report.value, data)
   }
-  const { data: profile } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).maybeSingle()
   if (profile) report.value.student_name = profile.name
 }
 
@@ -289,7 +289,7 @@ async function submitStudent() {
     .from('assignments')
     .select('teacher_id, supervisor_id')
     .eq('student_id', props.session.user.id)
-    .single()
+    .maybeSingle()
     
   if (assignError || !assignData) {
     return alert('送出失敗：系統管理員尚未為您分配指導老師與主管，請聯繫管理員！')
@@ -316,8 +316,8 @@ async function submitStudent() {
 
 async function sendNotificationEmails(teacherId, supervisorId) {
   try {
-    const { data: teacherData } = await supabase.from('profiles').select('email').eq('id', teacherId).single()
-    const { data: supervisorData } = await supabase.from('profiles').select('email').eq('id', supervisorId).single()
+    const { data: teacherData } = await supabase.from('profiles').select('email').eq('id', teacherId).maybeSingle()
+    const { data: supervisorData } = await supabase.from('profiles').select('email').eq('id', supervisorId).maybeSingle()
     
     const teacherEmail = teacherData?.email || ''
     const supervisorEmail = supervisorData?.email || ''
