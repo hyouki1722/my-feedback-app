@@ -1,34 +1,20 @@
 <template>
   <div class="admin-wrapper">
     <div class="admin-container">
-      <!-- 標題列 -->
       <div class="system-header">
         <h2 class="title">⚙️ 系統管理員後台</h2>
         <button @click="handleLogout" class="btn logout-btn">登出系統</button>
       </div>
 
-      <!-- 頂部切換選單 (Tabs) -->
       <div class="admin-tabs">
-        <button 
-          class="tab-btn" 
-          :class="{ active: activeTab === 'accounts' }" 
-          @click="activeTab = 'accounts'">
-          👥 帳號與權限管理
-        </button>
-        <button 
-          class="tab-btn" 
-          :class="{ active: activeTab === 'assignments' }" 
-          @click="activeTab = 'assignments'">
-          🔗 學員配對管理
-        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'accounts' }" @click="activeTab = 'accounts'">👥 帳號與權限管理</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'assignments' }" @click="activeTab = 'assignments'">🔗 學員配對管理</button>
       </div>
 
       <!-- ========================================== -->
       <!-- 畫面一：帳號與權限管理 (accounts)            -->
       <!-- ========================================== -->
       <div v-if="activeTab === 'accounts'">
-        
-        <!-- 建立新使用者帳號 -->
         <div class="admin-card">
           <h3>➕ 建立新使用者帳號</h3>
           <form @submit.prevent="handleCreateUser" class="create-form">
@@ -87,7 +73,6 @@
           </form>
         </div>
 
-        <!-- 系統全體人員名單 -->
         <div class="admin-card">
           <div class="card-header-flex">
             <h3>📋 系統人員總覽</h3>
@@ -97,7 +82,6 @@
           </div>
           <p class="subtitle">管理平台內所有人員（結訓學員或離職員工可在此進行身分變更或資料刪除）：</p>
           
-          <!-- 身分快篩標籤區塊 -->
           <div class="filter-group">
             <button class="filter-tag" :class="{ active: accountFilterRole === 'all' }" @click="accountFilterRole = 'all'">全部顯示</button>
             <button class="filter-tag" :class="{ active: accountFilterRole === 'student' }" @click="accountFilterRole = 'student'">學員</button>
@@ -154,9 +138,9 @@
               <input type="text" v-model="searchQuery" placeholder="🔍 搜尋學員姓名或信箱..." class="search-input" />
             </div>
           </div>
-          <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管 (搭配搜尋功能可快速尋找)：</p>
+          <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管 (點擊欄位可直接搜尋姓名)：</p>
           
-          <div class="table-responsive">
+          <div class="table-responsive" style="min-height: 400px;"> <!-- 保留空間給彈跳選單 -->
             <table class="assignment-table">
               <thead>
                 <tr>
@@ -172,26 +156,55 @@
                     <div class="user-name">{{ student.name || '未命名' }}</div>
                     <div class="user-email">{{ student.email }}</div>
                   </td>
+                  
+                  <!-- 可搜尋的臨床老師下拉選單 -->
                   <td>
-                    <select v-model="student.teacher_id" class="table-select">
-                      <option :value="null">-- 尚未指派 --</option>
-                      <optgroup v-for="(teachersInProf, profName) in groupedTeachers" :key="profName" :label="profName">
-                        <option v-for="t in teachersInProf" :key="t.id" :value="t.id">
-                          {{ extractCleanName(t.name) || t.email }}
-                        </option>
-                      </optgroup>
-                    </select>
+                    <div class="custom-select" @click.stop="toggleDropdown(student.id, 'teacher')">
+                      <div class="selected-text" :class="{'placeholder': !student.teacher_id}">
+                        {{ getTeacherName(student.teacher_id) }}
+                      </div>
+                      <span class="dropdown-arrow">▼</span>
+                      
+                      <!-- 展開的搜尋選單 -->
+                      <div class="dropdown-menu" v-if="activeDropdown === student.id + 'teacher'" @click.stop>
+                        <input type="text" v-model="dropdownSearch" placeholder="🔍 搜尋臨床老師..." class="dropdown-search" autofocus />
+                        <div class="dropdown-options">
+                          <div class="option-item" @click="selectOption(student, 'teacher_id', null)">-- 尚未指派 --</div>
+                          <template v-for="(group, groupName) in getFilteredGroups('teacher', dropdownSearch)" :key="groupName">
+                            <div class="optgroup-label">{{ groupName }}</div>
+                            <div class="option-item" v-for="t in group" :key="t.id" @click="selectOption(student, 'teacher_id', t.id)">
+                              {{ extractCleanName(t.name) }}
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
                   </td>
+
+                  <!-- 可搜尋的單位主管下拉選單 -->
                   <td>
-                    <select v-model="student.supervisor_id" class="table-select">
-                      <option :value="null">-- 尚未指派 --</option>
-                      <optgroup v-for="(supervisorsInDept, deptName) in groupedSupervisors" :key="deptName" :label="deptName">
-                        <option v-for="s in supervisorsInDept" :key="s.id" :value="s.id">
-                          {{ extractCleanName(s.name) || s.email }}
-                        </option>
-                      </optgroup>
-                    </select>
+                    <div class="custom-select" @click.stop="toggleDropdown(student.id, 'supervisor')">
+                      <div class="selected-text" :class="{'placeholder': !student.supervisor_id}">
+                        {{ getSupervisorName(student.supervisor_id) }}
+                      </div>
+                      <span class="dropdown-arrow">▼</span>
+                      
+                      <!-- 展開的搜尋選單 -->
+                      <div class="dropdown-menu" v-if="activeDropdown === student.id + 'supervisor'" @click.stop>
+                        <input type="text" v-model="dropdownSearch" placeholder="🔍 搜尋單位主管..." class="dropdown-search" autofocus />
+                        <div class="dropdown-options">
+                          <div class="option-item" @click="selectOption(student, 'supervisor_id', null)">-- 尚未指派 --</div>
+                          <template v-for="(group, groupName) in getFilteredGroups('supervisor', dropdownSearch)" :key="groupName">
+                            <div class="optgroup-label">{{ groupName }}</div>
+                            <div class="option-item" v-for="s in group" :key="s.id" @click="selectOption(student, 'supervisor_id', s.id)">
+                              {{ extractCleanName(s.name) }}
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
                   </td>
+                  
                   <td>
                     <button @click="saveAssignment(student)" class="btn success-btn">儲存配對</button>
                   </td>
@@ -259,7 +272,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 
@@ -283,19 +296,26 @@ const newUser = ref({ name: '', role: '', email: '', password: '', profession: '
 
 // 帳號快篩與分頁狀態
 const accountSearch = ref('')
-const accountFilterRole = ref('all') // 新增：身分快篩
+const accountFilterRole = ref('all') 
 const accountPage = ref(1)
 
-// 配對分頁狀態
+// 配對分頁與自訂選單狀態
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 10 
+const activeDropdown = ref(null) // 記錄目前展開的下拉選單 (例: 'uuid_teacher')
+const dropdownSearch = ref('') // 下拉選單內的搜尋字串
 
 const editModalOpen = ref(false)
 const editForm = ref({ id: '', originalName: '', cleanName: '', role: '', profession: '', department: '' })
 
 onMounted(() => {
   loadUsers()
+  document.addEventListener('click', closeDropdown) // 點擊畫面其他地方自動關閉選單
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdown)
 })
 
 async function loadUsers() {
@@ -324,45 +344,95 @@ function scrollToTop() {
   if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
+// === 自訂搜尋下拉選單邏輯 ===
+function toggleDropdown(studentId, type) {
+  const target = `${studentId}${type}`
+  if (activeDropdown.value === target) {
+    closeDropdown()
+  } else {
+    activeDropdown.value = target
+    dropdownSearch.value = '' // 打開時清空搜尋
+  }
+}
+
+function closeDropdown() {
+  activeDropdown.value = null
+  dropdownSearch.value = ''
+}
+
+function selectOption(student, field, value) {
+  student[field] = value
+  closeDropdown()
+}
+
+function getTeacherName(id) {
+  if (!id) return '-- 尚未指派 --'
+  const t = teachers.value.find(x => x.id === id)
+  return t ? extractCleanName(t.name) : '-- 尚未指派 --'
+}
+
+function getSupervisorName(id) {
+  if (!id) return '-- 尚未指派 --'
+  const s = supervisors.value.find(x => x.id === id)
+  return s ? extractCleanName(s.name) : '-- 尚未指派 --'
+}
+
+// 根據搜尋字串動態過濾並分組 (支援老師與主管)
+function getFilteredGroups(type, search) {
+  const isTeacher = type === 'teacher'
+  const sourceList = isTeacher ? teachers.value : supervisors.value
+  const options = isTeacher ? professionOptions : departmentOptions
+  
+  let filtered = sourceList
+  if (search) {
+    const q = search.toLowerCase()
+    filtered = filtered.filter(x => x.name && x.name.toLowerCase().includes(q))
+  }
+
+  const groups = {}
+  options.forEach(opt => groups[opt] = [])
+  const ungrouped = []
+  
+  filtered.forEach(item => {
+    const match = item.name?.match(/^\[(.*?)\]\s*(.*)$/)
+    if (match && options.includes(match[1])) {
+      groups[match[1]].push(item)
+    } else {
+      ungrouped.push(item)
+    }
+  })
+  
+  // 移除空的群組
+  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
+  if (ungrouped.length > 0) groups['其他 / 未分類'] = ungrouped
+  
+  return groups
+}
+
+
 // === 帳號總覽過濾邏輯 ===
 const filteredAccounts = computed(() => {
   let result = allProfiles.value
-
-  // 1. 先用身分快篩過濾
-  if (accountFilterRole.value !== 'all') {
-    result = result.filter(u => u.role === accountFilterRole.value)
-  }
-
-  // 2. 再用搜尋字串過濾
+  if (accountFilterRole.value !== 'all') result = result.filter(u => u.role === accountFilterRole.value)
   if (accountSearch.value) {
     const query = accountSearch.value.toLowerCase()
-    result = result.filter(u => 
-      (u.name && u.name.toLowerCase().includes(query)) || 
-      (u.email && u.email.toLowerCase().includes(query))
-    )
+    result = result.filter(u => (u.name && u.name.toLowerCase().includes(query)) || (u.email && u.email.toLowerCase().includes(query)))
   }
-
   return result
 })
-
 const accountTotalPages = computed(() => Math.ceil(filteredAccounts.value.length / itemsPerPage) || 1)
 const paginatedAccounts = computed(() => {
   const start = (accountPage.value - 1) * itemsPerPage
   return filteredAccounts.value.slice(start, start + itemsPerPage)
 })
+watch([accountSearch, accountFilterRole], () => accountPage.value = 1)
 
-// 若搜尋或切換身分，皆自動跳回第一頁
-watch([accountSearch, accountFilterRole], () => {
-  accountPage.value = 1
-})
 
 // === 學員配對過濾邏輯 ===
 const filteredStudents = computed(() => {
   if (!searchQuery.value) return students.value
   const query = searchQuery.value.toLowerCase()
-  return students.value.filter(s => 
-    (s.name && s.name.toLowerCase().includes(query)) || (s.email && s.email.toLowerCase().includes(query))
-  )
+  return students.value.filter(s => (s.name && s.name.toLowerCase().includes(query)) || (s.email && s.email.toLowerCase().includes(query)))
 })
 const totalPages = computed(() => Math.ceil(filteredStudents.value.length / itemsPerPage) || 1)
 const paginatedStudents = computed(() => {
@@ -370,30 +440,6 @@ const paginatedStudents = computed(() => {
   return filteredStudents.value.slice(start, start + itemsPerPage)
 })
 watch(searchQuery, () => currentPage.value = 1)
-
-const groupedTeachers = computed(() => {
-  const groups = {}
-  professionOptions.forEach(p => groups[p] = [])
-  teachers.value.forEach(t => {
-    const match = t.name?.match(/^\[(.*?)\]\s*(.*)$/)
-    if (match && professionOptions.includes(match[1])) groups[match[1]].push(t)
-    else { groups['其他'] = groups['其他'] || []; groups['其他'].push(t) }
-  })
-  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
-  return groups
-})
-
-const groupedSupervisors = computed(() => {
-  const groups = {}
-  departmentOptions.forEach(d => groups[d] = [])
-  supervisors.value.forEach(s => {
-    const match = s.name?.match(/^\[(.*?)\]\s*(.*)$/)
-    if (match && departmentOptions.includes(match[1])) groups[match[1]].push(s)
-    else { groups['其他'] = groups['其他'] || []; groups['其他'].push(s) }
-  })
-  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
-  return groups
-})
 
 function extractCleanName(fullName) {
   if (!fullName) return ''
@@ -458,26 +504,31 @@ async function saveRoleChange() {
 }
 
 async function deleteUser(user) {
-  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會清除該員在系統上的所有配對紀錄與心得報告，此動作無法復原！`)) return
+  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n此動作無法復原！`)) return
 
   try {
-    // 1. 先刪除最外層關聯：所有心得報告
-    await supabase.from('feedback_reports').delete().eq('student_id', user.id)
+    if (user.role === 'student') {
+      await supabase.from('feedback_reports').delete().eq('student_id', user.id)
+    } else {
+      await supabase.from('feedback_reports').update({ teacher_id: null }).eq('teacher_id', user.id)
+      await supabase.from('feedback_reports').update({ supervisor_id: null }).eq('supervisor_id', user.id)
+    }
     
-    // 2. 刪除配對資料
     await supabase.from('assignments').delete().eq('student_id', user.id)
     await supabase.from('assignments').delete().eq('teacher_id', user.id)
     await supabase.from('assignments').delete().eq('supervisor_id', user.id)
     
-    // 3. 最後刪除 Profile 核心資料
-    const { error } = await supabase.from('profiles').delete().eq('id', user.id)
-    
+    const { data, error } = await supabase.from('profiles').delete().eq('id', user.id).select()
     if (error) throw error
+    if (!data || data.length === 0) {
+       alert('❌ 刪除失敗被系統攔截！\n請至 Supabase 後台 -> Database -> Policies，為 profiles 表格新增一條允許 DELETE (USING true) 的規則。')
+       return
+    }
 
     alert(`✅ 已成功將 ${user.name} 的資料從平台移除！`)
     await loadUsers()
   } catch (err) {
-    alert('刪除過程中發生錯誤：' + err.message)
+    alert('刪除過程中發生資料庫錯誤：' + err.message)
   }
 }
 
@@ -509,7 +560,6 @@ async function handleLogout() {
 .admin-card h3 { margin: 0; color: #34495e; }
 .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 15px; }
 
-/* 快篩按鈕群組 */
 .filter-group { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
 .filter-tag { background: #f1f2f6; border: 1px solid #dfe4ea; padding: 6px 15px; border-radius: 20px; font-size: 14px; cursor: pointer; color: #7f8c8d; font-weight: bold; transition: all 0.2s; }
 .filter-tag:hover { background: #dcdde1; color: #2f3542; }
@@ -524,7 +574,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .action-row { display: flex; justify-content: flex-end; margin-top: 20px; }
 .submit-btn { padding: 12px 30px; font-size: 16px; }
 
-.table-responsive { overflow-x: auto; }
+.table-responsive { overflow-x: visible; }
 .assignment-table { width: 100%; border-collapse: collapse; }
 .assignment-table th, .assignment-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; color: #333333; }
 .assignment-table th { background-color: #f8f9fa; font-weight: bold; color: #1a1a1a; }
@@ -536,9 +586,18 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .role-badge.supervisor { background: #e67e22; }
 .role-badge.admin { background: #e74c3c; }
 
-.table-select { width: 100%; min-width: 150px; cursor: pointer; }
-optgroup { font-weight: bold; color: #2980b9; font-style: normal; }
-option { color: #333; font-weight: normal; }
+/* 自訂搜尋下拉選單樣式 */
+.custom-select { position: relative; width: 100%; min-width: 170px; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-sizing: border-box; }
+.selected-text { font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+.selected-text.placeholder { color: #7f8c8d; font-weight: normal; }
+.dropdown-arrow { font-size: 10px; color: #7f8c8d; }
+.dropdown-menu { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); z-index: 100; margin-top: 4px; max-height: 280px; display: flex; flex-direction: column; }
+.dropdown-search { width: 100%; border: none; border-bottom: 1px solid #eee; padding: 12px; font-size: 14px; box-sizing: border-box; outline: none; background: #fdfdfd; }
+.dropdown-options { overflow-y: auto; flex: 1; }
+.optgroup-label { padding: 8px 12px; font-size: 12px; font-weight: bold; color: #2980b9; background-color: #f8f9fa; border-top: 1px solid #eee; }
+.option-item { padding: 10px 15px; font-size: 14px; color: #333; cursor: pointer; transition: background 0.1s; }
+.option-item:hover { background-color: #f1f2f6; }
+
 .empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
 
 .pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; }
