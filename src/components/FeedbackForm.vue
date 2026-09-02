@@ -423,8 +423,19 @@ async function handleLogout() {
 .list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
 .assignment-table { width: 100%; border-collapse: collapse; }
-.assignment-table th, .assignment-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; }
-.assignment-table th { background-color: #f8f9fa; font-weight: bold; color: #333; }
+.assignment-table th, .assignment-table td { 
+  border: 1px solid #ddd; 
+  padding: 12px; 
+  text-align: left; 
+  vertical-align: middle; 
+  color: #333333; /* 強制覆蓋為深灰色，增加對比度 */
+  font-weight: 500;
+}
+.assignment-table th { 
+  background-color: #f8f9fa; 
+  font-weight: bold; 
+  color: #1a1a1a; /* 標題用更深的近黑色 */
+}
 .status-badge { padding: 5px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; text-align: center; }
 .status-badge.not_started { background: #ecf0f1; color: #7f8c8d; }
 .status-badge.draft { background: #f1c40f; color: #8e44ad; }
