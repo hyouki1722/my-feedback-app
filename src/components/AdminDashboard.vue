@@ -48,7 +48,6 @@
               </div>
             </div>
 
-            <!-- 動態顯示：職別或單位 -->
             <div class="form-row" v-if="newUser.role === 'teacher'">
               <div class="form-group">
                 <label>臨床老師職別：</label>
@@ -98,6 +97,15 @@
           </div>
           <p class="subtitle">管理平台內所有人員（結訓學員或離職員工可在此進行身分變更或資料刪除）：</p>
           
+          <!-- 身分快篩標籤區塊 -->
+          <div class="filter-group">
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'all' }" @click="accountFilterRole = 'all'">全部顯示</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'student' }" @click="accountFilterRole = 'student'">學員</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'teacher' }" @click="accountFilterRole = 'teacher'">臨床老師</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'supervisor' }" @click="accountFilterRole = 'supervisor'">單位主管</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'admin' }" @click="accountFilterRole = 'admin'">管理員</button>
+          </div>
+          
           <div class="table-responsive">
             <table class="assignment-table">
               <thead>
@@ -127,11 +135,10 @@
             </table>
           </div>
 
-          <!-- 帳號分頁控制 -->
           <div class="pagination-controls" v-if="accountTotalPages > 1">
-            <button @click="accountPage--" :disabled="accountPage === 1" class="btn page-btn">上一頁</button>
+            <button @click="accountPage--; scrollToTop()" :disabled="accountPage === 1" class="btn page-btn">上一頁</button>
             <span class="page-info">第 {{ accountPage }} 頁 / 共 {{ accountTotalPages }} 頁 (總計 {{ filteredAccounts.length }} 筆)</span>
-            <button @click="accountPage++" :disabled="accountPage === accountTotalPages" class="btn page-btn">下一頁</button>
+            <button @click="accountPage++; scrollToTop()" :disabled="accountPage === accountTotalPages" class="btn page-btn">下一頁</button>
           </div>
         </div>
       </div>
@@ -197,9 +204,9 @@
           </div>
 
           <div class="pagination-controls" v-if="totalPages > 1">
-            <button @click="currentPage--" :disabled="currentPage === 1" class="btn page-btn">上一頁</button>
+            <button @click="currentPage--; scrollToTop()" :disabled="currentPage === 1" class="btn page-btn">上一頁</button>
             <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁 (總計 {{ filteredStudents.length }} 筆)</span>
-            <button @click="currentPage++" :disabled="currentPage === totalPages" class="btn page-btn">下一頁</button>
+            <button @click="currentPage++; scrollToTop()" :disabled="currentPage === totalPages" class="btn page-btn">下一頁</button>
           </div>
         </div>
       </div>
@@ -274,15 +281,16 @@ const departmentOptions = ['2A', '3A', '4A', '5A', '5B', '5C', '6A', '6C', '7C',
 const isCreating = ref(false)
 const newUser = ref({ name: '', role: '', email: '', password: '', profession: '', department: '' })
 
-// 配對分頁
+// 帳號快篩與分頁狀態
+const accountSearch = ref('')
+const accountFilterRole = ref('all') // 新增：身分快篩
+const accountPage = ref(1)
+
+// 配對分頁狀態
 const searchQuery = ref('')
 const currentPage = ref(1)
-// 帳號分頁
-const accountSearch = ref('')
-const accountPage = ref(1)
 const itemsPerPage = 10 
 
-// 編輯彈跳視窗
 const editModalOpen = ref(false)
 const editForm = ref({ id: '', originalName: '', cleanName: '', role: '', profession: '', department: '' })
 
@@ -311,23 +319,44 @@ async function loadUsers() {
   }
 }
 
-// === 第一頁：帳號管理計算 ===
+function scrollToTop() {
+  const wrapper = document.querySelector('.admin-wrapper')
+  if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// === 帳號總覽過濾邏輯 ===
 const filteredAccounts = computed(() => {
-  if (!accountSearch.value) return allProfiles.value
-  const query = accountSearch.value.toLowerCase()
-  return allProfiles.value.filter(u => 
-    (u.name && u.name.toLowerCase().includes(query)) || 
-    (u.email && u.email.toLowerCase().includes(query))
-  )
+  let result = allProfiles.value
+
+  // 1. 先用身分快篩過濾
+  if (accountFilterRole.value !== 'all') {
+    result = result.filter(u => u.role === accountFilterRole.value)
+  }
+
+  // 2. 再用搜尋字串過濾
+  if (accountSearch.value) {
+    const query = accountSearch.value.toLowerCase()
+    result = result.filter(u => 
+      (u.name && u.name.toLowerCase().includes(query)) || 
+      (u.email && u.email.toLowerCase().includes(query))
+    )
+  }
+
+  return result
 })
+
 const accountTotalPages = computed(() => Math.ceil(filteredAccounts.value.length / itemsPerPage) || 1)
 const paginatedAccounts = computed(() => {
   const start = (accountPage.value - 1) * itemsPerPage
   return filteredAccounts.value.slice(start, start + itemsPerPage)
 })
-watch(accountSearch, () => accountPage.value = 1)
 
-// === 第二頁：配對管理計算 ===
+// 若搜尋或切換身分，皆自動跳回第一頁
+watch([accountSearch, accountFilterRole], () => {
+  accountPage.value = 1
+})
+
+// === 學員配對過濾邏輯 ===
 const filteredStudents = computed(() => {
   if (!searchQuery.value) return students.value
   const query = searchQuery.value.toLowerCase()
@@ -342,7 +371,6 @@ const paginatedStudents = computed(() => {
 })
 watch(searchQuery, () => currentPage.value = 1)
 
-// 老師與主管分組
 const groupedTeachers = computed(() => {
   const groups = {}
   professionOptions.forEach(p => groups[p] = [])
@@ -381,7 +409,6 @@ function getRoleName(role) {
   return map[role] || role
 }
 
-// === 建立與編輯操作 ===
 async function handleCreateUser() {
   isCreating.value = true
   const { data, error } = await authClient.auth.signUp({ email: newUser.value.email, password: newUser.value.password })
@@ -433,14 +460,11 @@ async function saveRoleChange() {
 async function deleteUser(user) {
   if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會清除該員在系統上的所有配對紀錄與基本資料，此動作無法復原！`)) return
 
-  // 為了防止關聯報錯，先清除配對資料 (包含他作為學員、老師、或主管的所有紀錄)
   await supabase.from('assignments').delete().eq('student_id', user.id)
   await supabase.from('assignments').delete().eq('teacher_id', user.id)
   await supabase.from('assignments').delete().eq('supervisor_id', user.id)
-  // 刪除其心得回饋紀錄
   await supabase.from('feedback_reports').delete().eq('student_id', user.id)
   
-  // 刪除 Profile 本體
   const { error } = await supabase.from('profiles').delete().eq('id', user.id)
   if (error) alert('刪除失敗：' + error.message)
   else {
@@ -462,12 +486,11 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.admin-wrapper { position: absolute; top: 0; left: 0; width: 100vw; min-height: 100vh; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; box-sizing: border-box; font-family: "微軟正黑體", sans-serif; overflow-y: auto; }
+.admin-wrapper { position: absolute; top: 0; left: 0; width: 100vw; min-height: 100vh; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; box-sizing: border-box; font-family: "微軟正黑體", sans-serif; overflow-y: auto; scroll-behavior: smooth; }
 .admin-container { width: 100%; max-width: 1000px; }
 .system-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .title { margin: 0; color: #2c3e50; font-size: 24px; }
 
-/* 頂部切換選單樣式 */
 .admin-tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
 .tab-btn { background: transparent; border: none; font-size: 18px; font-weight: bold; color: #7f8c8d; padding: 10px 20px; cursor: pointer; transition: 0.3s; border-radius: 8px 8px 0 0; }
 .tab-btn:hover { color: #34495e; background: #e8ecef; }
@@ -476,7 +499,13 @@ async function handleLogout() {
 .admin-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e1e4e8; }
 .card-header-flex { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 .admin-card h3 { margin: 0; color: #34495e; }
-.subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
+.subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 15px; }
+
+/* 快篩按鈕群組 */
+.filter-group { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-tag { background: #f1f2f6; border: 1px solid #dfe4ea; padding: 6px 15px; border-radius: 20px; font-size: 14px; cursor: pointer; color: #7f8c8d; font-weight: bold; transition: all 0.2s; }
+.filter-tag:hover { background: #dcdde1; color: #2f3542; }
+.filter-tag.active { background: #34495e; color: white; border-color: #34495e; }
 
 .search-input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 20px; width: 250px; font-size: 14px; outline: none; transition: border-color 0.2s; }
 .search-input:focus { border-color: #3498db; }
