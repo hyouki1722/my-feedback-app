@@ -29,13 +29,25 @@
             </div>
           </div>
 
-          <!-- 當選擇身分為「老師」時，才顯示職別選單 -->
+          <!-- 當選擇身分為「老師」時顯示 -->
           <div class="form-row" v-if="newUser.role === 'teacher'">
             <div class="form-group">
               <label>臨床老師職別：</label>
               <select v-model="newUser.profession" required>
                 <option value="" disabled>請選擇職別</option>
                 <option v-for="prof in professionOptions" :key="prof" :value="prof">{{ prof }}</option>
+              </select>
+            </div>
+            <div class="form-group"></div>
+          </div>
+
+          <!-- 當選擇身分為「單位主管」時顯示 -->
+          <div class="form-row" v-if="newUser.role === 'supervisor'">
+            <div class="form-group">
+              <label>所屬單位：</label>
+              <select v-model="newUser.department" required>
+                <option value="" disabled>請選擇單位</option>
+                <option v-for="dept in departmentOptions" :key="dept" :value="dept">{{ dept }}</option>
               </select>
             </div>
             <div class="form-group"></div>
@@ -88,7 +100,7 @@
                   <div class="user-email">{{ student.email }}</div>
                 </td>
                 <td>
-                  <!-- 老師下拉選單：加入群組分類 -->
+                  <!-- 老師下拉選單：依職別分組 -->
                   <select v-model="student.teacher_id" class="table-select">
                     <option :value="null">-- 尚未指派 --</option>
                     <optgroup v-for="(teachersInProf, profName) in groupedTeachers" :key="profName" :label="profName">
@@ -96,7 +108,6 @@
                         {{ extractCleanName(t.name) || t.email }}
                       </option>
                     </optgroup>
-                    <!-- 處理舊資料沒有職別標籤的老師 -->
                     <optgroup v-if="ungroupedTeachers.length > 0" label="其他 / 未分類">
                       <option v-for="t in ungroupedTeachers" :key="t.id" :value="t.id">
                         {{ t.name || t.email }}
@@ -105,9 +116,19 @@
                   </select>
                 </td>
                 <td>
+                  <!-- 主管下拉選單：依單位分組 -->
                   <select v-model="student.supervisor_id" class="table-select">
                     <option :value="null">-- 尚未指派 --</option>
-                    <option v-for="s in supervisors" :key="s.id" :value="s.id">{{ s.name || s.email }}</option>
+                    <optgroup v-for="(supervisorsInDept, deptName) in groupedSupervisors" :key="deptName" :label="deptName">
+                      <option v-for="s in supervisorsInDept" :key="s.id" :value="s.id">
+                        {{ extractCleanName(s.name) || s.email }}
+                      </option>
+                    </optgroup>
+                    <optgroup v-if="ungroupedSupervisors.length > 0" label="其他 / 未分類">
+                      <option v-for="s in ungroupedSupervisors" :key="s.id" :value="s.id">
+                        {{ s.name || s.email }}
+                      </option>
+                    </optgroup>
                   </select>
                 </td>
                 <td>
@@ -158,13 +179,19 @@ const professionOptions = [
   '護理師', '藥師', '呼吸治療師', '物理治療師', '職能治療師', '醫事放射師', '其他'
 ]
 
+const departmentOptions = [
+  '2A', '3A', '4A', '5A', '5B', '5C', '6A', '6C', '7C', '8C', 
+  'DR', 'NBC', 'RC', 'PI', 'SI', 'MI', 'CCU'
+]
+
 const isCreating = ref(false)
 const newUser = ref({
   name: '',
   role: '',
   email: '',
   password: '',
-  profession: '' // 新增職別欄位
+  profession: '',
+  department: ''
 })
 
 const searchQuery = ref('')
@@ -195,27 +222,18 @@ async function loadUsers() {
   }
 }
 
-// 將老師依照 [職別] 分組的計算屬性
+// 老師依照 [職別] 分組
 const groupedTeachers = computed(() => {
   const groups = {}
   professionOptions.forEach(p => groups[p] = [])
-  
   teachers.value.forEach(t => {
     const match = t.name?.match(/^\[(.*?)\]\s*(.*)$/)
-    if (match && professionOptions.includes(match[1])) {
-      groups[match[1]].push(t)
-    }
+    if (match && professionOptions.includes(match[1])) groups[match[1]].push(t)
   })
-  
-  // 移除空的群組
-  Object.keys(groups).forEach(key => {
-    if (groups[key].length === 0) delete groups[key]
-  })
-  
+  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
   return groups
 })
 
-// 處理沒有職別標籤的舊有老師資料
 const ungroupedTeachers = computed(() => {
   return teachers.value.filter(t => {
     const match = t.name?.match(/^\[(.*?)\]\s*(.*)$/)
@@ -223,7 +241,26 @@ const ungroupedTeachers = computed(() => {
   })
 })
 
-// 為了在下拉選單中去掉 [職別] 前綴，讓畫面乾淨
+// 主管依照 [單位] 分組
+const groupedSupervisors = computed(() => {
+  const groups = {}
+  departmentOptions.forEach(d => groups[d] = [])
+  supervisors.value.forEach(s => {
+    const match = s.name?.match(/^\[(.*?)\]\s*(.*)$/)
+    if (match && departmentOptions.includes(match[1])) groups[match[1]].push(s)
+  })
+  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
+  return groups
+})
+
+const ungroupedSupervisors = computed(() => {
+  return supervisors.value.filter(s => {
+    const match = s.name?.match(/^\[(.*?)\]\s*(.*)$/)
+    return !match || !departmentOptions.includes(match[1])
+  })
+})
+
+// 去掉 [前綴標籤]，讓畫面乾淨
 function extractCleanName(fullName) {
   if (!fullName) return ''
   const match = fullName.match(/^\[.*?\]\s*(.*)$/)
@@ -264,15 +301,17 @@ async function handleCreateUser() {
   if (error) {
     alert('建立失敗：' + error.message)
   } else if (data?.user) {
-    // 組合名字。如果是老師，將職別包在括號內加上名字前綴
+    // 組合名字 (老師套用職別、主管套用單位)
     let finalName = newUser.value.name
     if (newUser.value.role === 'teacher' && newUser.value.profession) {
       finalName = `[${newUser.value.profession}] ${finalName}`
+    } else if (newUser.value.role === 'supervisor' && newUser.value.department) {
+      finalName = `[${newUser.value.department}] ${finalName}`
     }
 
     const { error: profileError } = await supabase.from('profiles').insert([{
       id: data.user.id,
-      name: finalName, // 存入組合好的名字
+      name: finalName,
       role: newUser.value.role,
       email: newUser.value.email
     }])
@@ -281,7 +320,7 @@ async function handleCreateUser() {
       alert('Auth 建立成功，但寫入 profile 失敗：' + profileError.message)
     } else {
       alert(`✅ 帳號 ${finalName} (${newUser.value.role}) 建立成功！`)
-      newUser.value = { name: '', role: '', email: '', password: '', profession: '' }
+      newUser.value = { name: '', role: '', email: '', password: '', profession: '', department: '' }
       await loadUsers() 
     }
   }
