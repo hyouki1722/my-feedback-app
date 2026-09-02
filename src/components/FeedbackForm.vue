@@ -2,7 +2,25 @@
   <div class="app-container">
     <div class="system-header">
       <div class="header-text">目前登入身分：<span class="role-tag">{{ roleName }}</span></div>
-      <button @click="handleLogout" class="btn logout-btn">登出系統</button>
+      <div class="header-actions">
+        <button @click="showPasswordModal = true" class="btn warning-btn small-btn">修改密碼</button>
+        <button @click="handleLogout" class="btn logout-btn small-btn">登出系統</button>
+      </div>
+    </div>
+
+    <!-- 修改密碼的彈跳視窗 -->
+    <div v-if="showPasswordModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>修改登入密碼</h3>
+        <div class="form-group">
+          <label>請輸入新密碼 (至少 6 位數)：</label>
+          <input type="password" v-model="newPassword" placeholder="輸入新密碼" class="modal-input">
+        </div>
+        <div class="modal-actions">
+          <button @click="showPasswordModal = false" class="btn dark-btn">取消</button>
+          <button @click="updatePassword" class="btn primary-btn">確認修改</button>
+        </div>
+      </div>
     </div>
 
     <div v-if="isLoading" class="loading">載入資料中...</div>
@@ -130,6 +148,9 @@ const props = defineProps(['session', 'userRole'])
 const viewMode = ref('form')
 const assignedReports = ref([])
 const isLoading = ref(true)
+
+const showPasswordModal = ref(false)
+const newPassword = ref('')
 
 const report = ref({
   id: null,
@@ -390,6 +411,22 @@ async function rejectToStudent() {
   }
 }
 
+async function updatePassword() {
+  if (newPassword.value.length < 6) return alert('密碼長度至少需要 6 個字元！')
+  
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword.value
+  })
+  
+  if (error) {
+    alert('密碼修改失敗：' + error.message)
+  } else {
+    alert('密碼修改成功！下次登入請使用新密碼。')
+    showPasswordModal.value = false
+    newPassword.value = ''
+  }
+}
+
 async function handleLogout() {
   await supabase.auth.signOut()
 }
@@ -419,23 +456,19 @@ async function handleLogout() {
 .warning-btn { background: #e67e22; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 
+.header-actions { display: flex; gap: 10px; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.modal-content h3 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; }
+.modal-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-top: 8px; font-size: 16px; box-sizing: border-box; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
 .loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }
 .list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
 .assignment-table { width: 100%; border-collapse: collapse; }
-.assignment-table th, .assignment-table td { 
-  border: 1px solid #ddd; 
-  padding: 12px; 
-  text-align: left; 
-  vertical-align: middle; 
-  color: #333333; /* 強制覆蓋為深灰色，增加對比度 */
-  font-weight: 500;
-}
-.assignment-table th { 
-  background-color: #f8f9fa; 
-  font-weight: bold; 
-  color: #1a1a1a; /* 標題用更深的近黑色 */
-}
+.assignment-table th, .assignment-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; color: #333333; font-weight: 500; }
+.assignment-table th { background-color: #f8f9fa; font-weight: bold; color: #1a1a1a; }
 .status-badge { padding: 5px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; text-align: center; }
 .status-badge.not_started { background: #ecf0f1; color: #7f8c8d; }
 .status-badge.draft { background: #f1c40f; color: #8e44ad; }
