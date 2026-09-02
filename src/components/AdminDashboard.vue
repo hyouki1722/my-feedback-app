@@ -458,18 +458,26 @@ async function saveRoleChange() {
 }
 
 async function deleteUser(user) {
-  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會清除該員在系統上的所有配對紀錄與基本資料，此動作無法復原！`)) return
+  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會清除該員在系統上的所有配對紀錄與心得報告，此動作無法復原！`)) return
 
-  await supabase.from('assignments').delete().eq('student_id', user.id)
-  await supabase.from('assignments').delete().eq('teacher_id', user.id)
-  await supabase.from('assignments').delete().eq('supervisor_id', user.id)
-  await supabase.from('feedback_reports').delete().eq('student_id', user.id)
-  
-  const { error } = await supabase.from('profiles').delete().eq('id', user.id)
-  if (error) alert('刪除失敗：' + error.message)
-  else {
+  try {
+    // 1. 先刪除最外層關聯：所有心得報告
+    await supabase.from('feedback_reports').delete().eq('student_id', user.id)
+    
+    // 2. 刪除配對資料
+    await supabase.from('assignments').delete().eq('student_id', user.id)
+    await supabase.from('assignments').delete().eq('teacher_id', user.id)
+    await supabase.from('assignments').delete().eq('supervisor_id', user.id)
+    
+    // 3. 最後刪除 Profile 核心資料
+    const { error } = await supabase.from('profiles').delete().eq('id', user.id)
+    
+    if (error) throw error
+
     alert(`✅ 已成功將 ${user.name} 的資料從平台移除！`)
     await loadUsers()
+  } catch (err) {
+    alert('刪除過程中發生錯誤：' + err.message)
   }
 }
 
