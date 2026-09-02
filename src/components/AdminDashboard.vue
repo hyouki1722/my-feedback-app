@@ -48,10 +48,16 @@
         </form>
       </div>
 
-      <!-- 區塊二：學員配對管理 (維持原有功能並優化排版) -->
+      <!-- 區塊二：學員配對管理 -->
       <div class="admin-card">
-        <h3>🔗 學員指導配對管理</h3>
-        <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管：</p>
+        <div class="card-header-flex">
+          <h3>🔗 學員指導配對管理</h3>
+          <!-- 搜尋框 -->
+          <div class="search-box">
+            <input type="text" v-model="searchQuery" placeholder="🔍 搜尋學員姓名或信箱..." class="search-input" />
+          </div>
+        </div>
+        <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管 (搭配搜尋功能可快速尋找)：</p>
         
         <div class="table-responsive">
           <table class="assignment-table">
@@ -64,7 +70,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="student in students" :key="student.id">
+              <!-- 這裡改為渲染分頁後的 paginatedStudents -->
+              <tr v-for="student in paginatedStudents" :key="student.id">
                 <td>
                   <div class="user-name">{{ student.name || '未命名' }}</div>
                   <div class="user-email">{{ student.email }}</div>
@@ -85,11 +92,18 @@
                   <button @click="saveAssignment(student)" class="btn success-btn">儲存配對</button>
                 </td>
               </tr>
-              <tr v-if="students.length === 0">
-                <td colspan="4" class="empty-state">系統中尚無學員資料</td>
+              <tr v-if="filteredStudents.length === 0">
+                <td colspan="4" class="empty-state">找不到符合條件的學員資料</td>
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- 分頁控制區 -->
+        <div class="pagination-controls" v-if="totalPages > 1">
+          <button @click="currentPage--" :disabled="currentPage === 1" class="btn page-btn">上一頁</button>
+          <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁 (總計 {{ filteredStudents.length }} 筆)</span>
+          <button @click="currentPage++" :disabled="currentPage === totalPages" class="btn page-btn">下一頁</button>
         </div>
       </div>
       
@@ -98,13 +112,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '../supabase'
 
 const students = ref([])
 const teachers = ref([])
 const supervisors = ref([])
 
+// 建立帳號狀態
 const isCreating = ref(false)
 const newUser = ref({
   name: '',
@@ -112,6 +127,11 @@ const newUser = ref({
   email: '',
   password: ''
 })
+
+// 搜尋與分頁狀態
+const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 10 // 每頁顯示 10 筆
 
 onMounted(() => {
   loadUsers()
@@ -121,12 +141,10 @@ onMounted(() => {
 async function loadUsers() {
   const { data, error } = await supabase.from('profiles').select('*')
   if (data) {
-    // 預設為 null，等待後續合併
     students.value = data.filter(u => u.role === 'student').map(s => ({ ...s, teacher_id: null, supervisor_id: null }))
     teachers.value = data.filter(u => u.role === 'teacher')
     supervisors.value = data.filter(u => u.role === 'supervisor')
     
-    // 載入目前配對紀錄
     const { data: assigns } = await supabase.from('assignments').select('*')
     if (assigns) {
       students.value.forEach(s => {
@@ -140,11 +158,36 @@ async function loadUsers() {
   }
 }
 
-// 建立新使用者
+// === 搜尋與分頁邏輯 ===
+const filteredStudents = computed(() => {
+  if (!searchQuery.value) return students.value
+  const query = searchQuery.value.toLowerCase()
+  return students.value.filter(s => 
+    (s.name && s.name.toLowerCase().includes(query)) || 
+    (s.email && s.email.toLowerCase().includes(query))
+  )
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredStudents.value.length / itemsPerPage) || 1
+})
+
+const paginatedStudents = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredStudents.value.slice(start, end)
+})
+
+// 當搜尋字串改變時，自動跳回第一頁
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
+
+
+// === 建立與寫入邏輯 ===
 async function handleCreateUser() {
   isCreating.value = true
   
-  // 1. 建立 Auth 身分驗證帳號
   const { data, error } = await supabase.auth.signUp({
     email: newUser.value.email,
     password: newUser.value.password,
@@ -153,7 +196,6 @@ async function handleCreateUser() {
   if (error) {
     alert('建立失敗：' + error.message)
   } else if (data?.user) {
-    // 2. 關鍵修正：將新建的帳號資料，同步手動寫入 profiles 資料表
     const { error: profileError } = await supabase.from('profiles').insert([{
       id: data.user.id,
       name: newUser.value.name,
@@ -243,17 +285,36 @@ async function handleLogout() {
   margin-bottom: 25px;
   border: 1px solid #e1e4e8;
 }
-.admin-card h3 {
-  margin-top: 0;
-  color: #34495e;
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   border-bottom: 2px solid #ecf0f1;
   padding-bottom: 10px;
   margin-bottom: 15px;
+}
+.admin-card h3 {
+  margin: 0;
+  color: #34495e;
 }
 .subtitle {
   color: #7f8c8d;
   font-size: 14px;
   margin-bottom: 20px;
+}
+
+/* 搜尋框樣式 */
+.search-input {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  width: 250px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input:focus {
+  border-color: #3498db;
 }
 
 /* 表單排版 */
@@ -328,6 +389,32 @@ input, select {
   text-align: center;
   color: #7f8c8d;
   padding: 30px;
+}
+
+/* 分頁按鈕樣式 */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  gap: 15px;
+}
+.page-info {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2c3e50;
+}
+.page-btn {
+  background-color: #ecf0f1;
+  color: #333;
+  padding: 6px 15px;
+}
+.page-btn:hover:not(:disabled) {
+  background-color: #bdc3c7;
+}
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 按鈕共用樣式 */
