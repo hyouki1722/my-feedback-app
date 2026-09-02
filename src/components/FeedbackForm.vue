@@ -460,7 +460,28 @@ async function handleLogout() {
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 .modal-content h3 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; }
-.modal-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-top: 8px; font-size: 16px; box-sizing: border-box; }
+.modal-content label { 
+  display: block;
+  font-size: 15px;
+  font-weight: bold;
+  color: #333333; /* 強制設定標籤文字為深灰色 */
+}
+
+.modal-input { 
+  width: 100%; 
+  padding: 10px; 
+  border: 1px solid #999; /* 加深輸入框外框顏色 */
+  border-radius: 4px; 
+  margin-top: 8px; 
+  font-size: 16px; 
+  box-sizing: border-box; 
+  color: #333333; /* 確保使用者輸入的文字也是深色 */
+  background-color: #ffffff;
+}
+
+.modal-input::placeholder {
+  color: #7f8c8d; /* 讓佔位符號 (placeholder) 保持適當的灰度 */
+}
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 .loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }

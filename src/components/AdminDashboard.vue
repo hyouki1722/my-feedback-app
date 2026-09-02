@@ -282,7 +282,7 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .btn { border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
 .primary-btn { background-color: #3498db; color: white; }
 .primary-btn:hover:not(:disabled) { background-color: #2980b9; }
-.primary-btn:disabled { background-color: #343739; cursor: not-allowed; }
+.primary-btn:disabled { background-color: #cad2d8; cursor: not-allowed; }
 .success-btn { background-color: #2ecc71; color: white; padding: 8px 16px; }
 .success-btn:hover { background-color: #27ae60; }
 .logout-btn { background-color: #e74c3c; color: white; padding: 10px 20px; }
