@@ -88,26 +88,24 @@ async function checkUserRole(userId) {
 <style>
 body { margin: 0; background-color: #f0f2f5; font-family: "微軟正黑體", sans-serif; }
 
-/* 強化版骨架屏微光動畫 */
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+/* 替換為更穩定、無寬度限制的 Pulse (脈衝) 呼吸燈動畫 */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
 }
 
-/* 將所有骨架區塊套用新版高對比動畫 */
-.skeleton-header, .skeleton-title, .skeleton-line, .skeleton-box, .skeleton-cell {
-  background: #f0f0f0;
-  background-image: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: 4px;
-}
+.skeleton-page { width: 100%; max-width: 1000px; margin: 40px auto; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; }
 
-/* 骨架屏版面配置 (確保撐滿不破版) */
-.skeleton-page { width: 100%; max-width: 1000px; margin: 40px auto; padding: 20px; box-sizing: border-box; }
-.skeleton-header { height: 75px; width: 100%; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; }
-.skeleton-title { height: 28px; width: 40%; margin-bottom: 30px; }
-.skeleton-line { height: 18px; width: 100%; margin-bottom: 15px; }
-.skeleton-box { height: 300px; width: 100%; margin-top: 30px; border-radius: 8px; }
+.skeleton-header { height: 75px; width: 100%; margin-bottom: 30px; border-radius: 8px; background-color: #e4e7eb; animation: pulse 1.5s infinite ease-in-out; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+
+.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; width: 100%; box-sizing: border-box; }
+
+.skeleton-title { height: 28px; width: 40%; margin-bottom: 30px; border-radius: 4px; background-color: #e4e7eb; animation: pulse 1.5s infinite ease-in-out; }
+
+.skeleton-line { height: 18px; width: 100%; margin-bottom: 15px; border-radius: 4px; background-color: #e4e7eb; animation: pulse 1.5s infinite ease-in-out; }
+
+.skeleton-box { height: 300px; width: 100%; margin-top: 30px; border-radius: 8px; background-color: #e4e7eb; animation: pulse 1.5s infinite ease-in-out; }
+
+.global-loading { text-align: center; margin-top: 100px; font-size: 20px; color: #7f8c8d; }
 </style>
