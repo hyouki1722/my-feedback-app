@@ -17,18 +17,17 @@
 
       <div v-if="activeTab === 'accounts'">
         
-        <!-- 新增：批次匯入功能操作列 -->
         <div class="admin-card batch-card">
           <div class="batch-content">
             <div>
               <h3 style="margin:0 0 5px 0;">📥 Excel 批次匯入帳號</h3>
-              <p class="subtitle" style="margin:0;">請依照範本格式填寫，系統將以「身分證號」作為該員的預設登入密碼。</p>
+              <p class="subtitle" style="margin:0;">請依照系統匯出的報表格式上傳，密碼將預設為「身分證字號」。</p>
             </div>
             <div class="batch-actions">
-              <button @click="downloadTemplate" class="btn dark-btn small-btn">下載 Excel 範本</button>
+              <button @click="downloadTemplate" class="btn dark-btn small-btn">下載範本格式</button>
               <input type="file" ref="fileInput" accept=".xlsx, .xls" style="display:none" @change="handleBatchImport" />
               <button @click="$refs.fileInput.click()" class="btn success-btn" :disabled="isImporting">
-                {{ isImporting ? '⏳ 處理中...' : '上傳並匯入名單' }}
+                {{ isImporting ? '⏳ 處理中...' : '上傳人事報表' }}
               </button>
             </div>
           </div>
@@ -46,30 +45,26 @@
                 <label>身分：</label>
                 <select v-model="newUser.role" required>
                   <option value="" disabled>請選擇身分</option>
-                  <option value="student">學員</option>
-                  <option value="teacher">臨床老師</option>
+                  <option value="student">受訓人員 (學員)</option>
+                  <option value="teacher">教師 (臨床老師)</option>
                   <option value="supervisor">單位主管</option>
                 </select>
               </div>
             </div>
 
+            <!-- 職稱改為可手動輸入，預設護理師 -->
             <div class="form-row" v-if="newUser.role === 'teacher'">
               <div class="form-group">
-                <label>臨床老師職稱：</label>
-                <select v-model="newUser.profession" required>
-                  <option value="" disabled>請選擇職稱</option>
-                  <option v-for="prof in professionOptions" :key="prof" :value="prof">{{ prof }}</option>
-                </select>
+                <label>職類 (可手動修改)：</label>
+                <input type="text" v-model="newUser.profession" placeholder="例如：護理師、藥師..." required />
               </div>
               <div class="form-group"></div>
             </div>
+            
             <div class="form-row" v-if="newUser.role === 'supervisor'">
               <div class="form-group">
                 <label>所屬單位：</label>
-                <select v-model="newUser.department" required>
-                  <option value="" disabled>請選擇單位</option>
-                  <option v-for="dept in departmentOptions" :key="dept" :value="dept">{{ dept }}</option>
-                </select>
+                <input type="text" v-model="newUser.department" placeholder="例如：7C、CCU..." required />
               </div>
               <div class="form-group"></div>
             </div>
@@ -80,8 +75,8 @@
                 <input type="email" v-model="newUser.email" placeholder="請輸入登入信箱" required />
               </div>
               <div class="form-group">
-                <label>預設密碼 (至少 6 碼)：</label>
-                <input type="password" v-model="newUser.password" placeholder="請輸入預設密碼" minlength="6" required />
+                <label>預設密碼 (建議使用身分證號)：</label>
+                <input type="text" v-model="newUser.password" placeholder="請輸入預設密碼" minlength="6" required />
               </div>
             </div>
             <div class="action-row">
@@ -102,9 +97,9 @@
           
           <div class="filter-group">
             <button class="filter-tag" :class="{ active: accountFilterRole === 'all' }" @click="accountFilterRole = 'all'">全部顯示</button>
-            <button class="filter-tag" :class="{ active: accountFilterRole === 'student' }" @click="accountFilterRole = 'student'">學員</button>
-            <button class="filter-tag" :class="{ active: accountFilterRole === 'teacher' }" @click="accountFilterRole = 'teacher'">臨床老師</button>
-            <button class="filter-tag" :class="{ active: accountFilterRole === 'supervisor' }" @click="accountFilterRole = 'supervisor'">單位主管</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'student' }" @click="accountFilterRole = 'student'">受訓人員</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'teacher' }" @click="accountFilterRole = 'teacher'">教師</button>
+            <button class="filter-tag" :class="{ active: accountFilterRole === 'supervisor' }" @click="accountFilterRole = 'supervisor'">主管</button>
             <button class="filter-tag" :class="{ active: accountFilterRole === 'admin' }" @click="accountFilterRole = 'admin'">管理員</button>
           </div>
           
@@ -146,7 +141,6 @@
       </div>
 
       <div v-if="activeTab === 'assignments'">
-        <!-- 配對管理介面保留原樣，未更動 -->
         <div class="admin-card">
           <div class="card-header-flex">
             <h3>🔗 學員指導配對管理</h3>
@@ -236,6 +230,7 @@
       </div>
     </div>
 
+    <!-- 身分編輯彈跳視窗 (配合改為輸入框) -->
     <div v-if="editModalOpen" class="modal-overlay">
       <div class="modal-content">
         <h3>變更人員身分</h3>
@@ -249,26 +244,20 @@
         <div class="form-group">
           <label>變更系統身分：</label>
           <select v-model="editForm.role" class="modal-input">
-            <option value="student">學員</option>
-            <option value="teacher">臨床老師</option>
-            <option value="supervisor">單位主管</option>
+            <option value="student">受訓人員</option>
+            <option value="teacher">教師</option>
+            <option value="supervisor">主管</option>
           </select>
         </div>
 
         <div class="form-group" v-if="editForm.role === 'teacher'">
-          <label>選擇臨床老師職別：</label>
-          <select v-model="editForm.profession" class="modal-input">
-            <option value="" disabled>請選擇職別</option>
-            <option v-for="prof in professionOptions" :key="prof" :value="prof">{{ prof }}</option>
-          </select>
+          <label>臨床老師職類 (可手動輸入)：</label>
+          <input type="text" v-model="editForm.profession" class="modal-input" placeholder="例如：護理師" required />
         </div>
 
         <div class="form-group" v-if="editForm.role === 'supervisor'">
-          <label>選擇所屬單位：</label>
-          <select v-model="editForm.department" class="modal-input">
-            <option value="" disabled>請選擇單位</option>
-            <option v-for="dept in departmentOptions" :key="dept" :value="dept">{{ dept }}</option>
-          </select>
+          <label>所屬單位：</label>
+          <input type="text" v-model="editForm.department" class="modal-input" placeholder="例如：7C" required />
         </div>
 
         <div class="modal-actions">
@@ -305,11 +294,9 @@ const activeTab = ref('accounts')
 const teachers = ref([])
 const supervisors = ref([])
 
-const professionOptions = ['護理師', '藥師', '呼吸治療師', '物理治療師', '職能治療師', '醫事放射師', '其他']
-const departmentOptions = ['2A', '3A', '4A', '5A', '5B', '5C', '6A', '6C', '7C', '8C', 'DR', 'NBC', 'RC', 'PI', 'SI', 'MI', 'CCU']
-
 const isCreating = ref(false)
 const isImporting = ref(false)
+// 職稱/單位改為手動輸入後，初始預設給予護理師
 const newUser = ref({ name: '', role: '', email: '', password: '', profession: '', department: '' })
 
 const paginatedAccounts = ref([])
@@ -408,7 +395,11 @@ function scrollToTop() {
   if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-watch(() => newUser.value.role, (newRole) => { newUser.value.profession = newRole === 'teacher' ? '護理師' : '' })
+// 根據身分給予預設值，保留手動修改彈性
+watch(() => newUser.value.role, (newRole) => { 
+  if (newRole === 'teacher') newUser.value.profession = '護理師' 
+  else newUser.value.profession = ''
+})
 watch(() => editForm.value.role, (newRole) => {
   if (newRole === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
   else if (newRole !== 'teacher') editForm.value.profession = ''
@@ -433,25 +424,31 @@ function getSupervisorName(id) {
   return s ? extractCleanName(s.name) : '-- 尚未指派 --'
 }
 
+// 動態群組分類功能 (不再依賴寫死的選項)
 function getFilteredGroups(type, search) {
   const isTeacher = type === 'teacher'
   const sourceList = isTeacher ? teachers.value : supervisors.value
-  const options = isTeacher ? professionOptions : departmentOptions
   let filtered = sourceList
   if (search) {
     const q = search.toLowerCase()
     filtered = filtered.filter(x => x.name && x.name.toLowerCase().includes(q))
   }
+  
   const groups = {}
-  options.forEach(opt => groups[opt] = [])
   const ungrouped = []
+  
   filtered.forEach(item => {
     const match = item.name?.match(/^\[(.*?)\]\s*(.*)$/)
-    if (match && options.includes(match[1])) groups[match[1]].push(item)
-    else ungrouped.push(item)
+    if (match) {
+      const prefix = match[1]
+      if (!groups[prefix]) groups[prefix] = []
+      groups[prefix].push(item)
+    } else {
+      ungrouped.push(item)
+    }
   })
-  Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
-  if (ungrouped.length > 0) groups['其他 / 未分類'] = ungrouped
+  
+  if (ungrouped.length > 0) groups['未分類'] = ungrouped
   return groups
 }
 
@@ -465,24 +462,24 @@ function getPrefix(fullName) {
   return match ? match[1] : ''
 }
 function getRoleName(role) {
-  const map = { student: '學員', teacher: '臨床老師', supervisor: '單位主管', admin: '管理員' }
+  const map = { student: '受訓人員', teacher: '教師', supervisor: '主管', admin: '管理員' }
   return map[role] || role
 }
 
-// 產生並下載 Excel 範本
+// 產生並下載對應報表格式的 Excel 範本
 function downloadTemplate() {
   const templateData = [
-    { 姓名: '王小明', 身分: '學員', 職稱或單位: '', 信箱: 'student1@hospital.com', 身分證號: 'A123456789' },
-    { 姓名: '陳大文', 身分: '臨床老師', 職稱或單位: '護理師', 信箱: 'teacher1@hospital.com', 身分證號: 'B987654321' },
-    { 姓名: '林雅婷', 身分: '單位主管', 職稱或單位: '7C', 信箱: 'super1@hospital.com', 身分證號: 'C111222333' }
+    { 機構代碼: 'H001', 姓名: '王小明', 身分證字號: 'A123456789', EMAIL: 'student1@hospital.com', 離職: '', 職類: '', 師生別: '受訓人員' },
+    { 機構代碼: 'H001', 姓名: '陳大文', 身分證字號: 'B987654321', EMAIL: 'teacher1@hospital.com', 離職: '', 職類: '護理師', 師生別: '教師' },
+    { 機構代碼: 'H001', 姓名: '林雅婷', 身分證字號: 'C111222333', EMAIL: 'super1@hospital.com', 離職: 'Y', 職類: '專科護理師', 師生別: '主管' }
   ]
   const ws = XLSX.utils.json_to_sheet(templateData)
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '帳號匯入範本')
-  XLSX.writeFile(wb, '系統帳號批次匯入範本.xlsx')
+  XLSX.utils.book_append_sheet(wb, ws, '帳號匯入格式')
+  XLSX.writeFile(wb, '學習護照人員匯入報表.xlsx')
 }
 
-// 處理 Excel 批次上傳邏輯
+// 處理 Excel 批次上傳與報表解析邏輯
 async function handleBatchImport(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -499,21 +496,27 @@ async function handleBatchImport(event) {
 
     for (const row of rows) {
       const name = row['姓名']
-      const roleRaw = row['身分']
-      const extInfo = row['職稱或單位'] || ''
-      const email = row['信箱']
-      const idNumber = row['身分證號']
+      const roleRaw = row['師生別']
+      const email = row['EMAIL']
+      const idNumber = row['身分證字號']
+      const extInfo = row['職類'] || ''
+      const isResigned = row['離職']
 
+      // 略過缺漏資料或已離職人員
       if (!name || !roleRaw || !email || !idNumber) {
-        errorList.push(`${name || '未知'}: 缺少必要欄位(姓名/身分/信箱/身分證號)`)
+        errorList.push(`${name || '未命名'}: 缺少必要欄位(姓名/師生別/EMAIL/身分證字號)`)
         continue
       }
+      if (isResigned === '是' || isResigned === 'Y' || isResigned === 'y') {
+        continue // 直接略過離職人員不匯入
+      }
 
+      // 對應師生別
       let role = 'student'
-      if (roleRaw === '臨床老師') role = 'teacher'
-      else if (roleRaw === '單位主管') role = 'supervisor'
+      if (roleRaw.includes('教師') || roleRaw.includes('老師')) role = 'teacher'
+      else if (roleRaw.includes('主管')) role = 'supervisor'
 
-      // 1. 建立 Auth 帳號 (密碼使用身分證號)
+      // 建立 Auth 帳號 (密碼強制使用身分證字號)
       const { data: authData, error: authError } = await authClient.auth.signUp({
         email: email,
         password: idNumber
@@ -524,12 +527,16 @@ async function handleBatchImport(event) {
         continue
       }
 
-      // 2. 組合最終姓名
-      let finalName = name
-      if (role === 'teacher' && extInfo) finalName = `[${extInfo}] ${name}`
-      else if (role === 'supervisor' && extInfo) finalName = `[${extInfo}] ${name}`
+      // 職類保留護理師或其他手動輸入值，若為教師且未填則預設補上護理師
+      let profession = extInfo
+      if (role === 'teacher' && !profession) profession = '護理師'
 
-      // 3. 寫入 Profile 資料表
+      let finalName = name
+      if ((role === 'teacher' || role === 'supervisor') && profession) {
+        finalName = `[${profession}] ${name}`
+      }
+
+      // 寫入 Profile 資料表
       if (authData?.user) {
         const { error: profileError } = await supabase.from('profiles').insert([{
           id: authData.user.id,
@@ -546,14 +553,14 @@ async function handleBatchImport(event) {
       }
     }
 
-    let resultMsg = `成功建立 ${successCount} 筆新帳號！`
+    let resultMsg = `成功匯入並建立 ${successCount} 筆新帳號！`
     if (errorList.length > 0) {
       resultMsg += `<br><br><div style="text-align:left; max-height:200px; overflow-y:auto; font-size:14px; color:#e74c3c;"><b>失敗紀錄：</b><br>${errorList.join('<br>')}</div>`
     }
 
     Swal.fire({
       icon: errorList.length > 0 ? 'warning' : 'success',
-      title: '批次匯入完成',
+      title: '人員報表匯入完成',
       html: resultMsg,
       confirmButtonColor: '#3498db'
     })
@@ -562,10 +569,10 @@ async function handleBatchImport(event) {
     fetchTeachersAndSupervisors()
 
   } catch (err) {
-    Swal.fire({ icon: 'error', title: '讀取 Excel 失敗', text: err.message })
+    Swal.fire({ icon: 'error', title: '讀取報表失敗', text: '請確認上傳的檔案為正確的 Excel 格式。' })
   } finally {
     isImporting.value = false
-    event.target.value = '' // 清除選取狀態，讓使用者可再次上傳同一個檔案
+    event.target.value = '' 
   }
 }
 
@@ -640,7 +647,7 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 包含先前實作的 RWD 卡片化樣式，請保留原有 CSS，並增加批次區塊的樣式 */
+/* 原有全部樣式皆保留不變，負責 RWD 及版面美化 */
 .admin-wrapper { position: absolute; top: 0; left: 0; width: 100vw; min-height: 100vh; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; box-sizing: border-box; font-family: "微軟正黑體", sans-serif; overflow-y: auto; scroll-behavior: smooth; }
 .admin-container { width: 100%; max-width: 1000px; }
 
