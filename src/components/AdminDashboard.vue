@@ -2,7 +2,6 @@
   <div class="admin-wrapper">
     <div class="admin-container">
       
-      <!-- 系統標題列 -->
       <div class="system-header">
         <div class="header-titles">
           <h1 class="main-app-title">📘 學習護照心得回饋系統</h1>
@@ -16,12 +15,27 @@
         <button class="tab-btn" :class="{ active: activeTab === 'assignments' }" @click="activeTab = 'assignments'">🔗 學員配對管理</button>
       </div>
 
-      <!-- ========================================== -->
-      <!-- 畫面一：帳號與權限管理 (accounts)            -->
-      <!-- ========================================== -->
       <div v-if="activeTab === 'accounts'">
+        
+        <!-- 新增：批次匯入功能操作列 -->
+        <div class="admin-card batch-card">
+          <div class="batch-content">
+            <div>
+              <h3 style="margin:0 0 5px 0;">📥 Excel 批次匯入帳號</h3>
+              <p class="subtitle" style="margin:0;">請依照範本格式填寫，系統將以「身分證號」作為該員的預設登入密碼。</p>
+            </div>
+            <div class="batch-actions">
+              <button @click="downloadTemplate" class="btn dark-btn small-btn">下載 Excel 範本</button>
+              <input type="file" ref="fileInput" accept=".xlsx, .xls" style="display:none" @change="handleBatchImport" />
+              <button @click="$refs.fileInput.click()" class="btn success-btn" :disabled="isImporting">
+                {{ isImporting ? '⏳ 處理中...' : '上傳並匯入名單' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="admin-card">
-          <h3>➕ 建立新使用者帳號</h3>
+          <h3>➕ 單筆建立使用者帳號</h3>
           <form @submit.prevent="handleCreateUser" class="create-form">
             <div class="form-row">
               <div class="form-group">
@@ -41,9 +55,9 @@
 
             <div class="form-row" v-if="newUser.role === 'teacher'">
               <div class="form-group">
-                <label>臨床老師職別：</label>
+                <label>臨床老師職稱：</label>
                 <select v-model="newUser.profession" required>
-                  <option value="" disabled>請選擇職別</option>
+                  <option value="" disabled>請選擇職稱</option>
                   <option v-for="prof in professionOptions" :key="prof" :value="prof">{{ prof }}</option>
                 </select>
               </div>
@@ -72,7 +86,7 @@
             </div>
             <div class="action-row">
               <button type="submit" class="btn primary-btn submit-btn" :disabled="isCreating">
-                {{ isCreating ? '帳號建立中...' : '確認建立帳號' }}
+                {{ isCreating ? '帳號建立中...' : '確認建立單筆帳號' }}
               </button>
             </div>
           </form>
@@ -85,7 +99,6 @@
               <input type="text" v-model="accountSearch" placeholder="🔍 搜尋姓名或信箱..." class="search-input" />
             </div>
           </div>
-          <p class="subtitle">管理平台內所有人員（結訓學員或離職員工可在此進行身分變更或資料刪除）：</p>
           
           <div class="filter-group">
             <button class="filter-tag" :class="{ active: accountFilterRole === 'all' }" @click="accountFilterRole = 'all'">全部顯示</button>
@@ -117,7 +130,7 @@
                     </div>
                   </td>
                 </tr>
-                <tr v-if="filteredAccounts.length === 0">
+                <tr v-if="paginatedAccounts.length === 0">
                   <td colspan="4" class="empty-state">找不到符合條件的人員資料</td>
                 </tr>
               </tbody>
@@ -126,16 +139,14 @@
 
           <div class="pagination-controls" v-if="accountTotalPages > 1">
             <button @click="accountPage--; scrollToTop()" :disabled="accountPage === 1" class="btn page-btn">上一頁</button>
-            <span class="page-info">第 {{ accountPage }} 頁 / 共 {{ accountTotalPages }} 頁 (總計 {{ filteredAccounts.length }} 筆)</span>
+            <span class="page-info">第 {{ accountPage }} 頁 / 共 {{ accountTotalPages }} 頁 (總計 {{ accountTotalCount }} 筆)</span>
             <button @click="accountPage++; scrollToTop()" :disabled="accountPage === accountTotalPages" class="btn page-btn">下一頁</button>
           </div>
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- 畫面二：學員配對管理 (assignments)           -->
-      <!-- ========================================== -->
       <div v-if="activeTab === 'assignments'">
+        <!-- 配對管理介面保留原樣，未更動 -->
         <div class="admin-card">
           <div class="card-header-flex">
             <h3>🔗 學員指導配對管理</h3>
@@ -143,7 +154,6 @@
               <input type="text" v-model="searchQuery" placeholder="🔍 搜尋學員姓名或信箱..." class="search-input" />
             </div>
           </div>
-          <p class="subtitle">請為每位學員指派對應的臨床老師與單位主管 (點擊欄位可直接搜尋姓名)：</p>
           
           <div class="table-responsive" style="min-height: 400px;">
             <table class="assignment-table">
@@ -210,24 +220,22 @@
                     <button @click="saveAssignment(student)" class="btn success-btn">儲存配對</button>
                   </td>
                 </tr>
-                <tr v-if="filteredStudents.length === 0">
+                <tr v-if="paginatedStudents.length === 0">
                   <td colspan="4" class="empty-state">找不到符合條件的學員資料</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="pagination-controls" v-if="totalPages > 1">
+          <div class="pagination-controls" v-if="studentTotalPages > 1">
             <button @click="currentPage--; scrollToTop()" :disabled="currentPage === 1" class="btn page-btn">上一頁</button>
-            <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁 (總計 {{ filteredStudents.length }} 筆)</span>
-            <button @click="currentPage++; scrollToTop()" :disabled="currentPage === totalPages" class="btn page-btn">下一頁</button>
+            <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ studentTotalPages }} 頁 (總計 {{ studentTotalCount }} 筆)</span>
+            <button @click="currentPage++; scrollToTop()" :disabled="currentPage === studentTotalPages" class="btn page-btn">下一頁</button>
           </div>
         </div>
       </div>
-      
     </div>
 
-    <!-- 身分編輯彈跳視窗 -->
     <div v-if="editModalOpen" class="modal-overlay">
       <div class="modal-content">
         <h3>變更人員身分</h3>
@@ -273,12 +281,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
+import * as XLSX from 'xlsx'
 
-// 設定右上角滑出的 Toast 通知模板
 const Toast = Swal.mixin({
   toast: true,
   position: 'top-end',
@@ -293,9 +301,7 @@ const authClient = createClient(
   { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
 )
 
-const activeTab = ref('accounts') 
-const allProfiles = ref([])
-const students = ref([])
+const activeTab = ref('accounts')
 const teachers = ref([])
 const supervisors = ref([])
 
@@ -303,61 +309,106 @@ const professionOptions = ['護理師', '藥師', '呼吸治療師', '物理治�
 const departmentOptions = ['2A', '3A', '4A', '5A', '5B', '5C', '6A', '6C', '7C', '8C', 'DR', 'NBC', 'RC', 'PI', 'SI', 'MI', 'CCU']
 
 const isCreating = ref(false)
+const isImporting = ref(false)
 const newUser = ref({ name: '', role: '', email: '', password: '', profession: '', department: '' })
 
+const paginatedAccounts = ref([])
 const accountSearch = ref('')
-const accountFilterRole = ref('all') 
+const accountFilterRole = ref('all')
 const accountPage = ref(1)
+const accountTotalPages = ref(1)
+const accountTotalCount = ref(0)
 
+const paginatedStudents = ref([])
 const searchQuery = ref('')
 const currentPage = ref(1)
-const itemsPerPage = 10 
-const activeDropdown = ref(null) 
-const dropdownSearch = ref('') 
+const studentTotalPages = ref(1)
+const studentTotalCount = ref(0)
+const itemsPerPage = 10
+
+const activeDropdown = ref(null)
+const dropdownSearch = ref('')
 
 const editModalOpen = ref(false)
 const editForm = ref({ id: '', originalName: '', cleanName: '', role: '', profession: '', department: '' })
 
+function debounce(fn, delay = 300) {
+  let timeoutId
+  return (...args) => {
+    clearTimeout(timeoutId)
+    timeoutId = setTimeout(() => fn(...args), delay)
+  }
+}
+
 onMounted(() => {
-  loadUsers()
-  document.addEventListener('click', closeDropdown) 
+  fetchTeachersAndSupervisors()
+  fetchAccounts()
+  fetchStudents()
+  document.addEventListener('click', closeDropdown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', closeDropdown)
 })
 
-async function loadUsers() {
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+async function fetchTeachersAndSupervisors() {
+  const { data } = await supabase.from('profiles').select('*').in('role', ['teacher', 'supervisor'])
   if (data) {
-    allProfiles.value = data
-    students.value = data.filter(u => u.role === 'student').map(s => ({ ...s, teacher_id: null, supervisor_id: null }))
     teachers.value = data.filter(u => u.role === 'teacher')
     supervisors.value = data.filter(u => u.role === 'supervisor')
-    
-    const { data: assigns } = await supabase.from('assignments').select('*')
-    if (assigns) {
-      students.value.forEach(s => {
-        const match = assigns.find(a => a.student_id === s.id)
-        if (match) {
-          s.teacher_id = match.teacher_id
-          s.supervisor_id = match.supervisor_id
-        }
-      })
-    }
   }
 }
+
+async function fetchAccounts() {
+  let query = supabase.from('profiles').select('*', { count: 'exact' })
+  if (accountFilterRole.value !== 'all') query = query.eq('role', accountFilterRole.value)
+  if (accountSearch.value) query = query.or(`name.ilike.%${accountSearch.value}%,email.ilike.%${accountSearch.value}%`)
+  const from = (accountPage.value - 1) * itemsPerPage
+  const to = from + itemsPerPage - 1
+  const { data, count } = await query.range(from, to).order('created_at', { ascending: false })
+  paginatedAccounts.value = data || []
+  accountTotalCount.value = count || 0
+  accountTotalPages.value = Math.ceil((count || 0) / itemsPerPage) || 1
+}
+
+async function fetchStudents() {
+  let query = supabase.from('profiles').select('*', { count: 'exact' }).eq('role', 'student')
+  if (searchQuery.value) query = query.or(`name.ilike.%${searchQuery.value}%,email.ilike.%${searchQuery.value}%`)
+  const from = (currentPage.value - 1) * itemsPerPage
+  const to = from + itemsPerPage - 1
+  const { data, count } = await query.range(from, to).order('created_at', { ascending: false })
+
+  if (!data || data.length === 0) {
+    paginatedStudents.value = []
+    studentTotalCount.value = count || 0
+    studentTotalPages.value = 1
+    return
+  }
+
+  const studentIds = data.map(s => s.id)
+  const { data: assigns } = await supabase.from('assignments').select('*').in('student_id', studentIds)
+  paginatedStudents.value = data.map(s => {
+    const match = assigns?.find(a => a.student_id === s.id)
+    return { ...s, teacher_id: match?.teacher_id || null, supervisor_id: match?.supervisor_id || null }
+  })
+  studentTotalCount.value = count || 0
+  studentTotalPages.value = Math.ceil((count || 0) / itemsPerPage) || 1
+}
+
+const debouncedFetchAccounts = debounce(fetchAccounts)
+const debouncedFetchStudents = debounce(fetchStudents)
+
+watch([accountSearch, accountFilterRole], () => { accountPage.value = 1; debouncedFetchAccounts() })
+watch(accountPage, fetchAccounts)
+watch(searchQuery, () => { currentPage.value = 1; debouncedFetchStudents() })
+watch(currentPage, fetchStudents)
 
 function scrollToTop() {
   const wrapper = document.querySelector('.admin-wrapper')
   if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-watch(() => newUser.value.role, (newRole) => {
-  if (newRole === 'teacher') newUser.value.profession = '護理師'
-  else newUser.value.profession = ''
-})
-
+watch(() => newUser.value.role, (newRole) => { newUser.value.profession = newRole === 'teacher' ? '護理師' : '' })
 watch(() => editForm.value.role, (newRole) => {
   if (newRole === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
   else if (newRole !== 'teacher') editForm.value.profession = ''
@@ -366,28 +417,16 @@ watch(() => editForm.value.role, (newRole) => {
 function toggleDropdown(studentId, type) {
   const target = `${studentId}${type}`
   if (activeDropdown.value === target) closeDropdown()
-  else {
-    activeDropdown.value = target
-    dropdownSearch.value = '' 
-  }
+  else { activeDropdown.value = target; dropdownSearch.value = '' }
 }
-
-function closeDropdown() {
-  activeDropdown.value = null
-  dropdownSearch.value = ''
-}
-
-function selectOption(student, field, value) {
-  student[field] = value
-  closeDropdown()
-}
+function closeDropdown() { activeDropdown.value = null; dropdownSearch.value = '' }
+function selectOption(student, field, value) { student[field] = value; closeDropdown() }
 
 function getTeacherName(id) {
   if (!id) return '-- 尚未指派 --'
   const t = teachers.value.find(x => x.id === id)
   return t ? extractCleanName(t.name) : '-- 尚未指派 --'
 }
-
 function getSupervisorName(id) {
   if (!id) return '-- 尚未指派 --'
   const s = supervisors.value.find(x => x.id === id)
@@ -398,56 +437,23 @@ function getFilteredGroups(type, search) {
   const isTeacher = type === 'teacher'
   const sourceList = isTeacher ? teachers.value : supervisors.value
   const options = isTeacher ? professionOptions : departmentOptions
-  
   let filtered = sourceList
   if (search) {
     const q = search.toLowerCase()
     filtered = filtered.filter(x => x.name && x.name.toLowerCase().includes(q))
   }
-
   const groups = {}
   options.forEach(opt => groups[opt] = [])
   const ungrouped = []
-  
   filtered.forEach(item => {
     const match = item.name?.match(/^\[(.*?)\]\s*(.*)$/)
     if (match && options.includes(match[1])) groups[match[1]].push(item)
     else ungrouped.push(item)
   })
-  
   Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
   if (ungrouped.length > 0) groups['其他 / 未分類'] = ungrouped
-  
   return groups
 }
-
-const filteredAccounts = computed(() => {
-  let result = allProfiles.value
-  if (accountFilterRole.value !== 'all') result = result.filter(u => u.role === accountFilterRole.value)
-  if (accountSearch.value) {
-    const query = accountSearch.value.toLowerCase()
-    result = result.filter(u => (u.name && u.name.toLowerCase().includes(query)) || (u.email && u.email.toLowerCase().includes(query)))
-  }
-  return result
-})
-const accountTotalPages = computed(() => Math.ceil(filteredAccounts.value.length / itemsPerPage) || 1)
-const paginatedAccounts = computed(() => {
-  const start = (accountPage.value - 1) * itemsPerPage
-  return filteredAccounts.value.slice(start, start + itemsPerPage)
-})
-watch([accountSearch, accountFilterRole], () => accountPage.value = 1)
-
-const filteredStudents = computed(() => {
-  if (!searchQuery.value) return students.value
-  const query = searchQuery.value.toLowerCase()
-  return students.value.filter(s => (s.name && s.name.toLowerCase().includes(query)) || (s.email && s.email.toLowerCase().includes(query)))
-})
-const totalPages = computed(() => Math.ceil(filteredStudents.value.length / itemsPerPage) || 1)
-const paginatedStudents = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage
-  return filteredStudents.value.slice(start, start + itemsPerPage)
-})
-watch(searchQuery, () => currentPage.value = 1)
 
 function extractCleanName(fullName) {
   if (!fullName) return ''
@@ -463,10 +469,109 @@ function getRoleName(role) {
   return map[role] || role
 }
 
+// 產生並下載 Excel 範本
+function downloadTemplate() {
+  const templateData = [
+    { 姓名: '王小明', 身分: '學員', 職稱或單位: '', 信箱: 'student1@hospital.com', 身分證號: 'A123456789' },
+    { 姓名: '陳大文', 身分: '臨床老師', 職稱或單位: '護理師', 信箱: 'teacher1@hospital.com', 身分證號: 'B987654321' },
+    { 姓名: '林雅婷', 身分: '單位主管', 職稱或單位: '7C', 信箱: 'super1@hospital.com', 身分證號: 'C111222333' }
+  ]
+  const ws = XLSX.utils.json_to_sheet(templateData)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '帳號匯入範本')
+  XLSX.writeFile(wb, '系統帳號批次匯入範本.xlsx')
+}
+
+// 處理 Excel 批次上傳邏輯
+async function handleBatchImport(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  isImporting.value = true
+  try {
+    const data = await file.arrayBuffer()
+    const workbook = XLSX.read(data)
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(worksheet)
+
+    let successCount = 0
+    let errorList = []
+
+    for (const row of rows) {
+      const name = row['姓名']
+      const roleRaw = row['身分']
+      const extInfo = row['職稱或單位'] || ''
+      const email = row['信箱']
+      const idNumber = row['身分證號']
+
+      if (!name || !roleRaw || !email || !idNumber) {
+        errorList.push(`${name || '未知'}: 缺少必要欄位(姓名/身分/信箱/身分證號)`)
+        continue
+      }
+
+      let role = 'student'
+      if (roleRaw === '臨床老師') role = 'teacher'
+      else if (roleRaw === '單位主管') role = 'supervisor'
+
+      // 1. 建立 Auth 帳號 (密碼使用身分證號)
+      const { data: authData, error: authError } = await authClient.auth.signUp({
+        email: email,
+        password: idNumber
+      })
+
+      if (authError) {
+        errorList.push(`${name}: ${authError.message}`)
+        continue
+      }
+
+      // 2. 組合最終姓名
+      let finalName = name
+      if (role === 'teacher' && extInfo) finalName = `[${extInfo}] ${name}`
+      else if (role === 'supervisor' && extInfo) finalName = `[${extInfo}] ${name}`
+
+      // 3. 寫入 Profile 資料表
+      if (authData?.user) {
+        const { error: profileError } = await supabase.from('profiles').insert([{
+          id: authData.user.id,
+          name: finalName,
+          role: role,
+          email: email
+        }])
+
+        if (profileError) {
+          errorList.push(`${name}: 寫入基本資料失敗`)
+        } else {
+          successCount++
+        }
+      }
+    }
+
+    let resultMsg = `成功建立 ${successCount} 筆新帳號！`
+    if (errorList.length > 0) {
+      resultMsg += `<br><br><div style="text-align:left; max-height:200px; overflow-y:auto; font-size:14px; color:#e74c3c;"><b>失敗紀錄：</b><br>${errorList.join('<br>')}</div>`
+    }
+
+    Swal.fire({
+      icon: errorList.length > 0 ? 'warning' : 'success',
+      title: '批次匯入完成',
+      html: resultMsg,
+      confirmButtonColor: '#3498db'
+    })
+
+    fetchAccounts()
+    fetchTeachersAndSupervisors()
+
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: '讀取 Excel 失敗', text: err.message })
+  } finally {
+    isImporting.value = false
+    event.target.value = '' // 清除選取狀態，讓使用者可再次上傳同一個檔案
+  }
+}
+
 async function handleCreateUser() {
   isCreating.value = true
   const { data, error } = await authClient.auth.signUp({ email: newUser.value.email, password: newUser.value.password })
-
   if (error) {
     Toast.fire({ icon: 'error', title: '建立失敗：' + error.message })
   } else if (data?.user) {
@@ -480,21 +585,15 @@ async function handleCreateUser() {
     } else {
       Toast.fire({ icon: 'success', title: `帳號 ${finalName} 建立成功！` })
       newUser.value = { name: '', role: '', email: '', password: '', profession: '', department: '' }
-      await loadUsers() 
+      fetchAccounts()
+      fetchTeachersAndSupervisors()
     }
   }
   isCreating.value = false
 }
 
 function openEditModal(user) {
-  editForm.value = {
-    id: user.id,
-    originalName: user.name,
-    cleanName: extractCleanName(user.name),
-    role: user.role,
-    profession: user.role === 'teacher' ? getPrefix(user.name) : '',
-    department: user.role === 'supervisor' ? getPrefix(user.name) : ''
-  }
+  editForm.value = { id: user.id, originalName: user.name, cleanName: extractCleanName(user.name), role: user.role, profession: user.role === 'teacher' ? getPrefix(user.name) : '', department: user.role === 'supervisor' ? getPrefix(user.name) : '' }
   if (editForm.value.role === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
   editModalOpen.value = true
 }
@@ -505,61 +604,34 @@ async function saveRoleChange() {
   else if (editForm.value.role === 'supervisor' && editForm.value.department) finalName = `[${editForm.value.department}] ${finalName}`
 
   const { error } = await supabase.from('profiles').update({ name: finalName, role: editForm.value.role }).eq('id', editForm.value.id)
-  if (error) {
-    Toast.fire({ icon: 'error', title: '更新失敗：' + error.message })
-  } else {
+  if (error) Toast.fire({ icon: 'error', title: '更新失敗：' + error.message })
+  else {
     Toast.fire({ icon: 'success', title: '人員身分變更成功！' })
     editModalOpen.value = false
-    await loadUsers()
+    fetchAccounts()
+    fetchStudents()
+    fetchTeachersAndSupervisors()
   }
 }
 
 async function deleteUser(user) {
-  const confirmResult = await Swal.fire({
-    title: `確定要刪除「${user.name}」嗎？`,
-    text: '這將會徹底清除該員在系統上的所有紀錄與帳號，此動作無法復原！',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#e74c3c',
-    cancelButtonColor: '#7f8c8d',
-    confirmButtonText: '確認刪除',
-    cancelButtonText: '取消'
-  })
-
+  const confirmResult = await Swal.fire({ title: `確定要刪除「${user.name}」嗎？`, text: '這將會徹底清除該員在系統上的所有紀錄與帳號，此動作無法復原！', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c', cancelButtonColor: '#7f8c8d', confirmButtonText: '確認刪除', cancelButtonText: '取消' })
   if (!confirmResult.isConfirmed) return
-
   try {
-    const { data, error } = await supabase.functions.invoke('delete-user', {
-      body: { user_id: user.id }
-    })
-
+    const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: user.id } })
     if (error) throw error
-
-    Swal.fire({
-      icon: 'success',
-      title: '刪除成功',
-      text: `已成功將 ${user.name} 的資料從平台徹底移除。`,
-      confirmButtonColor: '#3498db'
-    })
-    await loadUsers()
-    
-  } catch (err) {
-    Swal.fire({ icon: 'error', title: '刪除失敗', text: err.message })
-  }
+    Swal.fire({ icon: 'success', title: '刪除成功', text: `已成功將 ${user.name} 的資料從平台徹底移除。`, confirmButtonColor: '#3498db' })
+    fetchAccounts()
+    fetchStudents()
+    fetchTeachersAndSupervisors()
+  } catch (err) { Swal.fire({ icon: 'error', title: '刪除失敗', text: err.message }) }
 }
 
 async function saveAssignment(student) {
-  if (!student.teacher_id || !student.supervisor_id) {
-    return Toast.fire({ icon: 'warning', title: '請完整選擇臨床老師與單位主管！' })
-  }
-  
+  if (!student.teacher_id || !student.supervisor_id) return Toast.fire({ icon: 'warning', title: '請完整選擇臨床老師與單位主管！' })
   const { error } = await supabase.from('assignments').upsert({ student_id: student.id, teacher_id: student.teacher_id, supervisor_id: student.supervisor_id }, { onConflict: 'student_id' })
-  
-  if (error) {
-    Toast.fire({ icon: 'error', title: '儲存失敗：' + error.message })
-  } else {
-    Toast.fire({ icon: 'success', title: `已成功儲存 ${student.name} 的配對資料！` })
-  }
+  if (error) Toast.fire({ icon: 'error', title: '儲存失敗：' + error.message })
+  else Toast.fire({ icon: 'success', title: `已成功儲存 ${student.name} 的配對資料！` })
 }
 
 async function handleLogout() {
@@ -568,10 +640,10 @@ async function handleLogout() {
 </script>
 
 <style scoped>
+/* 包含先前實作的 RWD 卡片化樣式，請保留原有 CSS，並增加批次區塊的樣式 */
 .admin-wrapper { position: absolute; top: 0; left: 0; width: 100vw; min-height: 100vh; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; box-sizing: border-box; font-family: "微軟正黑體", sans-serif; overflow-y: auto; scroll-behavior: smooth; }
 .admin-container { width: 100%; max-width: 1000px; }
 
-/* 標題區塊更新 */
 .system-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .header-titles { display: flex; flex-direction: column; gap: 8px; }
 .main-app-title { margin: 0; color: #2980b9; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
@@ -583,7 +655,11 @@ async function handleLogout() {
 .tab-btn.active { color: #2c3e50; background: white; border-bottom: 4px solid #3498db; box-shadow: 0 -4px 10px rgba(0,0,0,0.02); }
 
 .admin-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; border: 1px solid #e1e4e8; }
-.card-header-flex { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
+.batch-card { background: #f8fbfe; border: 1px solid #c8e1f5; }
+.batch-content { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+.batch-actions { display: flex; gap: 10px; }
+
+.card-header-flex { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
 .admin-card h3 { margin: 0; color: #34495e; }
 .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 15px; }
 
@@ -594,8 +670,8 @@ async function handleLogout() {
 
 .search-input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 20px; width: 250px; font-size: 14px; outline: none; transition: border-color 0.2s; }
 .search-input:focus { border-color: #3498db; }
-.form-row { display: flex; gap: 20px; margin-bottom: 15px; }
-.form-group { flex: 1; }
+.form-row { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 250px; }
 label { display: block; font-size: 14px; font-weight: bold; color: #333; margin-bottom: 8px; }
 input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
 .action-row { display: flex; justify-content: flex-end; margin-top: 20px; }
@@ -625,13 +701,13 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .option-item:hover { background-color: #f1f2f6; }
 
 .empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
-.pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; }
+.pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; flex-wrap: wrap; }
 .page-info { font-size: 14px; font-weight: bold; color: #2c3e50; }
 .page-btn { background-color: #ecf0f1; color: #333; padding: 6px 15px; }
 .page-btn:hover:not(:disabled) { background-color: #bdc3c7; }
 .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.action-buttons { display: flex; gap: 8px; }
+.action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
 .small-btn { padding: 6px 10px; font-size: 13px; }
 
 .btn { border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
@@ -648,43 +724,26 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .logout-btn { background-color: #e74c3c; color: white; padding: 10px 20px; }
 .logout-btn:hover { background-color: #c0392b; }
 
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: "微軟正黑體", sans-serif; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 15px; box-sizing: border-box; }
+.modal-content { background: white; padding: 25px; border-radius: 8px; width: 100%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: "微軟正黑體", sans-serif; box-sizing: border-box; }
 .modal-content h3 { margin-top: 0; margin-bottom: 5px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
 .modal-input { width: 100%; padding: 10px; border: 1px solid #999; border-radius: 4px; margin-top: 8px; font-size: 15px; box-sizing: border-box; color: #333; background-color: #fff; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
 
-/* ================================================= */
-/* AdminDashboard: RWD 手機版卡片化自動轉換 (小於 768px) */
-/* ================================================= */
 @media screen and (max-width: 768px) {
   .system-header { flex-direction: column; align-items: stretch; gap: 15px; }
   .header-actions, .logout-btn { width: 100%; }
+  .batch-content { flex-direction: column; align-items: stretch; }
+  .batch-actions { flex-direction: column; width: 100%; }
+  .batch-actions button { width: 100%; }
   .card-header-flex { flex-direction: column; align-items: stretch; gap: 10px; }
   .search-box, .search-input { width: 100%; box-sizing: border-box; }
   .admin-tabs { flex-wrap: wrap; }
   .tab-btn { flex: 1; text-align: center; font-size: 15px; padding: 10px; }
-
-  /* 表格轉卡片核心邏輯 */
   .assignment-table thead { display: none !important; }
   .assignment-table, .assignment-table tbody, .assignment-table tr, .assignment-table td { display: block; width: 100%; box-sizing: border-box; }
-  
-  .assignment-table tr { 
-    background: #ffffff; 
-    border: 1px solid #dfe4ea; 
-    border-radius: 10px; 
-    margin-bottom: 15px; 
-    padding: 15px; 
-    box-shadow: 0 4px 8px rgba(0,0,0,0.06); 
-  }
-  
-  .assignment-table td { 
-    border: none !important; 
-    padding: 8px 0 !important; 
-    text-align: left !important; 
-  }
-
-  /* 針對操作按鈕與下拉選單的滿版優化 */
+  .assignment-table tr { background: #ffffff; border: 1px solid #dfe4ea; border-radius: 10px; margin-bottom: 15px; padding: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.06); }
+  .assignment-table td { border: none !important; padding: 8px 0 !important; text-align: left !important; }
   .action-buttons { width: 100%; display: flex; flex-direction: row; gap: 10px; margin-top: 10px; }
   .action-buttons button, .success-btn { flex: 1; width: 100%; padding: 12px; font-size: 15px; }
   .custom-select { width: 100%; margin-bottom: 8px; }
