@@ -1,7 +1,12 @@
 <template>
   <div class="app-container">
+    
+    <!-- 系統標題列 -->
     <div class="system-header">
-      <div class="header-text">目前登入身分：<span class="role-tag">{{ roleName }}</span></div>
+      <div class="header-titles">
+        <h1 class="main-app-title">📘 學習護照心得回饋系統</h1>
+        <div class="header-text">目前登入身分：<span class="role-tag">{{ roleName }}</span></div>
+      </div>
       <div class="header-actions">
         <button @click="showPasswordModal = true" class="btn warning-btn small-btn">修改密碼</button>
         <button @click="handleLogout" class="btn logout-btn small-btn">登出系統</button>
@@ -120,7 +125,6 @@
       <!-- 系統操作面板 -->
       <div class="action-panel">
         <button v-if="viewMode === 'form' && currentRole !== 'student'" @click="backToList" class="btn dark-btn">🔙 返回列表</button>
-
         <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">學員送出表單</button>
         
         <template v-if="currentRole === 'teacher' && report.status === 'submitted'">
@@ -129,9 +133,7 @@
         </template>
 
         <button v-if="currentRole === 'supervisor' && report.status === 'submitted'" @click="completeSupervisor" class="btn danger-btn">儲存並完成結案</button>
-        
         <button v-if="(currentRole === 'teacher' || currentRole === 'supervisor') && report.status === 'completed'" @click="unlockForm" class="btn warning-btn">🔓 將資料拉回重新編輯</button>
-
         <button v-if="report.status === 'completed'" @click="exportPDF" class="btn dark-btn">📄 匯出 PDF 文件</button>
       </div>
     </div>
@@ -183,7 +185,6 @@ const isStudentDraft = computed(() => currentRole.value === 'student' && report.
 
 watch(() => props.userRole, async (newRole) => {
   if (!newRole) return
-  
   isLoading.value = true
   if (newRole === 'student') {
     viewMode.value = 'form'
@@ -196,28 +197,15 @@ watch(() => props.userRole, async (newRole) => {
 }, { immediate: true })
 
 async function loadStudentReport() {
-  const { data, error } = await supabase
-    .from('feedback_reports')
-    .select('*')
-    .eq('student_id', props.session.user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (data) {
-    Object.assign(report.value, data)
-  }
+  const { data, error } = await supabase.from('feedback_reports').select('*').eq('student_id', props.session.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (data) Object.assign(report.value, data)
   const { data: profile } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).maybeSingle()
   if (profile) report.value.student_name = profile.name
 }
 
 async function loadReviewerReports() {
   const column = currentRole.value === 'teacher' ? 'teacher_id' : 'supervisor_id'
-  
-  const { data: assignments } = await supabase
-    .from('assignments')
-    .select('*')
-    .eq(column, props.session.user.id)
+  const { data: assignments } = await supabase.from('assignments').select('*').eq(column, props.session.user.id)
 
   if (!assignments || assignments.length === 0) {
     assignedReports.value = []
@@ -225,16 +213,8 @@ async function loadReviewerReports() {
   }
 
   const studentIds = assignments.map(a => a.student_id)
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, name, email')
-    .in('id', studentIds)
-
-  const { data: reports } = await supabase
-    .from('feedback_reports')
-    .select('*')
-    .in('student_id', studentIds)
+  const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', studentIds)
+  const { data: reports } = await supabase.from('feedback_reports').select('*').in('student_id', studentIds)
 
   assignedReports.value = profiles.map(profile => {
     const rData = reports?.find(r => r.student_id === profile.id)
@@ -264,10 +244,7 @@ function getStatusText(r) {
 }
 
 function openReport(r) {
-  if (r.status === 'not_started' || r.status === 'draft') {
-    alert('學員尚未送出表單，目前無法進入審核！')
-    return
-  }
+  if (r.status === 'not_started' || r.status === 'draft') return alert('學員尚未送出表單，目前無法進入審核！')
   Object.assign(report.value, r.reportData)
   report.value.student_name = r.student_name
   viewMode.value = 'form'
@@ -285,15 +262,8 @@ async function submitStudent() {
   const isConfirmed = confirm('確定要送出表單嗎？\n⚠️ 送出後將無法再次編輯，系統將準備發送通知信給您的指導老師與主管。')
   if (!isConfirmed) return
   
-  const { data: assignData, error: assignError } = await supabase
-    .from('assignments')
-    .select('teacher_id, supervisor_id')
-    .eq('student_id', props.session.user.id)
-    .maybeSingle()
-    
-  if (assignError || !assignData) {
-    return alert('送出失敗：系統管理員尚未為您分配指導老師與主管，請聯繫管理員！')
-  }
+  const { data: assignData, error: assignError } = await supabase.from('assignments').select('teacher_id, supervisor_id').eq('student_id', props.session.user.id).maybeSingle()
+  if (assignError || !assignData) return alert('送出失敗：系統管理員尚未為您分配指導老師與主管，請聯繫管理員！')
 
   const { error } = await supabase.from('feedback_reports').insert([{ 
     student_id: props.session.user.id,
@@ -321,13 +291,11 @@ async function sendNotificationEmails(teacherId, supervisorId) {
     
     const teacherEmail = teacherData?.email || ''
     const supervisorEmail = supervisorData?.email || ''
-    
     const systemUrl = window.location.origin
-    const subject = encodeURIComponent('【臨床實習系統】新的基礎訓練心得待審核')
+    const subject = encodeURIComponent('【學習護照心得回饋系統】新的基礎訓練心得待審核')
     const body = encodeURIComponent(`老師/主管您好：\n\n有學員已送出基礎訓練心得，請點擊下方系統連結，登入後進行您的回饋填寫：\n\n🔗 系統連結：${systemUrl}\n\n(此為系統自動生成信件，請勿直接回覆)`)
     
-    const mailtoLink = `mailto:${teacherEmail},${supervisorEmail}?subject=${subject}&body=${body}`
-    window.open(mailtoLink, '_blank')
+    window.open(`mailto:${teacherEmail},${supervisorEmail}?subject=${subject}&body=${body}`, '_blank')
   } catch (err) {
     console.error('抓取信箱失敗:', err)
   }
@@ -335,14 +303,8 @@ async function sendNotificationEmails(teacherId, supervisorId) {
 
 async function saveTeacher() {
   if (!report.value.teacher_feedback?.trim()) return alert('請填寫「指導老師回饋」內容！')
-
   const currentTime = new Date().toISOString()
-  const { error } = await supabase.from('feedback_reports')
-    .update({ 
-      teacher_feedback: report.value.teacher_feedback,
-      teacher_submitted_at: currentTime 
-    })
-    .eq('id', report.value.id)
+  const { error } = await supabase.from('feedback_reports').update({ teacher_feedback: report.value.teacher_feedback, teacher_submitted_at: currentTime }).eq('id', report.value.id)
   if (!error) {
     alert('指導老師回饋已儲存！')
     report.value.teacher_submitted_at = currentTime
@@ -352,15 +314,8 @@ async function saveTeacher() {
 async function completeSupervisor() {
   if (!report.value.teacher_feedback?.trim()) return alert('指導老師尚未填寫回饋，無法進行結案！')
   if (!report.value.supervisor_feedback?.trim()) return alert('請填寫「單位主管回饋」內容！')
-
   const currentTime = new Date().toISOString()
-  const { error } = await supabase.from('feedback_reports')
-    .update({ 
-      supervisor_feedback: report.value.supervisor_feedback, 
-      status: 'completed',
-      supervisor_submitted_at: currentTime
-    })
-    .eq('id', report.value.id)
+  const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'completed', supervisor_submitted_at: currentTime }).eq('id', report.value.id)
   if (!error) {
     alert('已成功結案！')
     location.reload()
@@ -368,30 +323,15 @@ async function completeSupervisor() {
 }
 
 function exportPDF() {
-  if (!report.value.student_content?.trim() || !report.value.teacher_feedback?.trim() || !report.value.supervisor_feedback?.trim()) {
-    return alert('表單尚未全部填寫完畢，無法匯出 PDF！')
-  }
-
+  if (!report.value.student_content?.trim() || !report.value.teacher_feedback?.trim() || !report.value.supervisor_feedback?.trim()) return alert('表單尚未全部填寫完畢，無法匯出 PDF！')
   const element = document.getElementById('pdf-content')
   const fileName = `${report.value.student_name || '學員'}_基礎訓練心得.pdf`
-
-  const opt = {
-    margin: 0, 
-    filename: fileName,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { scale: 2, windowWidth: 800 },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }
-  html2pdf().set(opt).from(element).save()
+  html2pdf().set({ margin: 0, filename: fileName, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, windowWidth: 800 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(element).save()
 }
 
 async function unlockForm() {
   if (!confirm('確定要將表單拉回重新編輯嗎？這將會暫時解除「結案」狀態。')) return
-
-  const { error } = await supabase.from('feedback_reports')
-    .update({ status: 'submitted' })
-    .eq('id', report.value.id)
-
+  const { error } = await supabase.from('feedback_reports').update({ status: 'submitted' }).eq('id', report.value.id)
   if (!error) {
     alert('表單已成功拉回！您現在可以重新編輯內容了。')
     location.reload()
@@ -400,11 +340,7 @@ async function unlockForm() {
 
 async function rejectToStudent() {
   if (!confirm('確定要將此心得退回給學員重新修改嗎？')) return
-
-  const { error } = await supabase.from('feedback_reports')
-    .update({ status: 'draft' })
-    .eq('id', report.value.id)
-    
+  const { error } = await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
   if (!error) {
     alert('表單已成功退回給學員！')
     location.reload()
@@ -413,14 +349,9 @@ async function rejectToStudent() {
 
 async function updatePassword() {
   if (newPassword.value.length < 6) return alert('密碼長度至少需要 6 個字元！')
-  
-  const { error } = await supabase.auth.updateUser({
-    password: newPassword.value
-  })
-  
-  if (error) {
-    alert('密碼修改失敗：' + error.message)
-  } else {
+  const { error } = await supabase.auth.updateUser({ password: newPassword.value })
+  if (error) alert('密碼修改失敗：' + error.message)
+  else {
     alert('密碼修改成功！下次登入請使用新密碼。')
     showPasswordModal.value = false
     newPassword.value = ''
@@ -433,20 +364,14 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.app-container { 
-  background-color: #f0f2f5; 
-  min-height: 100vh; 
-  width: 100vw;       
-  position: absolute; 
-  top: 0;
-  left: 0;
-  padding: 30px 20px; 
-  font-family: "微軟正黑體", sans-serif; 
-  box-sizing: border-box;
-}
+.app-container { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; font-family: "微軟正黑體", sans-serif; box-sizing: border-box; }
 
-.system-header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 20px; background: white; padding: 15px 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-.header-text { color: #333333; font-size: 16px; font-weight: bold; }
+/* 標題區塊更新 */
+.system-header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
+.header-titles { display: flex; flex-direction: column; gap: 8px; }
+.main-app-title { margin: 0; color: #2c3e50; font-size: 24px; font-weight: 900; letter-spacing: 1px; }
+.header-text { color: #7f8c8d; font-size: 15px; font-weight: bold; }
+
 .role-tag { background: #3498db; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
 .action-panel { max-width: 800px; margin: 20px auto; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
@@ -460,28 +385,9 @@ async function handleLogout() {
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 .modal-content h3 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; }
-.modal-content label { 
-  display: block;
-  font-size: 15px;
-  font-weight: bold;
-  color: #333333; /* 強制設定標籤文字為深灰色 */
-}
-
-.modal-input { 
-  width: 100%; 
-  padding: 10px; 
-  border: 1px solid #999; /* 加深輸入框外框顏色 */
-  border-radius: 4px; 
-  margin-top: 8px; 
-  font-size: 16px; 
-  box-sizing: border-box; 
-  color: #333333; /* 確保使用者輸入的文字也是深色 */
-  background-color: #ffffff;
-}
-
-.modal-input::placeholder {
-  color: #7f8c8d; /* 讓佔位符號 (placeholder) 保持適當的灰度 */
-}
+.modal-content label { display: block; font-size: 15px; font-weight: bold; color: #333333; }
+.modal-input { width: 100%; padding: 10px; border: 1px solid #999; border-radius: 4px; margin-top: 8px; font-size: 16px; box-sizing: border-box; color: #333333; background-color: #ffffff; }
+.modal-input::placeholder { color: #7f8c8d; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 .loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }

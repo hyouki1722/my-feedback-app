@@ -1,8 +1,13 @@
 <template>
   <div class="admin-wrapper">
     <div class="admin-container">
+      
+      <!-- 系統標題列 -->
       <div class="system-header">
-        <h2 class="title">⚙️ 系統管理員後台</h2>
+        <div class="header-titles">
+          <h1 class="main-app-title">📘 學習護照心得回饋系統</h1>
+          <h2 class="title">⚙️ 系統管理員後台</h2>
+        </div>
         <button @click="handleLogout" class="btn logout-btn">登出系統</button>
       </div>
 
@@ -157,7 +162,6 @@
                     <div class="user-email">{{ student.email }}</div>
                   </td>
                   
-                  <!-- 可搜尋的臨床老師下拉選單 -->
                   <td>
                     <div class="custom-select" @click.stop="toggleDropdown(student.id, 'teacher')">
                       <div class="selected-text" :class="{'placeholder': !student.teacher_id}">
@@ -165,7 +169,6 @@
                       </div>
                       <span class="dropdown-arrow">▼</span>
                       
-                      <!-- 展開的搜尋選單 -->
                       <div class="dropdown-menu" v-if="activeDropdown === student.id + 'teacher'" @click.stop>
                         <input type="text" v-model="dropdownSearch" placeholder="🔍 搜尋臨床老師..." class="dropdown-search" autofocus />
                         <div class="dropdown-options">
@@ -181,7 +184,6 @@
                     </div>
                   </td>
 
-                  <!-- 可搜尋的單位主管下拉選單 -->
                   <td>
                     <div class="custom-select" @click.stop="toggleDropdown(student.id, 'supervisor')">
                       <div class="selected-text" :class="{'placeholder': !student.supervisor_id}">
@@ -189,7 +191,6 @@
                       </div>
                       <span class="dropdown-arrow">▼</span>
                       
-                      <!-- 展開的搜尋選單 -->
                       <div class="dropdown-menu" v-if="activeDropdown === student.id + 'supervisor'" @click.stop>
                         <input type="text" v-model="dropdownSearch" placeholder="🔍 搜尋單位主管..." class="dropdown-search" autofocus />
                         <div class="dropdown-options">
@@ -294,12 +295,10 @@ const departmentOptions = ['2A', '3A', '4A', '5A', '5B', '5C', '6A', '6C', '7C',
 const isCreating = ref(false)
 const newUser = ref({ name: '', role: '', email: '', password: '', profession: '', department: '' })
 
-// 帳號快篩與分頁狀態
 const accountSearch = ref('')
 const accountFilterRole = ref('all') 
 const accountPage = ref(1)
 
-// 配對分頁與自訂選單狀態
 const searchQuery = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 10 
@@ -344,30 +343,20 @@ function scrollToTop() {
   if (wrapper) wrapper.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 監聽新增帳號的身分切換，自動預設職別為「護理師」
 watch(() => newUser.value.role, (newRole) => {
-  if (newRole === 'teacher') {
-    newUser.value.profession = '護理師'
-  } else {
-    newUser.value.profession = ''
-  }
+  if (newRole === 'teacher') newUser.value.profession = '護理師'
+  else newUser.value.profession = ''
 })
 
-// 監聽編輯帳號的身分切換，自動預設職別為「護理師」
 watch(() => editForm.value.role, (newRole) => {
-  if (newRole === 'teacher' && !editForm.value.profession) {
-    editForm.value.profession = '護理師'
-  } else if (newRole !== 'teacher') {
-    editForm.value.profession = ''
-  }
+  if (newRole === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
+  else if (newRole !== 'teacher') editForm.value.profession = ''
 })
 
-// === 自訂搜尋下拉選單邏輯 ===
 function toggleDropdown(studentId, type) {
   const target = `${studentId}${type}`
-  if (activeDropdown.value === target) {
-    closeDropdown()
-  } else {
+  if (activeDropdown.value === target) closeDropdown()
+  else {
     activeDropdown.value = target
     dropdownSearch.value = '' 
   }
@@ -412,11 +401,8 @@ function getFilteredGroups(type, search) {
   
   filtered.forEach(item => {
     const match = item.name?.match(/^\[(.*?)\]\s*(.*)$/)
-    if (match && options.includes(match[1])) {
-      groups[match[1]].push(item)
-    } else {
-      ungrouped.push(item)
-    }
+    if (match && options.includes(match[1])) groups[match[1]].push(item)
+    else ungrouped.push(item)
   })
   
   Object.keys(groups).forEach(key => { if (groups[key].length === 0) delete groups[key] })
@@ -425,8 +411,6 @@ function getFilteredGroups(type, search) {
   return groups
 }
 
-
-// === 帳號總覽過濾邏輯 ===
 const filteredAccounts = computed(() => {
   let result = allProfiles.value
   if (accountFilterRole.value !== 'all') result = result.filter(u => u.role === accountFilterRole.value)
@@ -443,8 +427,6 @@ const paginatedAccounts = computed(() => {
 })
 watch([accountSearch, accountFilterRole], () => accountPage.value = 1)
 
-
-// === 學員配對過濾邏輯 ===
 const filteredStudents = computed(() => {
   if (!searchQuery.value) return students.value
   const query = searchQuery.value.toLowerCase()
@@ -502,7 +484,6 @@ function openEditModal(user) {
     profession: user.role === 'teacher' ? getPrefix(user.name) : '',
     department: user.role === 'supervisor' ? getPrefix(user.name) : ''
   }
-  // 若為老師但沒有職級標籤，補上預設
   if (editForm.value.role === 'teacher' && !editForm.value.profession) editForm.value.profession = '護理師'
   editModalOpen.value = true
 }
@@ -565,8 +546,12 @@ async function handleLogout() {
 <style scoped>
 .admin-wrapper { position: absolute; top: 0; left: 0; width: 100vw; min-height: 100vh; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; box-sizing: border-box; font-family: "微軟正黑體", sans-serif; overflow-y: auto; scroll-behavior: smooth; }
 .admin-container { width: 100%; max-width: 1000px; }
-.system-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.title { margin: 0; color: #2c3e50; font-size: 24px; }
+
+/* 標題區塊更新 */
+.system-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
+.header-titles { display: flex; flex-direction: column; gap: 8px; }
+.main-app-title { margin: 0; color: #2980b9; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
+.title { margin: 0; color: #7f8c8d; font-size: 16px; font-weight: bold; }
 
 .admin-tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
 .tab-btn { background: transparent; border: none; font-size: 18px; font-weight: bold; color: #7f8c8d; padding: 10px 20px; cursor: pointer; transition: 0.3s; border-radius: 8px 8px 0 0; }
@@ -604,7 +589,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .role-badge.supervisor { background: #e67e22; }
 .role-badge.admin { background: #e74c3c; }
 
-/* 自訂搜尋下拉選單樣式 */
 .custom-select { position: relative; width: 100%; min-width: 170px; background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; box-sizing: border-box; }
 .selected-text { font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
 .selected-text.placeholder { color: #7f8c8d; font-weight: normal; }
@@ -617,7 +601,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .option-item:hover { background-color: #f1f2f6; }
 
 .empty-state { text-align: center; color: #7f8c8d; padding: 30px; }
-
 .pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: 20px; gap: 15px; }
 .page-info { font-size: 14px; font-weight: bold; color: #2c3e50; }
 .page-btn { background-color: #ecf0f1; color: #333; padding: 6px 15px; }
@@ -641,7 +624,6 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .logout-btn { background-color: #e74c3c; color: white; padding: 10px 20px; }
 .logout-btn:hover { background-color: #c0392b; }
 
-/* 彈跳視窗樣式 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); font-family: "微軟正黑體", sans-serif; }
 .modal-content h3 { margin-top: 0; margin-bottom: 5px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }

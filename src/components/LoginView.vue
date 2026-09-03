@@ -1,7 +1,7 @@
 <template>
   <div class="login-wrapper">
     <div class="login-container">
-      <h2>系統登入</h2>
+      <h1 class="login-main-title">📘 學習護照心得回饋系統</h1>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label>Email 帳號：</label>
@@ -105,4 +105,12 @@ input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; 
 
 .switch-mode { margin-top: 20px; text-align: center; font-size: 14px; }
 .switch-mode a { color: #3498db; text-decoration: none; font-weight: bold; }
+.login-main-title {
+  text-align: center;
+  color: #2c3e50;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-bottom: 25px;
+}
 </style>
