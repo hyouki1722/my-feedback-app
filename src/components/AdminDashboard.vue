@@ -502,32 +502,22 @@ async function saveRoleChange() {
   }
 }
 
+// 已經更新為呼叫 Edge Function 的安全刪除邏輯
 async function deleteUser(user) {
-  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n此動作無法復原！`)) return
+  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會徹底清除該員在系統上的所有紀錄與帳號，此動作無法復原！`)) return
 
   try {
-    if (user.role === 'student') {
-      await supabase.from('feedback_reports').delete().eq('student_id', user.id)
-    } else {
-      await supabase.from('feedback_reports').update({ teacher_id: null }).eq('teacher_id', user.id)
-      await supabase.from('feedback_reports').update({ supervisor_id: null }).eq('supervisor_id', user.id)
-    }
-    
-    await supabase.from('assignments').delete().eq('student_id', user.id)
-    await supabase.from('assignments').delete().eq('teacher_id', user.id)
-    await supabase.from('assignments').delete().eq('supervisor_id', user.id)
-    
-    const { data, error } = await supabase.from('profiles').delete().eq('id', user.id).select()
-    if (error) throw error
-    if (!data || data.length === 0) {
-       alert('❌ 刪除失敗被系統攔截！\n請至 Supabase 後台 -> Database -> Policies，為 profiles 表格新增一條允許 DELETE (USING true) 的規則。')
-       return
-    }
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: { user_id: user.id }
+    })
 
-    alert(`✅ 已成功將 ${user.name} 的資料從平台移除！`)
+    if (error) throw error
+
+    alert(`✅ 已成功將 ${user.name} 的資料與帳號從平台徹底移除！`)
     await loadUsers()
+    
   } catch (err) {
-    alert('刪除過程中發生資料庫錯誤：' + err.message)
+    alert('刪除過程中發生錯誤：' + err.message)
   }
 }
 
