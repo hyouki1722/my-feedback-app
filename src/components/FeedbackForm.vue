@@ -507,6 +507,19 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
 
 .skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; }
 
+/* FeedbackForm 專屬骨架屏修復 */
+.skeleton-page { 
+  width: 90vw; /* 強制撐開 */
+  max-width: 900px; 
+  margin: 20px auto; 
+  box-sizing: border-box; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: stretch; 
+}
+
+.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
+
 @keyframes pulse-local {
   0% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -515,7 +528,7 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
 
 .skeleton-title { height: 28px; width: 30%; margin-bottom: 25px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; }
 
-.skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; width: 100%; }
+.skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; }
 
-.skeleton-cell { height: 20px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; }
+.skeleton-cell { height: 20px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; flex-grow: 1; /* 讓格子自動填滿 */ }
 </style>
