@@ -1,41 +1,43 @@
 <template>
-  <div class="login-container">
-    <h2>註冊臨床實習系統</h2>
-    
-    <!-- 新增姓名輸入欄位 -->
-    <div class="form-group">
-      <label>真實姓名：</label>
-      <input type="text" v-model="name" placeholder="請輸入您的真實姓名" />
-    </div>
+  <div class="register-wrapper">
+    <div class="register-container">
+      <h2>註冊臨床實習系統</h2>
 
-    <div class="form-group">
-      <label>Email 信箱 (帳號)：</label>
-      <input type="email" v-model="email" placeholder="請輸入醫院或學校信箱" />
-    </div>
-    
-    <div class="form-group">
-      <label>設定密碼：</label>
-      <input type="password" v-model="password" placeholder="請設定至少 6 位數密碼" />
-    </div>
+      <!-- 新增姓名輸入欄位 -->
+      <div class="form-group">
+        <label>真實姓名：</label>
+        <input type="text" v-model="name" placeholder="請輸入您的真實姓名" />
+      </div>
 
-    <div class="form-group">
-      <label>請選擇您的身分：</label>
-      <select v-model="role" class="role-select">
-        <option value="" disabled>-- 請選擇身分 --</option>
-        <option value="student">👨‍🎓 學員</option>
-        <option value="teacher">👨‍🏫 臨床老師</option>
-        <option value="supervisor">🏥 單位主管</option>
-      </select>
-    </div>
+      <div class="form-group">
+        <label>Email 信箱 (帳號)：</label>
+        <input type="email" v-model="email" placeholder="請輸入醫院或學校信箱" />
+      </div>
 
-    <button @click="handleRegister" class="primary-btn" :disabled="isLoading">
-      {{ isLoading ? '註冊中...' : '確認註冊' }}
-    </button>
-    
-    <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-    
-    <div class="switch-mode">
-      已經有帳號了嗎？ <a href="#" @click.prevent="$emit('switch-to-login')">返回登入</a>
+      <div class="form-group">
+        <label>設定密碼：</label>
+        <input type="password" v-model="password" placeholder="請設定至少 6 位數密碼" />
+      </div>
+
+      <div class="form-group">
+        <label>請選擇您的身分：</label>
+        <select v-model="role" class="role-select">
+          <option value="" disabled>-- 請選擇身分 --</option>
+          <option value="student">👨‍🎓 學員</option>
+          <option value="teacher">👨‍🏫 臨床老師</option>
+          <option value="supervisor">🏥 單位主管</option>
+        </select>
+      </div>
+
+      <button @click="handleRegister" class="primary-btn" :disabled="isLoading">
+        {{ isLoading ? '註冊中...' : '確認註冊' }}
+      </button>
+
+      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+
+      <div class="switch-mode">
+        已經有帳號了嗎？ <a href="#" @click.prevent="$emit('switch-to-login')">返回登入</a>
+      </div>
     </div>
   </div>
 </template>

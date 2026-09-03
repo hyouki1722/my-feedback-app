@@ -21,8 +21,12 @@
           <label>請輸入新密碼 (至少 6 位數)：</label>
           <input type="password" v-model="newPassword" placeholder="輸入新密碼" class="modal-input">
         </div>
+        <div class="form-group">
+          <label>請再次輸入新密碼：</label>
+          <input type="password" v-model="confirmPassword" placeholder="再次輸入新密碼" class="modal-input">
+        </div>
         <div class="modal-actions">
-          <button @click="showPasswordModal = false" class="btn dark-btn">取消</button>
+          <button @click="showPasswordModal = false; newPassword = ''; confirmPassword = ''" class="btn dark-btn">取消</button>
           <button @click="updatePassword" class="btn primary-btn">確認修改</button>
         </div>
       </div>
@@ -153,6 +157,7 @@ const isLoading = ref(true)
 
 const showPasswordModal = ref(false)
 const newPassword = ref('')
+const confirmPassword = ref('')
 
 const report = ref({
   id: null,
@@ -265,16 +270,22 @@ async function submitStudent() {
   const { data: assignData, error: assignError } = await supabase.from('assignments').select('teacher_id, supervisor_id').eq('student_id', props.session.user.id).maybeSingle()
   if (assignError || !assignData) return alert('送出失敗：系統管理員尚未為您分配指導老師與主管，請聯繫管理員！')
 
-  const { error } = await supabase.from('feedback_reports').insert([{ 
+  const payload = {
     student_id: props.session.user.id,
     teacher_id: assignData.teacher_id,
     supervisor_id: assignData.supervisor_id,
     training_category: report.value.training_category,
     cert_date: report.value.cert_date,
     student_content: report.value.student_content,
-    status: 'submitted' 
-  }])
-  
+    status: 'submitted'
+  }
+
+  // 若 report.value.id 已存在，代表這是「被老師退回後重新送出」，
+  // 必須 update 覆蓋原本那一筆，絕對不能再 insert，否則會產生重複資料列
+  const { error } = report.value.id
+    ? await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
+    : await supabase.from('feedback_reports').insert([payload])
+
   if (error) {
     alert('寫入失敗（權限或資料庫錯誤）：' + error.message)
   } else {
@@ -349,12 +360,14 @@ async function rejectToStudent() {
 
 async function updatePassword() {
   if (newPassword.value.length < 6) return alert('密碼長度至少需要 6 個字元！')
+  if (newPassword.value !== confirmPassword.value) return alert('兩次輸入的密碼不一致，請重新確認！')
   const { error } = await supabase.auth.updateUser({ password: newPassword.value })
   if (error) alert('密碼修改失敗：' + error.message)
   else {
     alert('密碼修改成功！下次登入請使用新密碼。')
     showPasswordModal.value = false
     newPassword.value = ''
+    confirmPassword.value = ''
   }
 }
 
