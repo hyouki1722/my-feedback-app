@@ -88,25 +88,25 @@ async function checkUserRole(userId) {
 <style>
 body { margin: 0; background-color: #f0f2f5; font-family: "微軟正黑體", sans-serif; }
 
-/* 骨架屏動畫核心 */
+/* 強化版骨架屏微光動畫 */
 @keyframes shimmer {
-  0% { background-position: -800px 0; }
-  100% { background-position: 800px 0; }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
+/* 將所有骨架區塊套用新版高對比動畫 */
 .skeleton-header, .skeleton-title, .skeleton-line, .skeleton-box, .skeleton-cell {
-  background: #f6f7f8;
-  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
-  background-repeat: no-repeat;
-  background-size: 800px 100%;
-  animation: shimmer 1.5s infinite linear forwards;
+  background: #f0f0f0;
+  background-image: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
   border-radius: 4px;
 }
 
-/* 骨架屏版面配置 */
-.skeleton-page { max-width: 1000px; margin: 40px auto; padding: 20px; box-sizing: border-box; }
+/* 骨架屏版面配置 (確保撐滿不破版) */
+.skeleton-page { width: 100%; max-width: 1000px; margin: 40px auto; padding: 20px; box-sizing: border-box; }
 .skeleton-header { height: 75px; width: 100%; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; }
 .skeleton-title { height: 28px; width: 40%; margin-bottom: 30px; }
 .skeleton-line { height: 18px; width: 100%; margin-bottom: 15px; }
 .skeleton-box { height: 300px; width: 100%; margin-top: 30px; border-radius: 8px; }
