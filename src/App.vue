@@ -17,6 +17,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from './supabase'
+import Swal from 'sweetalert2'
 import LoginView from './components/LoginView.vue'
 import RegisterView from './components/RegisterView.vue'
 import FeedbackForm from './components/FeedbackForm.vue'
@@ -55,7 +56,14 @@ async function checkUserRole(userId) {
     console.error('讀取使用者身分失敗：', error)
     userRole.value = ''
     isCheckingRole.value = false
-    alert('您的帳號資料異常（可能已被停用或刪除），請聯繫系統管理員。系統將自動登出。')
+    
+    await Swal.fire({
+      icon: 'error',
+      title: '帳號狀態異常',
+      text: '您的帳號可能已被停用或刪除，請聯繫系統管理員。',
+      confirmButtonColor: '#3498db'
+    })
+    
     await supabase.auth.signOut()
     return
   }

@@ -276,6 +276,16 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '../supabase'
+import Swal from 'sweetalert2'
+
+// 設定右上角滑出的 Toast 通知模板
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+})
 
 const authClient = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -458,16 +468,17 @@ async function handleCreateUser() {
   const { data, error } = await authClient.auth.signUp({ email: newUser.value.email, password: newUser.value.password })
 
   if (error) {
-    alert('建立失敗：' + error.message)
+    Toast.fire({ icon: 'error', title: '建立失敗：' + error.message })
   } else if (data?.user) {
     let finalName = newUser.value.name
     if (newUser.value.role === 'teacher' && newUser.value.profession) finalName = `[${newUser.value.profession}] ${finalName}`
     else if (newUser.value.role === 'supervisor' && newUser.value.department) finalName = `[${newUser.value.department}] ${finalName}`
 
     const { error: profileError } = await supabase.from('profiles').insert([{ id: data.user.id, name: finalName, role: newUser.value.role, email: newUser.value.email }])
-    if (profileError) alert('Auth 建立成功，但寫入 profile 失敗：' + profileError.message)
-    else {
-      alert(`✅ 帳號 ${finalName} 建立成功！`)
+    if (profileError) {
+      Toast.fire({ icon: 'error', title: '設定 profile 失敗：' + profileError.message })
+    } else {
+      Toast.fire({ icon: 'success', title: `帳號 ${finalName} 建立成功！` })
       newUser.value = { name: '', role: '', email: '', password: '', profession: '', department: '' }
       await loadUsers() 
     }
@@ -494,17 +505,28 @@ async function saveRoleChange() {
   else if (editForm.value.role === 'supervisor' && editForm.value.department) finalName = `[${editForm.value.department}] ${finalName}`
 
   const { error } = await supabase.from('profiles').update({ name: finalName, role: editForm.value.role }).eq('id', editForm.value.id)
-  if (error) alert('更新失敗：' + error.message)
-  else {
-    alert('✅ 人員身分變更成功！')
+  if (error) {
+    Toast.fire({ icon: 'error', title: '更新失敗：' + error.message })
+  } else {
+    Toast.fire({ icon: 'success', title: '人員身分變更成功！' })
     editModalOpen.value = false
     await loadUsers()
   }
 }
 
-// 已經更新為呼叫 Edge Function 的安全刪除邏輯
 async function deleteUser(user) {
-  if (!confirm(`⚠️ 警告：確定要刪除「${user.name}」嗎？\n這將會徹底清除該員在系統上的所有紀錄與帳號，此動作無法復原！`)) return
+  const confirmResult = await Swal.fire({
+    title: `確定要刪除「${user.name}」嗎？`,
+    text: '這將會徹底清除該員在系統上的所有紀錄與帳號，此動作無法復原！',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e74c3c',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確認刪除',
+    cancelButtonText: '取消'
+  })
+
+  if (!confirmResult.isConfirmed) return
 
   try {
     const { data, error } = await supabase.functions.invoke('delete-user', {
@@ -513,19 +535,31 @@ async function deleteUser(user) {
 
     if (error) throw error
 
-    alert(`✅ 已成功將 ${user.name} 的資料與帳號從平台徹底移除！`)
+    Swal.fire({
+      icon: 'success',
+      title: '刪除成功',
+      text: `已成功將 ${user.name} 的資料從平台徹底移除。`,
+      confirmButtonColor: '#3498db'
+    })
     await loadUsers()
     
   } catch (err) {
-    alert('刪除過程中發生錯誤：' + err.message)
+    Swal.fire({ icon: 'error', title: '刪除失敗', text: err.message })
   }
 }
 
 async function saveAssignment(student) {
-  if (!student.teacher_id || !student.supervisor_id) return alert('請完整選擇臨床老師與單位主管！')
+  if (!student.teacher_id || !student.supervisor_id) {
+    return Toast.fire({ icon: 'warning', title: '請完整選擇臨床老師與單位主管！' })
+  }
+  
   const { error } = await supabase.from('assignments').upsert({ student_id: student.id, teacher_id: student.teacher_id, supervisor_id: student.supervisor_id }, { onConflict: 'student_id' })
-  if (error) alert('儲存失敗：' + error.message)
-  else alert(`✅ 已成功儲存 ${student.name} 的配對資料！`)
+  
+  if (error) {
+    Toast.fire({ icon: 'error', title: '儲存失敗：' + error.message })
+  } else {
+    Toast.fire({ icon: 'success', title: `已成功儲存 ${student.name} 的配對資料！` })
+  }
 }
 
 async function handleLogout() {

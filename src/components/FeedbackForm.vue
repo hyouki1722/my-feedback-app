@@ -148,6 +148,15 @@
 import { ref, computed, watch } from 'vue'
 import { supabase } from '../supabase'
 import html2pdf from 'html2pdf.js'
+import Swal from 'sweetalert2'
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+})
 
 const props = defineProps(['session', 'userRole'])
 
@@ -157,7 +166,6 @@ const isLoading = ref(true)
 
 const showPasswordModal = ref(false)
 const newPassword = ref('')
-const confirmPassword = ref('')
 
 const report = ref({
   id: null,
@@ -249,7 +257,9 @@ function getStatusText(r) {
 }
 
 function openReport(r) {
-  if (r.status === 'not_started' || r.status === 'draft') return alert('學員尚未送出表單，目前無法進入審核！')
+  if (r.status === 'not_started' || r.status === 'draft') {
+    return Toast.fire({ icon: 'info', title: '學員尚未送出表單，目前無法進入審核' })
+  }
   Object.assign(report.value, r.reportData)
   report.value.student_name = r.student_name
   viewMode.value = 'form'
@@ -261,36 +271,42 @@ function backToList() {
 }
 
 async function submitStudent() {
-  if (!report.value.training_category) return alert('請先勾選最上方的「訓練類別」！')
-  if (!report.value.student_content?.trim()) return alert('請填寫「學員心得回饋」內容！')
+  if (!report.value.training_category) return Toast.fire({ icon: 'warning', title: '請先勾選最上方的「訓練類別」！' })
+  if (!report.value.student_content?.trim()) return Toast.fire({ icon: 'warning', title: '請填寫「學員心得回饋」內容！' })
   
-  const isConfirmed = confirm('確定要送出表單嗎？\n⚠️ 送出後將無法再次編輯，系統將準備發送通知信給您的指導老師與主管。')
-  if (!isConfirmed) return
+  const confirmResult = await Swal.fire({
+    title: '確定要送出表單嗎？',
+    text: '送出後將無法再次編輯，系統將準備發送通知信給您的指導老師與主管。',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#3498db',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確認送出',
+    cancelButtonText: '再檢查一下'
+  })
+  
+  if (!confirmResult.isConfirmed) return
   
   const { data: assignData, error: assignError } = await supabase.from('assignments').select('teacher_id, supervisor_id').eq('student_id', props.session.user.id).maybeSingle()
-  if (assignError || !assignData) return alert('送出失敗：系統管理員尚未為您分配指導老師與主管，請聯繫管理員！')
+  if (assignError || !assignData) {
+    return Swal.fire({ icon: 'error', title: '送出失敗', text: '系統尚未為您分配指導老師與主管，請聯繫管理員！' })
+  }
 
-  const payload = {
+  const { error } = await supabase.from('feedback_reports').insert([{ 
     student_id: props.session.user.id,
     teacher_id: assignData.teacher_id,
     supervisor_id: assignData.supervisor_id,
     training_category: report.value.training_category,
     cert_date: report.value.cert_date,
     student_content: report.value.student_content,
-    status: 'submitted'
-  }
-
-  // 若 report.value.id 已存在，代表這是「被老師退回後重新送出」，
-  // 必須 update 覆蓋原本那一筆，絕對不能再 insert，否則會產生重複資料列
-  const { error } = report.value.id
-    ? await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
-    : await supabase.from('feedback_reports').insert([payload])
-
+    status: 'submitted' 
+  }])
+  
   if (error) {
-    alert('寫入失敗（權限或資料庫錯誤）：' + error.message)
+    Toast.fire({ icon: 'error', title: '寫入失敗：' + error.message })
   } else {
     await sendNotificationEmails(assignData.teacher_id, assignData.supervisor_id)
-    alert('表單已成功送出！')
+    await Swal.fire({ icon: 'success', title: '表單已成功送出！', timer: 2000, showConfirmButton: false })
     location.reload()
   }
 }
@@ -313,61 +329,101 @@ async function sendNotificationEmails(teacherId, supervisorId) {
 }
 
 async function saveTeacher() {
-  if (!report.value.teacher_feedback?.trim()) return alert('請填寫「指導老師回饋」內容！')
+  if (!report.value.teacher_feedback?.trim()) return Toast.fire({ icon: 'warning', title: '請填寫「指導老師回饋」內容！' })
   const currentTime = new Date().toISOString()
   const { error } = await supabase.from('feedback_reports').update({ teacher_feedback: report.value.teacher_feedback, teacher_submitted_at: currentTime }).eq('id', report.value.id)
+  
   if (!error) {
-    alert('指導老師回饋已儲存！')
+    Toast.fire({ icon: 'success', title: '指導老師回饋已儲存！' })
     report.value.teacher_submitted_at = currentTime
   }
 }
 
 async function completeSupervisor() {
-  if (!report.value.teacher_feedback?.trim()) return alert('指導老師尚未填寫回饋，無法進行結案！')
-  if (!report.value.supervisor_feedback?.trim()) return alert('請填寫「單位主管回饋」內容！')
+  if (!report.value.teacher_feedback?.trim()) return Toast.fire({ icon: 'warning', title: '指導老師尚未填寫回饋，無法進行結案！' })
+  if (!report.value.supervisor_feedback?.trim()) return Toast.fire({ icon: 'warning', title: '請填寫「單位主管回饋」內容！' })
+  
+  const confirmResult = await Swal.fire({
+    title: '確認儲存並結案？',
+    text: '結案後將鎖定表單，並開放 PDF 匯出功能。',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#2ecc71',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確認結案'
+  })
+
+  if (!confirmResult.isConfirmed) return
+
   const currentTime = new Date().toISOString()
   const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'completed', supervisor_submitted_at: currentTime }).eq('id', report.value.id)
+  
   if (!error) {
-    alert('已成功結案！')
+    await Swal.fire({ icon: 'success', title: '已成功結案！', timer: 1500, showConfirmButton: false })
     location.reload()
   }
 }
 
 function exportPDF() {
-  if (!report.value.student_content?.trim() || !report.value.teacher_feedback?.trim() || !report.value.supervisor_feedback?.trim()) return alert('表單尚未全部填寫完畢，無法匯出 PDF！')
+  if (!report.value.student_content?.trim() || !report.value.teacher_feedback?.trim() || !report.value.supervisor_feedback?.trim()) {
+    return Toast.fire({ icon: 'warning', title: '表單尚未全部填寫完畢，無法匯出 PDF！' })
+  }
+  Toast.fire({ icon: 'info', title: 'PDF 產生中，請稍候...' })
   const element = document.getElementById('pdf-content')
   const fileName = `${report.value.student_name || '學員'}_基礎訓練心得.pdf`
   html2pdf().set({ margin: 0, filename: fileName, image: { type: 'jpeg', quality: 1 }, html2canvas: { scale: 2, windowWidth: 800 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(element).save()
 }
 
 async function unlockForm() {
-  if (!confirm('確定要將表單拉回重新編輯嗎？這將會暫時解除「結案」狀態。')) return
+  const result = await Swal.fire({
+    title: '確定拉回重新編輯？',
+    text: '這將會暫時解除「結案」狀態，允許老師與主管修改回饋內容。',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#f39c12',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確認拉回'
+  })
+  
+  if (!result.isConfirmed) return
+
   const { error } = await supabase.from('feedback_reports').update({ status: 'submitted' }).eq('id', report.value.id)
   if (!error) {
-    alert('表單已成功拉回！您現在可以重新編輯內容了。')
+    await Swal.fire({ icon: 'success', title: '表單已成功拉回！', timer: 1500, showConfirmButton: false })
     location.reload()
   }
 }
 
 async function rejectToStudent() {
-  if (!confirm('確定要將此心得退回給學員重新修改嗎？')) return
+  const result = await Swal.fire({
+    title: '確認退回給學員？',
+    text: '學員將可重新編輯心得內容，您之前的回饋仍會保留。',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e67e22',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確認退回'
+  })
+  
+  if (!result.isConfirmed) return
+
   const { error } = await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
   if (!error) {
-    alert('表單已成功退回給學員！')
+    await Swal.fire({ icon: 'success', title: '表單已成功退回給學員！', timer: 1500, showConfirmButton: false })
     location.reload()
   }
 }
 
 async function updatePassword() {
-  if (newPassword.value.length < 6) return alert('密碼長度至少需要 6 個字元！')
-  if (newPassword.value !== confirmPassword.value) return alert('兩次輸入的密碼不一致，請重新確認！')
+  if (newPassword.value.length < 6) return Toast.fire({ icon: 'warning', title: '密碼長度至少需要 6 個字元！' })
+  
   const { error } = await supabase.auth.updateUser({ password: newPassword.value })
-  if (error) alert('密碼修改失敗：' + error.message)
-  else {
-    alert('密碼修改成功！下次登入請使用新密碼。')
+  if (error) {
+    Toast.fire({ icon: 'error', title: '密碼修改失敗：' + error.message })
+  } else {
+    Swal.fire({ icon: 'success', title: '修改成功', text: '下次登入請使用新密碼。', confirmButtonColor: '#3498db' })
     showPasswordModal.value = false
     newPassword.value = ''
-    confirmPassword.value = ''
   }
 }
 
