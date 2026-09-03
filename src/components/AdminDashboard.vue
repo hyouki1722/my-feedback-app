@@ -653,4 +653,40 @@ input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radiu
 .modal-content h3 { margin-top: 0; margin-bottom: 5px; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
 .modal-input { width: 100%; padding: 10px; border: 1px solid #999; border-radius: 4px; margin-top: 8px; font-size: 15px; box-sizing: border-box; color: #333; background-color: #fff; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+
+/* ================================================= */
+/* AdminDashboard: RWD 手機版卡片化自動轉換 (小於 768px) */
+/* ================================================= */
+@media screen and (max-width: 768px) {
+  .system-header { flex-direction: column; align-items: stretch; gap: 15px; }
+  .header-actions, .logout-btn { width: 100%; }
+  .card-header-flex { flex-direction: column; align-items: stretch; gap: 10px; }
+  .search-box, .search-input { width: 100%; box-sizing: border-box; }
+  .admin-tabs { flex-wrap: wrap; }
+  .tab-btn { flex: 1; text-align: center; font-size: 15px; padding: 10px; }
+
+  /* 表格轉卡片核心邏輯 */
+  .assignment-table thead { display: none !important; }
+  .assignment-table, .assignment-table tbody, .assignment-table tr, .assignment-table td { display: block; width: 100%; box-sizing: border-box; }
+  
+  .assignment-table tr { 
+    background: #ffffff; 
+    border: 1px solid #dfe4ea; 
+    border-radius: 10px; 
+    margin-bottom: 15px; 
+    padding: 15px; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.06); 
+  }
+  
+  .assignment-table td { 
+    border: none !important; 
+    padding: 8px 0 !important; 
+    text-align: left !important; 
+  }
+
+  /* 針對操作按鈕與下拉選單的滿版優化 */
+  .action-buttons { width: 100%; display: flex; flex-direction: row; gap: 10px; margin-top: 10px; }
+  .action-buttons button, .success-btn { flex: 1; width: 100%; padding: 12px; font-size: 15px; }
+  .custom-select { width: 100%; margin-bottom: 8px; }
+}
 </style>

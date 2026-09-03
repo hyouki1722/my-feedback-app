@@ -531,4 +531,62 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
 .skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; }
 
 .skeleton-cell { height: 20px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; flex-grow: 1; /* 讓格子自動填滿 */ }
+
+/* ================================================= */
+/* FeedbackForm: RWD 手機版卡片化與表單優化 (小於 768px) */
+/* ================================================= */
+@media screen and (max-width: 768px) {
+  .system-header { flex-direction: column; align-items: stretch; gap: 15px; }
+  .header-actions { flex-direction: column; width: 100%; }
+  .header-actions button { width: 100%; }
+  
+  /* 學生清單表格轉卡片 */
+  .assignment-table thead { display: none !important; }
+  .assignment-table, .assignment-table tbody, .assignment-table tr, .assignment-table td { display: block; width: 100%; box-sizing: border-box; }
+  
+  .assignment-table tr { 
+    background: #ffffff; 
+    border: 1px solid #dfe4ea; 
+    border-radius: 10px; 
+    margin-bottom: 15px; 
+    padding: 15px; 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.06); 
+  }
+  
+  .assignment-table td { 
+    border: none !important; 
+    padding: 6px 0 !important; 
+    text-align: left !important; 
+  }
+
+  /* 讓學員姓名特別突出，作為卡片標題 */
+  .assignment-table td:nth-child(1) { 
+    font-size: 18px; 
+    font-weight: bold; 
+    color: #2c3e50; 
+    border-bottom: 1px solid #ecf0f1 !important; 
+    padding-bottom: 10px !important; 
+    margin-bottom: 10px; 
+  }
+  
+  /* 狀態標籤並排顯示 */
+  .assignment-table td:nth-child(3), .assignment-table td:nth-child(4) { 
+    display: inline-block; 
+    margin-right: 10px; 
+    font-size: 14px; 
+  }
+  
+  /* 操作按鈕滿版化 */
+  .assignment-table td:last-child { margin-top: 15px; }
+  .assignment-table td:last-child button { width: 100%; padding: 12px; font-size: 16px; }
+
+  /* 實體護照表單在手機上的排版優化 */
+  .paper-wrapper { overflow-x: hidden; }
+  .paper { padding: 20px 15px; width: 100%; border-radius: 8px; }
+  .paper-title { font-size: 22px; }
+  .check-row { flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .row-header { flex-direction: column; gap: 5px; }
+  .action-panel { flex-direction: column; gap: 10px; }
+  .action-panel button { width: 100%; }
+}
 </style>
