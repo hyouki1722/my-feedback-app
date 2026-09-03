@@ -1,12 +1,24 @@
 <template>
   <main>
-    <div v-if="session && isCheckingRole" class="global-loading">
-      系統載入中...
+    <!-- 骨架屏載入動畫：取代原本的「系統載入中...」 -->
+    <div v-if="session && isCheckingRole" class="skeleton-page">
+      <div class="skeleton-header"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-title"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line" style="width: 70%"></div>
+        <div class="skeleton-box"></div>
+      </div>
     </div>
+
+    <!-- 已登入且確認身分後：根據角色顯示對應畫面 -->
     <template v-else-if="session && !isCheckingRole">
       <AdminDashboard v-if="userRole === 'admin'" />
       <FeedbackForm v-else :session="session" :user-role="userRole" />
     </template>
+    
+    <!-- 未登入：切換登入與註冊畫面 -->
     <template v-else>
       <LoginView v-if="currentMode === 'login'" @switch-to-register="currentMode = 'register'" />
       <RegisterView v-if="currentMode === 'register'" @switch-to-login="currentMode = 'login'" />
@@ -74,6 +86,28 @@ async function checkUserRole(userId) {
 </script>
 
 <style>
-body { margin: 0; background-color: #ecf0f1; }
-.global-loading { text-align: center; margin-top: 100px; font-size: 20px; color: #7f8c8d; }
+body { margin: 0; background-color: #f0f2f5; font-family: "微軟正黑體", sans-serif; }
+
+/* 骨架屏動畫核心 */
+@keyframes shimmer {
+  0% { background-position: -800px 0; }
+  100% { background-position: 800px 0; }
+}
+
+.skeleton-header, .skeleton-title, .skeleton-line, .skeleton-box, .skeleton-cell {
+  background: #f6f7f8;
+  background-image: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+  background-repeat: no-repeat;
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite linear forwards;
+  border-radius: 4px;
+}
+
+/* 骨架屏版面配置 */
+.skeleton-page { max-width: 1000px; margin: 40px auto; padding: 20px; box-sizing: border-box; }
+.skeleton-header { height: 75px; width: 100%; margin-bottom: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.skeleton-title { height: 28px; width: 40%; margin-bottom: 30px; }
+.skeleton-line { height: 18px; width: 100%; margin-bottom: 15px; }
+.skeleton-box { height: 300px; width: 100%; margin-top: 30px; border-radius: 8px; }
 </style>

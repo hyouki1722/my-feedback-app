@@ -1,7 +1,6 @@
 <template>
   <div class="app-container">
     
-    <!-- 系統標題列 -->
     <div class="system-header">
       <div class="header-titles">
         <h1 class="main-app-title">📘 學習護照心得回饋系統</h1>
@@ -13,7 +12,6 @@
       </div>
     </div>
 
-    <!-- 修改密碼的彈跳視窗 -->
     <div v-if="showPasswordModal" class="modal-overlay">
       <div class="modal-content">
         <h3>修改登入密碼</h3>
@@ -21,18 +19,25 @@
           <label>請輸入新密碼 (至少 6 位數)：</label>
           <input type="password" v-model="newPassword" placeholder="輸入新密碼" class="modal-input">
         </div>
-        <div class="form-group">
-          <label>請再次輸入新密碼：</label>
-          <input type="password" v-model="confirmPassword" placeholder="再次輸入新密碼" class="modal-input">
-        </div>
         <div class="modal-actions">
-          <button @click="showPasswordModal = false; newPassword = ''; confirmPassword = ''" class="btn dark-btn">取消</button>
+          <button @click="showPasswordModal = false" class="btn dark-btn">取消</button>
           <button @click="updatePassword" class="btn primary-btn">確認修改</button>
         </div>
       </div>
     </div>
 
-    <div v-if="isLoading" class="loading">載入資料中...</div>
+    <!-- 骨架屏載入動畫：取代文字 -->
+    <div v-if="isLoading" class="skeleton-page" style="margin-top: 0;">
+      <div class="skeleton-body">
+        <div class="skeleton-title"></div>
+        <div class="skeleton-table-row" v-for="i in 5" :key="i">
+          <div class="skeleton-cell" style="width: 20%"></div>
+          <div class="skeleton-cell" style="width: 30%"></div>
+          <div class="skeleton-cell" style="width: 20%"></div>
+          <div class="skeleton-cell" style="width: 15%"></div>
+        </div>
+      </div>
+    </div>
 
     <!-- 老師/主管的學生清單畫面 -->
     <div v-else-if="viewMode === 'list'" class="list-container">
@@ -76,7 +81,6 @@
         <div id="pdf-content" class="paper">
           <h1 class="paper-title">基礎訓練心得</h1>
 
-          <!-- 訓練類別勾選區 -->
           <div class="checkbox-section">
             <div class="check-row">
               <label><input type="radio" value="第一年：到職訓練" v-model="report.training_category" :disabled="!isStudentDraft"> 第一年：到職訓練</label>
@@ -97,7 +101,6 @@
             </div>
           </div>
 
-          <!-- 框線表格區 -->
           <div class="feedback-table">
             <div class="table-row">
               <div class="row-header">
@@ -126,7 +129,6 @@
         </div>
       </div>
 
-      <!-- 系統操作面板 -->
       <div class="action-panel">
         <button v-if="viewMode === 'form' && currentRole !== 'student'" @click="backToList" class="btn dark-btn">🔙 返回列表</button>
         <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">學員送出表單</button>
@@ -206,7 +208,8 @@ watch(() => props.userRole, async (newRole) => {
     viewMode.value = 'list'
     await loadReviewerReports()
   }
-  isLoading.value = false
+  // 增加微小延遲讓骨架屏動畫更自然，避免資料瞬間閃現
+  setTimeout(() => { isLoading.value = false }, 300)
 }, { immediate: true })
 
 async function loadStudentReport() {
@@ -267,7 +270,8 @@ function openReport(r) {
 
 function backToList() {
   viewMode.value = 'list'
-  loadReviewerReports() 
+  isLoading.value = true
+  loadReviewerReports().then(() => setTimeout(() => isLoading.value = false, 300))
 }
 
 async function submitStudent() {
@@ -435,12 +439,10 @@ async function handleLogout() {
 <style scoped>
 .app-container { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; font-family: "微軟正黑體", sans-serif; box-sizing: border-box; }
 
-/* 標題區塊更新 */
 .system-header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .header-titles { display: flex; flex-direction: column; gap: 8px; }
 .main-app-title { margin: 0; color: #2c3e50; font-size: 24px; font-weight: 900; letter-spacing: 1px; }
 .header-text { color: #7f8c8d; font-size: 15px; font-weight: bold; }
-
 .role-tag { background: #3498db; color: white; padding: 4px 12px; border-radius: 12px; font-weight: bold; }
 .action-panel { max-width: 800px; margin: 20px auto; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
@@ -449,17 +451,19 @@ async function handleLogout() {
 .danger-btn { background: #9b59b6; color: white; }
 .warning-btn { background: #e67e22; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
-
 .header-actions { display: flex; gap: 10px; }
+
+/* 骨架屏表格區塊樣式 */
+.skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; }
+.skeleton-cell { height: 20px; border-radius: 4px; }
+
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
 .modal-content h3 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; }
 .modal-content label { display: block; font-size: 15px; font-weight: bold; color: #333333; }
 .modal-input { width: 100%; padding: 10px; border: 1px solid #999; border-radius: 4px; margin-top: 8px; font-size: 16px; box-sizing: border-box; color: #333333; background-color: #ffffff; }
-.modal-input::placeholder { color: #7f8c8d; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
-.loading { text-align: center; font-size: 18px; color: #7f8c8d; padding: 40px; }
 .list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
 .assignment-table { width: 100%; border-collapse: collapse; }
