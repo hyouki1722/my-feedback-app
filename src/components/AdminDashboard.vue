@@ -69,7 +69,19 @@
 
         <!-- 人員總覽清單 -->
         <div class="admin-card">
-          <h3>📋 系統人員總覽</h3>
+          <div class="card-header-flex align-center" style="margin-bottom: 0;">
+            <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
+            
+            <!-- 身分角色篩選按鈕 -->
+            <div class="filter-tabs">
+              <button :class="{ active: roleFilter === 'all' }" @click="roleFilter = 'all'">全部</button>
+              <button :class="{ active: roleFilter === 'student' }" @click="roleFilter = 'student'">學員</button>
+              <button :class="{ active: roleFilter === 'teacher' }" @click="roleFilter = 'teacher'">指導老師</button>
+              <button :class="{ active: roleFilter === 'supervisor' }" @click="roleFilter = 'supervisor'">單位主管</button>
+              <button :class="{ active: roleFilter === 'admin' }" @click="roleFilter = 'admin'">管理員</button>
+            </div>
+          </div>
+
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -82,7 +94,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="user in users" :key="user.id">
+                <tr v-for="user in filteredUsers" :key="user.id">
                   <td><strong>{{ user.name }}</strong></td>
                   <td>{{ user.email }}</td>
                   <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
@@ -91,8 +103,8 @@
                     <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除人員</button>
                   </td>
                 </tr>
-                <tr v-if="users.length === 0">
-                  <td colspan="5" class="empty-state">系統中尚無其他人員資料</td>
+                <tr v-if="filteredUsers.length === 0">
+                  <td colspan="5" class="empty-state">此分類下尚無人員資料</td>
                 </tr>
               </tbody>
             </table>
@@ -148,12 +160,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import * as XLSX from 'xlsx'
 
 const activeTab = ref('users')
+const roleFilter = ref('all') // 用於篩選清單
 const users = ref([])
 const students = ref([])
 const teachers = ref([])
@@ -166,6 +179,12 @@ const newUser = ref({
   password: '',
   name: '',
   role: 'student'
+})
+
+// 根據過濾器計算要顯示的使用者
+const filteredUsers = computed(() => {
+  if (roleFilter.value === 'all') return users.value
+  return users.value.filter(u => u.role === roleFilter.value)
 })
 
 onMounted(async () => {
@@ -349,7 +368,6 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 加入滿版置中外層容器 */
 .app-wrapper {
   background-color: #f0f2f5;
   min-height: 100vh;
@@ -378,8 +396,15 @@ async function handleLogout() {
 .desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; }
 
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+.card-header-flex.align-center { align-items: center; }
 .card-header-text { display: flex; flex-direction: column; gap: 5px; }
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
+
+/* 篩選按鈕列的樣式 */
+.filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-tabs button { padding: 6px 14px; border: 1px solid #bdc3c7; background: white; border-radius: 20px; font-size: 13px; font-weight: bold; color: #7f8c8d; cursor: pointer; transition: 0.2s; }
+.filter-tabs button.active { background: #34495e; color: white; border-color: #34495e; }
+.filter-tabs button:hover:not(.active) { background: #ecf0f1; }
 
 .create-form { margin-top: 20px; }
 .create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
@@ -421,5 +446,6 @@ async function handleLogout() {
   .import-actions { flex-direction: column; width: 100%; }
   .import-actions .btn, .import-actions label { width: 100%; box-sizing: border-box; }
   .create-form .form-row { flex-direction: column; gap: 10px; }
+  .filter-tabs { justify-content: flex-start; }
 }
 </style>
