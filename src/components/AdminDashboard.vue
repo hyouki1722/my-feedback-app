@@ -1,144 +1,146 @@
 <template>
-  <div class="admin-container">
-    <div class="admin-header">
-      <div class="header-titles">
-        <h2>⚙️ 系統管理員後台</h2>
-      </div>
-      <button @click="handleLogout" class="btn dark-btn">登出系統</button>
-    </div>
-
-    <!-- 頁籤切換 -->
-    <div class="tabs">
-      <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號與權限管理</button>
-      <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 學員配對管理</button>
-    </div>
-
-    <!-- 帳號管理區塊 -->
-    <div v-if="activeTab === 'users'" class="tab-content">
-      
-      <!-- 批次匯入區塊 -->
-      <div class="admin-card">
-        <div class="card-header-flex">
-          <div class="card-header-text">
-            <h3>📊 Excel 批次匯入帳號</h3>
-            <p class="desc">請依照系統匯出的報表格式上傳，密碼將預設為「身分證字號」。</p>
-          </div>
-          <div class="import-actions">
-            <button @click="downloadTemplate" class="btn dark-btn">下載範本格式</button>
-            <input type="file" ref="fileInput" @change="handleFileUpload" accept=".xlsx, .xls" style="display: none" id="excel-upload" />
-            <label for="excel-upload" class="btn success-btn">上傳人事報表</label>
-          </div>
+  <div class="app-wrapper">
+    <div class="admin-container">
+      <div class="admin-header">
+        <div class="header-titles">
+          <h2>⚙️ 系統管理員後台</h2>
         </div>
+        <button @click="handleLogout" class="btn dark-btn">登出系統</button>
       </div>
 
-      <!-- 單筆建立區塊 -->
-      <div class="admin-card">
-        <h3>➕ 單筆建立使用者帳號</h3>
-        <form @submit.prevent="createUser" class="create-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label>姓名：</label>
-              <input type="text" v-model="newUser.name" required placeholder="例如：王小明">
-            </div>
-            <div class="form-group">
-              <label>身分：</label>
-              <select v-model="newUser.role">
-                <option value="student">受訓人員 (學員)</option>
-                <option value="teacher">臨床指導老師</option>
-                <option value="supervisor">單位主管</option>
-                <option value="admin">系統管理員</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Email 帳號：</label>
-              <input type="email" v-model="newUser.email" required placeholder="例如：user@hospital.com">
-            </div>
-            <div class="form-group">
-              <label>預設密碼 (建議使用身分證號)：</label>
-              <input type="text" v-model="newUser.password" required placeholder="至少 6 碼">
-            </div>
-          </div>
-          <button type="submit" class="btn primary-btn" :disabled="isCreating">
-            {{ isCreating ? '建立中...' : '確認建立單筆帳號' }}
-          </button>
-        </form>
+      <!-- 頁籤切換 -->
+      <div class="tabs">
+        <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號與權限管理</button>
+        <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 學員配對管理</button>
       </div>
 
-      <!-- 人員總覽清單 -->
-      <div class="admin-card">
-        <h3>📋 系統人員總覽</h3>
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>姓名</th>
-                <th>Email</th>
-                <th>身分角色</th>
-                <th>建立時間</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="user in users" :key="user.id">
-                <td><strong>{{ user.name }}</strong></td>
-                <td>{{ user.email }}</td>
-                <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
-                <td>{{ formatDate(user.created_at) }}</td>
-                <td>
-                  <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除人員</button>
-                </td>
-              </tr>
-              <tr v-if="users.length === 0">
-                <td colspan="5" class="empty-state">系統中尚無其他人員資料</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- 配對管理區塊 -->
-    <div v-if="activeTab === 'pairing'" class="tab-content">
-      <div class="admin-card">
-        <h3>🔗 學員與指導者配對設定</h3>
-        <p class="desc">請為每位學員指定對應的臨床指導老師與單位主管，設定後系統才會自動派發通知信。</p>
+      <!-- 帳號管理區塊 -->
+      <div v-if="activeTab === 'users'" class="tab-content">
         
-        <div class="table-responsive">
-          <table class="data-table pairing-table">
-            <thead>
-              <tr>
-                <th>受訓學員</th>
-                <th>臨床指導老師</th>
-                <th>單位主管</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="student in students" :key="student.id">
-                <td><strong>{{ student.name }}</strong></td>
-                <td>
-                  <select v-model="assignmentData[student.id].teacher_id" class="pairing-select">
-                    <option value="">-- 請選擇指導老師 --</option>
-                    <option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option>
-                  </select>
-                </td>
-                <td>
-                  <select v-model="assignmentData[student.id].supervisor_id" class="pairing-select">
-                    <option value="">-- 請選擇單位主管 --</option>
-                    <option v-for="supervisor in supervisors" :key="supervisor.id" :value="supervisor.id">{{ supervisor.name }}</option>
-                  </select>
-                </td>
-                <td>
-                  <button @click="saveAssignment(student.id)" class="btn primary-btn small-btn">儲存配對</button>
-                </td>
-              </tr>
-              <tr v-if="students.length === 0">
-                <td colspan="4" class="empty-state">系統中尚無受訓學員</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- 批次匯入區塊 -->
+        <div class="admin-card">
+          <div class="card-header-flex">
+            <div class="card-header-text">
+              <h3>📊 Excel 批次匯入帳號</h3>
+              <p class="desc">請依照系統匯出的報表格式上傳，密碼將預設為「身分證字號」。</p>
+            </div>
+            <div class="import-actions">
+              <button @click="downloadTemplate" class="btn dark-btn">下載範本格式</button>
+              <input type="file" ref="fileInput" @change="handleFileUpload" accept=".xlsx, .xls" style="display: none" id="excel-upload" />
+              <label for="excel-upload" class="btn success-btn">上傳人事報表</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 單筆建立區塊 -->
+        <div class="admin-card">
+          <h3>➕ 單筆建立使用者帳號</h3>
+          <form @submit.prevent="createUser" class="create-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>姓名：</label>
+                <input type="text" v-model="newUser.name" required placeholder="例如：王小明">
+              </div>
+              <div class="form-group">
+                <label>身分：</label>
+                <select v-model="newUser.role">
+                  <option value="student">受訓人員 (學員)</option>
+                  <option value="teacher">臨床指導老師</option>
+                  <option value="supervisor">單位主管</option>
+                  <option value="admin">系統管理員</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Email 帳號：</label>
+                <input type="email" v-model="newUser.email" required placeholder="例如：user@hospital.com">
+              </div>
+              <div class="form-group">
+                <label>預設密碼 (建議使用身分證號)：</label>
+                <input type="text" v-model="newUser.password" required placeholder="至少 6 碼">
+              </div>
+            </div>
+            <button type="submit" class="btn primary-btn" :disabled="isCreating">
+              {{ isCreating ? '建立中...' : '確認建立單筆帳號' }}
+            </button>
+          </form>
+        </div>
+
+        <!-- 人員總覽清單 -->
+        <div class="admin-card">
+          <h3>📋 系統人員總覽</h3>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>Email</th>
+                  <th>身分角色</th>
+                  <th>建立時間</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="user in users" :key="user.id">
+                  <td><strong>{{ user.name }}</strong></td>
+                  <td>{{ user.email }}</td>
+                  <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
+                  <td>{{ formatDate(user.created_at) }}</td>
+                  <td>
+                    <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除人員</button>
+                  </td>
+                </tr>
+                <tr v-if="users.length === 0">
+                  <td colspan="5" class="empty-state">系統中尚無其他人員資料</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配對管理區塊 -->
+      <div v-if="activeTab === 'pairing'" class="tab-content">
+        <div class="admin-card">
+          <h3>🔗 學員與指導者配對設定</h3>
+          <p class="desc">請為每位學員指定對應的臨床指導老師與單位主管，設定後系統才會自動派發通知信。</p>
+          
+          <div class="table-responsive">
+            <table class="data-table pairing-table">
+              <thead>
+                <tr>
+                  <th>受訓學員</th>
+                  <th>臨床指導老師</th>
+                  <th>單位主管</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="student in students" :key="student.id">
+                  <td><strong>{{ student.name }}</strong></td>
+                  <td>
+                    <select v-model="assignmentData[student.id].teacher_id" class="pairing-select">
+                      <option value="">-- 請選擇指導老師 --</option>
+                      <option v-for="teacher in teachers" :key="teacher.id" :value="teacher.id">{{ teacher.name }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <select v-model="assignmentData[student.id].supervisor_id" class="pairing-select">
+                      <option value="">-- 請選擇單位主管 --</option>
+                      <option v-for="supervisor in supervisors" :key="supervisor.id" :value="supervisor.id">{{ supervisor.name }}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button @click="saveAssignment(student.id)" class="btn primary-btn small-btn">儲存配對</button>
+                  </td>
+                </tr>
+                <tr v-if="students.length === 0">
+                  <td colspan="4" class="empty-state">系統中尚無受訓學員</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -231,7 +233,7 @@ async function createUser() {
   }
 }
 
-// 刪除帳號 (改用完美無缺的 RPC 資料庫呼叫)
+// 刪除帳號 (改用已排除 Foreign Key 問題的 RPC)
 async function deleteUser(userId) {
   const confirmResult = await Swal.fire({
     title: '確定要刪除此人員嗎？',
@@ -248,7 +250,6 @@ async function deleteUser(userId) {
 
   Swal.fire({ title: '刪除中...', text: '正在清理系統資料', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-  // 直接呼叫我們剛才建立的 SQL Function (RPC)，速度更快且完全不卡 Edge Function
   const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
 
   if (error) {
@@ -348,11 +349,25 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.admin-container { max-width: 1000px; margin: 30px auto; font-family: "微軟正黑體", sans-serif; padding: 0 20px; }
+/* 加入滿版置中外層容器 */
+.app-wrapper {
+  background-color: #f0f2f5;
+  min-height: 100vh;
+  width: 100vw;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 30px 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .admin-header h2 { margin: 0; color: #2c3e50; font-weight: 900;}
 
-/* 修正後的頁籤排版 */
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; }
 .tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
 .tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
@@ -362,7 +377,6 @@ async function handleLogout() {
 .admin-card h3 { margin-top: 0; color: #34495e; margin-bottom: 10px; font-weight: 900;}
 .desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; }
 
-/* 修正後的左右對齊佈局 */
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 .card-header-text { display: flex; flex-direction: column; gap: 5px; }
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
@@ -388,7 +402,6 @@ async function handleLogout() {
 
 .pairing-select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; }
 
-/* 強制按鈕文字不折行 (white-space: nowrap) */
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; white-space: nowrap; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
 .primary-btn { background: #3498db; color: white; }
