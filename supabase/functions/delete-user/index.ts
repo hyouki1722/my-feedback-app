@@ -6,40 +6,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-}
-
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  // 處理 CORS 預檢請求
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
+    const { userId } = await req.json()
+    if (!userId) throw new Error('未提供使用者 ID')
+
+    // 取得環境變數中的最高權限金鑰 (Service Role Key)
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return jsonResponse({ error: '缺少授權標頭' }, 401)
-
-    const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } })
-    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser()
-    if (callerError || !callerUser) return jsonResponse({ error: '無法驗證身分' }, 401)
-
+    // 建立具有管理員權限的 Supabase 客戶端
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin.from('profiles').select('role').eq('id', callerUser.id).single()
-    if (callerProfileError || callerProfile?.role !== 'admin') return jsonResponse({ error: '權限不足' }, 403)
+    // 刪除底層 Auth 帳號 (資料庫設定了 Cascade，會自動連鎖刪除 Profile 與所有心得)
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
-    const { user_id } = await req.json()
-    if (!user_id) return jsonResponse({ error: '缺少 user_id 參數' }, 400)
-    if (user_id === callerUser.id) return jsonResponse({ error: '無法刪除自己' }, 400)
+    if (error) throw error
 
-    // 透過 Cascade 設定，刪除此帳號會自動連鎖清空 profiles 與 assignments 中的紀錄
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
-    if (authError) throw authError
-
-    return jsonResponse({ message: '使用者與關聯資料已自動連鎖徹底刪除' })
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
   } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : '刪除過程中發生未知錯誤' }, 500)
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
   }
 })
