@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <!-- 骨架屏載入動畫：取代文字 -->
+    <!-- 骨架屏載入動畫 -->
     <div v-if="isLoading" class="skeleton-page" style="margin-top: 0;">
       <div class="skeleton-body">
         <div class="skeleton-title"></div>
@@ -39,13 +39,19 @@
       </div>
     </div>
 
-    <!-- 老師/主管的學生清單畫面 -->
+    <!-- 師生的歷史紀錄清單畫面 -->
     <div v-else-if="viewMode === 'list'" class="list-container">
-      <h2>🧑‍🎓 負責學員清單</h2>
-      <table class="assignment-table">
+      <div class="card-header-flex" style="margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px;">
+        <h2 style="margin: 0; color: #2c3e50; border: none; padding: 0;">
+          {{ currentRole === 'student' ? '📝 我的歷史心得紀錄' : '🧑‍🎓 負責學員報告清單' }}
+        </h2>
+        <button v-if="currentRole === 'student'" @click="createNewReport" class="btn success-btn small-btn">➕ 新增心得回饋</button>
+      </div>
+
+      <table class="assignment-table" :class="currentRole === 'student' ? 'student-table' : 'reviewer-table'">
         <thead>
           <tr>
-            <th>學員姓名</th>
+            <th v-if="currentRole !== 'student'">學員姓名</th>
             <th>訓練類別</th>
             <th>目前狀態</th>
             <th>更新時間</th>
@@ -53,29 +59,31 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in assignedReports" :key="r.student_id">
-            <td>{{ r.student_name }}</td>
+          <tr v-for="r in reportsList" :key="r.id">
+            <td v-if="currentRole !== 'student'" class="student-name-cell">{{ r.student_name }}</td>
             <td>{{ r.training_category || '尚未選擇' }}</td>
             <td><span class="status-badge" :class="r.status">{{ getStatusText(r) }}</span></td>
-            <td>{{ formatDate(r.teacher_submitted_at || r.created_at) || '-' }}</td>
+            <td>{{ formatDate(r.created_at) || '-' }}</td>
             <td>
               <button 
                 @click="openReport(r)" 
                 class="btn primary-btn small-btn" 
-                :disabled="r.status === 'not_started' || r.status === 'draft'" 
-                :class="{ 'disabled-btn': r.status === 'not_started' || r.status === 'draft' }">
-                {{ r.status === 'completed' ? '查看 / 匯出' : '進入審核' }}
+                :disabled="r.status === 'not_started'" 
+                :class="{ 'disabled-btn': r.status === 'not_started' }">
+                {{ r.status === 'completed' ? '查看 / 匯出' : (currentRole === 'student' ? '繼續編輯' : '進入審核') }}
               </button>
             </td>
           </tr>
-          <tr v-if="assignedReports.length === 0">
-            <td colspan="5" class="empty-state">系統尚未指派任何學員給您</td>
+          <tr v-if="reportsList.length === 0">
+            <td :colspan="currentRole === 'student' ? 4 : 5" class="empty-state">
+              {{ currentRole === 'student' ? '您尚無任何心得紀錄，請點擊右上方新增' : '目前沒有待審核的學員紀錄' }}
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- A4 實體文件區塊 -->
+    <!-- A4 實體文件表單區塊 -->
     <div v-else-if="viewMode === 'form'">
       <div class="paper-wrapper">
         <div id="pdf-content" class="paper">
@@ -107,7 +115,7 @@
                 <div class="row-title">一、學員心得回饋 <span v-if="report.student_name" style="font-size:14px; font-weight:normal; color:#555;">({{ report.student_name }})</span></div>
                 <div class="row-timestamp" v-if="report.created_at">{{ formatDate(report.created_at) }}</div>
               </div>
-              <textarea v-model="report.student_content" class="paper-textarea" rows="4" :disabled="!isStudentDraft"></textarea>
+              <textarea v-model="report.student_content" class="paper-textarea" rows="4" :disabled="!isStudentDraft" placeholder="請在此填寫您的學習心得..."></textarea>
             </div>
             
             <div class="table-row">
@@ -115,7 +123,7 @@
                 <div class="row-title">二、指導老師回饋</div>
                 <div class="row-timestamp" v-if="report.teacher_submitted_at">{{ formatDate(report.teacher_submitted_at) }}</div>
               </div>
-              <textarea v-model="report.teacher_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'teacher' || report.status === 'completed'"></textarea>
+              <textarea v-model="report.teacher_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'teacher' || report.status === 'completed'" placeholder="指導老師回饋區..."></textarea>
             </div>
             
             <div class="table-row last-row">
@@ -123,15 +131,15 @@
                 <div class="row-title">三、單位主管回饋</div>
                 <div class="row-timestamp" v-if="report.supervisor_submitted_at">{{ formatDate(report.supervisor_submitted_at) }}</div>
               </div>
-              <textarea v-model="report.supervisor_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'supervisor' || report.status === 'completed'"></textarea>
+              <textarea v-model="report.supervisor_feedback" class="paper-textarea" rows="4" :disabled="currentRole !== 'supervisor' || report.status === 'completed'" placeholder="單位主管回饋區..."></textarea>
             </div>
           </div>
         </div>
       </div>
 
       <div class="action-panel">
-        <button v-if="viewMode === 'form' && currentRole !== 'student'" @click="backToList" class="btn dark-btn">🔙 返回列表</button>
-        <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">學員送出表單</button>
+        <button @click="backToList" class="btn dark-btn">🔙 返回列表</button>
+        <button v-if="isStudentDraft" @click="submitStudent" class="btn primary-btn">送出心得表單</button>
         
         <template v-if="currentRole === 'teacher' && report.status === 'submitted'">
           <button @click="saveTeacher" class="btn primary-btn">儲存指導老師回饋</button>
@@ -162,8 +170,8 @@ const Toast = Swal.mixin({
 
 const props = defineProps(['session', 'userRole'])
 
-const viewMode = ref('form')
-const assignedReports = ref([])
+const viewMode = ref('list')
+const reportsList = ref([])
 const isLoading = ref(true)
 
 const showPasswordModal = ref(false)
@@ -192,7 +200,7 @@ function formatDate(dateString) {
 const currentRole = computed(() => props.userRole || '')
 
 const roleName = computed(() => {
-  const map = { student: '學員', teacher: '臨床老師', supervisor: '單位主管', admin: '系統管理員' }
+  const map = { student: '受訓人員', teacher: '教師', supervisor: '主管', admin: '系統管理員' }
   return map[currentRole.value] || '讀取中...'
 })
 
@@ -201,56 +209,89 @@ const isStudentDraft = computed(() => currentRole.value === 'student' && report.
 watch(() => props.userRole, async (newRole) => {
   if (!newRole) return
   isLoading.value = true
+  viewMode.value = 'list'
+  
   if (newRole === 'student') {
-    viewMode.value = 'form'
-    await loadStudentReport()
+    await loadStudentReports()
   } else {
-    viewMode.value = 'list'
     await loadReviewerReports()
   }
-  // 增加微小延遲讓骨架屏動畫更自然，避免資料瞬間閃現
+  
   setTimeout(() => { isLoading.value = false }, 300)
 }, { immediate: true })
 
-async function loadStudentReport() {
-  const { data, error } = await supabase.from('feedback_reports').select('*').eq('student_id', props.session.user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  if (data) Object.assign(report.value, data)
+async function loadStudentReports() {
   const { data: profile } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).maybeSingle()
-  if (profile) report.value.student_name = profile.name
+  const studentName = profile?.name || '學員'
+
+  const { data, error } = await supabase
+    .from('feedback_reports')
+    .select('*')
+    .eq('student_id', props.session.user.id)
+    .order('created_at', { ascending: false })
+
+  if (data) {
+    reportsList.value = data.map(r => ({
+      ...r,
+      student_name: studentName,
+      reportData: r 
+    }))
+  } else {
+    reportsList.value = []
+  }
 }
 
 async function loadReviewerReports() {
   const column = currentRole.value === 'teacher' ? 'teacher_id' : 'supervisor_id'
-  const { data: assignments } = await supabase.from('assignments').select('*').eq(column, props.session.user.id)
+  const { data: assignments } = await supabase.from('assignments').select('student_id').eq(column, props.session.user.id)
 
   if (!assignments || assignments.length === 0) {
-    assignedReports.value = []
+    reportsList.value = []
     return
   }
 
   const studentIds = assignments.map(a => a.student_id)
   const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', studentIds)
-  const { data: reports } = await supabase.from('feedback_reports').select('*').in('student_id', studentIds)
+  const { data: reports } = await supabase.from('feedback_reports').select('*').in('student_id', studentIds).order('created_at', { ascending: false })
 
-  assignedReports.value = profiles.map(profile => {
-    const rData = reports?.find(r => r.student_id === profile.id)
-    return {
-      student_id: profile.id,
-      student_name: profile.name || profile.email,
-      id: rData?.id || null,
-      status: rData?.status || 'not_started',
-      training_category: rData?.training_category || '',
-      created_at: rData?.created_at || null,
-      teacher_submitted_at: rData?.teacher_submitted_at || null,
-      supervisor_submitted_at: rData?.supervisor_submitted_at || null,
-      reportData: rData 
+  const combinedList = []
+  
+  profiles.forEach(profile => {
+    const studentReports = reports?.filter(r => r.student_id === profile.id) || []
+    
+    if (studentReports.length === 0) {
+       combinedList.push({
+         id: 'empty-' + profile.id,
+         student_id: profile.id,
+         student_name: profile.name || profile.email,
+         status: 'not_started',
+         training_category: '',
+         created_at: null,
+         reportData: null
+       })
+    } else {
+       studentReports.forEach(r => {
+         combinedList.push({
+           ...r,
+           student_name: profile.name || profile.email,
+           reportData: r
+         })
+       })
     }
   })
+  
+  combinedList.sort((a, b) => {
+    if (!a.created_at) return 1
+    if (!b.created_at) return -1
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
+
+  reportsList.value = combinedList
 }
 
 function getStatusText(r) {
   if (r.status === 'not_started') return '⚪ 尚未填寫'
-  if (r.status === 'draft') return '✏️ 學員填寫中'
+  if (r.status === 'draft') return '✏️ 填寫 / 修改中'
   if (r.status === 'submitted') {
      if (!r.reportData?.teacher_feedback) return '⏳ 待老師回饋'
      return '⏳ 待主管結案'
@@ -260,18 +301,46 @@ function getStatusText(r) {
 }
 
 function openReport(r) {
-  if (r.status === 'not_started' || r.status === 'draft') {
-    return Toast.fire({ icon: 'info', title: '學員尚未送出表單，目前無法進入審核' })
+  if (r.status === 'not_started') {
+    return Toast.fire({ icon: 'info', title: '學員尚未建立心得表單，無法進入' })
   }
   Object.assign(report.value, r.reportData)
   report.value.student_name = r.student_name
   viewMode.value = 'form'
 }
 
+async function createNewReport() {
+  Object.assign(report.value, {
+    id: null,
+    training_category: '',
+    cert_date: '',
+    student_content: '',
+    teacher_feedback: '',
+    supervisor_feedback: '',
+    status: 'draft',
+    created_at: null,
+    teacher_submitted_at: null,
+    supervisor_submitted_at: null,
+  })
+  
+  if (reportsList.value.length > 0) {
+      report.value.student_name = reportsList.value[0].student_name
+  } else {
+      const { data } = await supabase.from('profiles').select('name').eq('id', props.session.user.id).single()
+      report.value.student_name = data?.name
+  }
+  
+  viewMode.value = 'form'
+}
+
 function backToList() {
   viewMode.value = 'list'
   isLoading.value = true
-  loadReviewerReports().then(() => setTimeout(() => isLoading.value = false, 300))
+  if (currentRole.value === 'student') {
+    loadStudentReports().then(() => setTimeout(() => isLoading.value = false, 300))
+  } else {
+    loadReviewerReports().then(() => setTimeout(() => isLoading.value = false, 300))
+  }
 }
 
 async function submitStudent() {
@@ -280,7 +349,7 @@ async function submitStudent() {
   
   const confirmResult = await Swal.fire({
     title: '確定要送出表單嗎？',
-    text: '送出後將無法再次編輯，系統將準備發送通知信給您的指導老師與主管。',
+    text: '送出後將暫時無法修改，系統會自動在下班前統整待辦清單通知您的指導老師與主管。',
     icon: 'question',
     showCancelButton: true,
     confirmButtonColor: '#3498db',
@@ -296,39 +365,34 @@ async function submitStudent() {
     return Swal.fire({ icon: 'error', title: '送出失敗', text: '系統尚未為您分配指導老師與主管，請聯繫管理員！' })
   }
 
-  const { error } = await supabase.from('feedback_reports').insert([{ 
-    student_id: props.session.user.id,
-    teacher_id: assignData.teacher_id,
-    supervisor_id: assignData.supervisor_id,
-    training_category: report.value.training_category,
-    cert_date: report.value.cert_date,
-    student_content: report.value.student_content,
-    status: 'submitted' 
-  }])
+  let error;
+  if (report.value.id) {
+    const { error: updateError } = await supabase.from('feedback_reports').update({
+      training_category: report.value.training_category,
+      cert_date: report.value.cert_date,
+      student_content: report.value.student_content,
+      status: 'submitted'
+    }).eq('id', report.value.id)
+    error = updateError
+  } else {
+    const { error: insertError } = await supabase.from('feedback_reports').insert([{ 
+      student_id: props.session.user.id,
+      teacher_id: assignData.teacher_id,
+      supervisor_id: assignData.supervisor_id,
+      training_category: report.value.training_category,
+      cert_date: report.value.cert_date,
+      student_content: report.value.student_content,
+      status: 'submitted' 
+    }])
+    error = insertError
+  }
   
   if (error) {
     Toast.fire({ icon: 'error', title: '寫入失敗：' + error.message })
   } else {
-    await sendNotificationEmails(assignData.teacher_id, assignData.supervisor_id)
+    // 已經移除前端即時發信機制，改由後端 Cron Job 每日統整寄發
     await Swal.fire({ icon: 'success', title: '表單已成功送出！', timer: 2000, showConfirmButton: false })
-    location.reload()
-  }
-}
-
-async function sendNotificationEmails(teacherId, supervisorId) {
-  try {
-    const { data: teacherData } = await supabase.from('profiles').select('email').eq('id', teacherId).maybeSingle()
-    const { data: supervisorData } = await supabase.from('profiles').select('email').eq('id', supervisorId).maybeSingle()
-    
-    const teacherEmail = teacherData?.email || ''
-    const supervisorEmail = supervisorData?.email || ''
-    const systemUrl = window.location.origin
-    const subject = encodeURIComponent('【學習護照心得回饋系統】新的基礎訓練心得待審核')
-    const body = encodeURIComponent(`老師/主管您好：\n\n有學員已送出基礎訓練心得，請點擊下方系統連結，登入後進行您的回饋填寫：\n\n🔗 系統連結：${systemUrl}\n\n(此為系統自動生成信件，請勿直接回覆)`)
-    
-    window.open(`mailto:${teacherEmail},${supervisorEmail}?subject=${subject}&body=${body}`, '_blank')
-  } catch (err) {
-    console.error('抓取信箱失敗:', err)
+    backToList()
   }
 }
 
@@ -364,7 +428,7 @@ async function completeSupervisor() {
   
   if (!error) {
     await Swal.fire({ icon: 'success', title: '已成功結案！', timer: 1500, showConfirmButton: false })
-    location.reload()
+    backToList()
   }
 }
 
@@ -394,7 +458,7 @@ async function unlockForm() {
   const { error } = await supabase.from('feedback_reports').update({ status: 'submitted' }).eq('id', report.value.id)
   if (!error) {
     await Swal.fire({ icon: 'success', title: '表單已成功拉回！', timer: 1500, showConfirmButton: false })
-    location.reload()
+    backToList()
   }
 }
 
@@ -414,7 +478,7 @@ async function rejectToStudent() {
   const { error } = await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
   if (!error) {
     await Swal.fire({ icon: 'success', title: '表單已成功退回給學員！', timer: 1500, showConfirmButton: false })
-    location.reload()
+    backToList()
   }
 }
 
@@ -439,7 +503,7 @@ async function handleLogout() {
 <style scoped>
 .app-container { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; font-family: "微軟正黑體", sans-serif; box-sizing: border-box; }
 
-.system-header { display: flex; justify-content: space-between; align-items: center; max-width: 800px; margin: 0 auto 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
+.system-header { display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .header-titles { display: flex; flex-direction: column; gap: 8px; }
 .main-app-title { margin: 0; color: #2c3e50; font-size: 24px; font-weight: 900; letter-spacing: 1px; }
 .header-text { color: #7f8c8d; font-size: 15px; font-weight: bold; }
@@ -449,13 +513,18 @@ async function handleLogout() {
 .logout-btn { background: #e74c3c; color: white; }
 .primary-btn { background: #3498db; color: white; }
 .danger-btn { background: #9b59b6; color: white; }
+.success-btn { background: #2ecc71; color: white; }
 .warning-btn { background: #e67e22; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 .header-actions { display: flex; gap: 10px; }
+.card-header-flex { display: flex; justify-content: space-between; align-items: center; }
 
-/* 骨架屏表格區塊樣式 */
+.skeleton-page { width: 100%; max-width: 900px; margin: 20px auto; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; }
+.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
+@keyframes pulse-local { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+.skeleton-title { height: 28px; width: 30%; margin-bottom: 25px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; }
 .skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; }
-.skeleton-cell { height: 20px; border-radius: 4px; }
+.skeleton-cell { height: 20px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; flex-grow: 1; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
@@ -465,10 +534,10 @@ async function handleLogout() {
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
 .list-container { max-width: 900px; margin: 20px auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-.list-container h2 { color: #2c3e50; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #34495e; padding-bottom: 10px; }
 .assignment-table { width: 100%; border-collapse: collapse; }
 .assignment-table th, .assignment-table td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; color: #333333; font-weight: 500; }
 .assignment-table th { background-color: #f8f9fa; font-weight: bold; color: #1a1a1a; }
+.student-name-cell { font-weight: bold; color: #2980b9; }
 .status-badge { padding: 5px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; text-align: center; }
 .status-badge.not_started { background: #ecf0f1; color: #7f8c8d; }
 .status-badge.draft { background: #f1c40f; color: #8e44ad; }
@@ -493,54 +562,14 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
 .row-timestamp { font-size: 13px; color: #555; font-family: "微軟正黑體", sans-serif; }
 .paper-textarea { width: 100%; border: none; resize: none; font-family: inherit; font-size: 16px; line-height: 1.6; outline: none; background: transparent; color: black; padding: 0; box-sizing: border-box; }
 .paper-textarea:disabled { color: black; } 
-/* ------------------------------------- */
-/* FeedbackForm 專屬骨架屏修復 */
-/* ------------------------------------- */
-.skeleton-page { width: 100%; max-width: 900px; margin: 20px auto; box-sizing: border-box; }
-.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; }
-.skeleton-title { height: 28px; width: 30%; margin-bottom: 25px; }
 
-/* ------------------------------------- */
-/* FeedbackForm 專屬骨架屏修復 (Pulse) */
-/* ------------------------------------- */
-.skeleton-page { width: 100%; max-width: 900px; margin: 20px auto; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; }
-
-.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; }
-
-/* FeedbackForm 專屬骨架屏修復 */
-.skeleton-page { 
-  width: 90vw; /* 強制撐開 */
-  max-width: 900px; 
-  margin: 20px auto; 
-  box-sizing: border-box; 
-  display: flex; 
-  flex-direction: column; 
-  align-items: stretch; 
-}
-
-.skeleton-body { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); box-sizing: border-box; }
-
-@keyframes pulse-local {
-  0% { opacity: 1; }
-  50% { opacity: 0.35; }
-  100% { opacity: 1; }
-}
-
-.skeleton-title { height: 28px; width: 30%; margin-bottom: 25px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; }
-
-.skeleton-table-row { display: flex; gap: 15px; border-bottom: 1px solid #ecf0f1; padding: 15px 0; }
-
-.skeleton-cell { height: 20px; background-color: #e4e7eb; border-radius: 4px; animation: pulse-local 1.5s infinite ease-in-out; flex-grow: 1; /* 讓格子自動填滿 */ }
-
-/* ================================================= */
-/* FeedbackForm: RWD 手機版卡片化與表單優化 (小於 768px) */
-/* ================================================= */
 @media screen and (max-width: 768px) {
   .system-header { flex-direction: column; align-items: stretch; gap: 15px; }
   .header-actions { flex-direction: column; width: 100%; }
   .header-actions button { width: 100%; }
+  .card-header-flex { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 15px; }
+  .card-header-flex button { width: 100%; }
   
-  /* 學生清單表格轉卡片 */
   .assignment-table thead { display: none !important; }
   .assignment-table, .assignment-table tbody, .assignment-table tr, .assignment-table td { display: block; width: 100%; box-sizing: border-box; }
   
@@ -553,14 +582,9 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
     box-shadow: 0 4px 8px rgba(0,0,0,0.06); 
   }
   
-  .assignment-table td { 
-    border: none !important; 
-    padding: 6px 0 !important; 
-    text-align: left !important; 
-  }
+  .assignment-table td { border: none !important; padding: 6px 0 !important; text-align: left !important; }
 
-  /* 讓學員姓名特別突出，作為卡片標題 */
-  .assignment-table td:nth-child(1) { 
+  .reviewer-table td.student-name-cell { 
     font-size: 18px; 
     font-weight: bold; 
     color: #2c3e50; 
@@ -568,19 +592,18 @@ input[type="radio"] { transform: scale(1.2); margin-right: 5px; cursor: pointer;
     padding-bottom: 10px !important; 
     margin-bottom: 10px; 
   }
+
+  .student-table td:nth-child(1)::before { content: "訓練類別："; font-weight: bold; color: #7f8c8d; }
+  .student-table td:nth-child(2)::before { content: "目前狀態："; font-weight: bold; color: #7f8c8d; }
+  .student-table td:nth-child(3)::before { content: "更新時間："; font-weight: bold; color: #7f8c8d; }
   
-  /* 狀態標籤並排顯示 */
-  .assignment-table td:nth-child(3), .assignment-table td:nth-child(4) { 
-    display: inline-block; 
-    margin-right: 10px; 
-    font-size: 14px; 
-  }
-  
-  /* 操作按鈕滿版化 */
+  .reviewer-table td:nth-child(2)::before { content: "訓練類別："; font-weight: bold; color: #7f8c8d; }
+  .reviewer-table td:nth-child(3)::before { content: "目前狀態："; font-weight: bold; color: #7f8c8d; }
+  .reviewer-table td:nth-child(4)::before { content: "更新時間："; font-weight: bold; color: #7f8c8d; }
+
   .assignment-table td:last-child { margin-top: 15px; }
   .assignment-table td:last-child button { width: 100%; padding: 12px; font-size: 16px; }
 
-  /* 實體護照表單在手機上的排版優化 */
   .paper-wrapper { overflow-x: hidden; }
   .paper { padding: 20px 15px; width: 100%; border-radius: 8px; }
   .paper-title { font-size: 22px; }
