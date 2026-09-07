@@ -231,7 +231,7 @@ async function createUser() {
   }
 }
 
-// 刪除帳號 (呼叫 Edge Function)
+// 刪除帳號 (改用完美無缺的 RPC 資料庫呼叫)
 async function deleteUser(userId) {
   const confirmResult = await Swal.fire({
     title: '確定要刪除此人員嗎？',
@@ -248,7 +248,8 @@ async function deleteUser(userId) {
 
   Swal.fire({ title: '刪除中...', text: '正在清理系統資料', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-  const { error } = await supabase.functions.invoke('delete-user', { body: { userId } })
+  // 直接呼叫我們剛才建立的 SQL Function (RPC)，速度更快且完全不卡 Edge Function
+  const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
 
   if (error) {
     Swal.fire({ icon: 'error', title: '刪除失敗', text: error.message })
@@ -351,18 +352,20 @@ async function handleLogout() {
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .admin-header h2 { margin: 0; color: #2c3e50; font-weight: 900;}
 
-.tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 10px; }
-.tabs button { padding: 12px 24px; border: none; background: none; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; }
-.tabs button.active { background: #3498db; color: white; }
-.tabs button:hover:not(.active) { background: #ecf0f1; }
+/* 修正後的頁籤排版 */
+.tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; }
+.tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
+.tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
+.tabs button:hover:not(.active) { color: #2c3e50; }
 
 .admin-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 25px; }
 .admin-card h3 { margin-top: 0; color: #34495e; margin-bottom: 10px; font-weight: 900;}
 .desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; }
 
+/* 修正後的左右對齊佈局 */
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 .card-header-text { display: flex; flex-direction: column; gap: 5px; }
-.import-actions { display: flex; gap: 10px; align-items: center; }
+.import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
 
 .create-form { margin-top: 20px; }
 .create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
@@ -385,7 +388,8 @@ async function handleLogout() {
 
 .pairing-select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; }
 
-.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; }
+/* 強制按鈕文字不折行 (white-space: nowrap) */
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; white-space: nowrap; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
 .primary-btn { background: #3498db; color: white; }
 .success-btn { background: #2ecc71; color: white; display: inline-flex; align-items: center; justify-content: center; }
@@ -398,7 +402,8 @@ async function handleLogout() {
   .admin-header { flex-direction: column; gap: 15px; }
   .admin-header button { width: 100%; }
   .tabs { flex-direction: column; border-bottom: none; }
-  .tabs button { border-radius: 6px; }
+  .tabs button { border-radius: 6px; border-bottom: none; margin-bottom: 5px; }
+  .tabs button.active { background: #ecf0f1; border-bottom: none; }
   .card-header-flex { flex-direction: column; align-items: stretch; gap: 15px; }
   .import-actions { flex-direction: column; width: 100%; }
   .import-actions .btn, .import-actions label { width: 100%; box-sizing: border-box; }
