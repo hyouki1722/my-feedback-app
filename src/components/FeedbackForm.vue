@@ -169,11 +169,9 @@ async function loadReportsList(userId, role) {
   if (role === 'student') {
     query = query.eq('student_id', userId)
   } else if (role === 'teacher') {
-    // 找出分配給這位老師的學員
     const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   } else if (role === 'supervisor') {
-    // 找出分配給這位主管的學員
     const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   }
@@ -204,7 +202,6 @@ async function loadReportsList(userId, role) {
   }
 }
 
-// 下拉選單切換報告
 function selectReport() {
   const found = reportList.value.find(r => r.id === selectedReportId.value)
   if (found) {
@@ -215,7 +212,6 @@ function selectReport() {
   }
 }
 
-// 建立全新草稿
 function createNewDraft() {
   selectedReportId.value = ''
   report.value = { id: null, category: '', content: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft' }
@@ -244,7 +240,7 @@ async function saveDraft() {
       if (data) report.value.id = data[0].id
     }
     Toast.fire({ icon: 'success', title: '草稿已儲存' })
-    await loadReportsList(profile.value.id, profile.value.role) // 刷新清單
+    await loadReportsList(profile.value.id, profile.value.role) 
   } catch (error) {
     Swal.fire('錯誤', '儲存失敗', 'error')
   } finally { isSaving.value = false }
@@ -284,31 +280,51 @@ async function returnToStudent() {
   }
 }
 
-// 主管 - 確認結案
+// 主管 - 確認結案（加入防呆與防護）
 async function closeReport() {
   if (!report.value.supervisor_feedback) return Swal.fire('提示', '請填寫主管總評', 'warning')
+
+  const { isConfirmed } = await Swal.fire({
+    title: '確認結案？', 
+    text: '結案後表單將鎖定，僅能由主管/管理員解鎖重編。',
+    icon: 'question', showCancelButton: true, confirmButtonText: '確認結案', confirmButtonColor: '#2ecc71'
+  })
+  if (!isConfirmed) return
+
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() }).eq('id', report.value.id)
+  const { error } = await supabase.from('feedback_reports').update({ 
+    supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() 
+  }).eq('id', report.value.id)
   isSaving.value = false
+
   if (!error) {
     Swal.fire({ icon: 'success', title: '結案成功', text: '表單已正式鎖定存查' })
     await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
-// 主管 - 退回老師修改
+// 主管 - 退回老師修改（加入防呆與防護）
 async function returnToTeacher() {
+  const { isConfirmed } = await Swal.fire({ 
+    title: '退回給老師？', text: '老師將可重新編輯回饋內容', showCancelButton: true, confirmButtonColor: '#e74c3c'
+  })
+  if (!isConfirmed) return
+
   await supabase.from('feedback_reports').update({ status: 'pending_teacher' }).eq('id', report.value.id)
+  Toast.fire({ icon: 'info', title: '已退回給老師' })
   await loadReportsList(profile.value.id, profile.value.role)
 }
 
-// 主管 - 解鎖表單
+// 主管/管理員 - 解鎖表單（加入防呆與防護）
 async function unlockReport() {
-  const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', text: '將退回至待主管結案狀態', icon: 'warning', showCancelButton: true })
-  if (isConfirmed) {
-    await supabase.from('feedback_reports').update({ status: 'pending_supervisor' }).eq('id', report.value.id)
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  const { isConfirmed } = await Swal.fire({ 
+    title: '解除鎖定？', text: '將退回至待主管結案狀態', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c'
+  })
+  if (!isConfirmed) return
+
+  await supabase.from('feedback_reports').update({ status: 'pending_supervisor' }).eq('id', report.value.id)
+  Toast.fire({ icon: 'success', title: '已解除鎖定' })
+  await loadReportsList(profile.value.id, profile.value.role)
 }
 
 function exportToPDF() {
@@ -362,10 +378,22 @@ async function handleLogout() {
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
 
+/* 列印專用樣式 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
   .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; margin-bottom: 15px; }
   .form-input { border: none; padding: 0; background: transparent !important; color: black !important; }
+}
+
+/* 補回手機版 RWD 樣式 */
+@media screen and (max-width: 600px) {
+  .header-section { flex-direction: column; align-items: stretch; gap: 12px; text-align: center; }
+  .header-actions { justify-content: center; flex-wrap: wrap; gap: 10px; }
+  .status-bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
+  .action-row { flex-direction: column; }
+  .action-row button { width: 100%; margin-bottom: 5px; }
+  .card { padding: 18px; }
+  .selector-header { flex-direction: column; gap: 10px; align-items: stretch; }
 }
 </style>
