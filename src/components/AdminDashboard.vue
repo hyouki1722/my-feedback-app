@@ -94,7 +94,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="user in filteredUsers" :key="user.id">
+                <!-- 改為渲染 paginatedUsers (分頁後的資料) -->
+                <tr v-for="user in paginatedUsers" :key="user.id">
                   <td><strong>{{ user.name }}</strong></td>
                   <td>{{ user.email }}</td>
                   <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
@@ -108,6 +109,13 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- 分頁控制區塊 -->
+          <div class="pagination-controls" v-if="totalPages > 1">
+            <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">上一頁</button>
+            <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁</span>
+            <button @click="nextPage" :disabled="currentPage === totalPages" class="page-btn">下一頁</button>
           </div>
         </div>
       </div>
@@ -160,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import * as XLSX from 'xlsx'
@@ -176,15 +184,50 @@ const supervisors = ref([])
 const assignmentData = ref({})
 const isCreating = ref(false)
 
-const newUser = ref({ email: '', password: '', name: '', role: 'student' })
+const newUser = ref({
+  email: '',
+  password: '',
+  name: '',
+  role: 'student'
+})
 
+// === 分頁邏輯設定 ===
+const currentPage = ref(1)
+const itemsPerPage = 10 // 每頁顯示 10 筆
+
+// 監聽篩選器變更，自動重置回第一頁
+watch(roleFilter, () => {
+  currentPage.value = 1
+})
+
+// 根據過濾器計算要顯示的使用者 (過濾後總資料)
 const filteredUsers = computed(() => {
   if (roleFilter.value === 'all') return users.value
   return users.value.filter(u => u.role === roleFilter.value)
 })
 
+// 計算總頁數
+const totalPages = computed(() => {
+  return Math.ceil(filteredUsers.value.length / itemsPerPage) || 1
+})
+
+// 切割當前頁面要顯示的資料
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredUsers.value.slice(start, end)
+})
+
+function prevPage() {
+  if (currentPage.value > 1) currentPage.value--
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) currentPage.value++
+}
+// ====================
+
 onMounted(async () => {
-  // 取得當前使用者，並檢查是否需要強制改密碼
   const { data: { user } } = await supabase.auth.getUser()
   if (user) await checkAndEnforcePasswordChange(user.id)
 
@@ -228,7 +271,9 @@ async function loadAssignments() {
 async function createUser() {
   isCreating.value = true
   try {
-    const { data, error } = await supabase.functions.invoke('create-user', { body: newUser.value })
+    const { data, error } = await supabase.functions.invoke('create-user', {
+      body: newUser.value
+    })
     if (error || (data && data.error)) throw new Error(error?.message || data?.error)
 
     Swal.fire({ icon: 'success', title: '建立成功', timer: 1500, showConfirmButton: false })
@@ -263,6 +308,11 @@ async function deleteUser(userId) {
   } else {
     Swal.fire({ icon: 'success', title: '刪除成功', timer: 1500, showConfirmButton: false })
     await loadUsers()
+    
+    // 如果刪除後當前頁碼超出總頁數，自動退回上一頁
+    if (currentPage.value > totalPages.value && totalPages.value > 0) {
+      currentPage.value = totalPages.value
+    }
   }
 }
 
@@ -273,7 +323,6 @@ function downloadTemplate() {
   XLSX.writeFile(wb, "系統人員匯入範本.xlsx")
 }
 
-// 嚴格身分對照表
 const ROLE_MAP = {
   '學員': 'student',
   '受訓學員': 'student',
@@ -301,7 +350,7 @@ async function handleFileUpload(event) {
       Swal.fire({ title: '批次匯入中...', text: '請勿關閉視窗', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
       const results = { success: 0, fail: 0, failRows: [] }
-      const concurrency = 5 // 限制併發數，避免灌爆伺服器
+      const concurrency = 5 
       
       for (let i = 0; i < jsonData.length; i += concurrency) {
         const batch = jsonData.slice(i, i + concurrency)
@@ -309,7 +358,6 @@ async function handleFileUpload(event) {
           if (!row.Email || !row['姓名'] || !row['身分證字號']) {
             results.fail++; results.failRows.push(`${row['姓名'] || '未知'}：欄位缺漏`); return;
           }
-          
           const roleText = row['身分']?.toString().trim() || '學員'
           const role = ROLE_MAP[roleText]
           if (!role) {
@@ -327,8 +375,7 @@ async function handleFileUpload(event) {
 
       await loadUsers()
       Swal.fire({ 
-        icon: 'info', 
-        title: '匯入完成', 
+        icon: 'info', title: '匯入完成', 
         html: `成功: ${results.success} 筆，失敗: ${results.fail} 筆<br><br><span style="color:#e74c3c;font-size:13px">${results.failRows.slice(0,5).join('<br>')}</span>` 
       })
     } catch (err) {
@@ -357,20 +404,7 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.app-wrapper {
-  background-color: #f0f2f5;
-  min-height: 100vh;
-  width: 100vw;
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 30px 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
+.app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .admin-header h2 { margin: 0; color: #2c3e50; font-weight: 900;}
@@ -389,7 +423,6 @@ async function handleLogout() {
 .card-header-text { display: flex; flex-direction: column; gap: 5px; }
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
 
-/* 篩選按鈕列的樣式 */
 .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-tabs button { padding: 6px 14px; border: 1px solid #bdc3c7; background: white; border-radius: 20px; font-size: 13px; font-weight: bold; color: #7f8c8d; cursor: pointer; transition: 0.2s; }
 .filter-tabs button.active { background: #34495e; color: white; border-color: #34495e; }
@@ -424,6 +457,13 @@ async function handleLogout() {
 .dark-btn { background: #2c3e50; color: white; }
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+
+/* 分頁按鈕樣式 */
+.pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; }
+.page-btn { padding: 6px 12px; border: 1px solid #bdc3c7; background: white; border-radius: 4px; cursor: pointer; color: #2c3e50; font-weight: bold; transition: 0.2s; }
+.page-btn:hover:not(:disabled) { background: #ecf0f1; border-color: #95a5a6; }
+.page-btn:disabled { color: #bdc3c7; cursor: not-allowed; background: #f8f9fa; }
+.page-info { font-size: 14px; color: #7f8c8d; font-weight: bold; }
 
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; }
