@@ -32,7 +32,7 @@ serve(async (req) => {
 
     reports.forEach(report => {
       const studentName = profileMap.get(report.student_id)?.name || '未知學員'
-      
+
       if (!report.teacher_feedback) {
         // 老師尚未回饋 -> 歸類給老師
         if (report.teacher_id) {
@@ -48,14 +48,15 @@ serve(async (req) => {
       }
     })
 
-    const systemUrl = 'https://您的系統網址.com' // 之後可替換為 Vercel 正式網址
+    // 動態讀取環境變數，若無則使用預設的佔位網址
+    const systemUrl = Deno.env.get('SYSTEM_URL') ?? 'https://your-system-domain.com';
     const emailPromises = []
 
     // 4. 準備寄給老師的統整信
     for (const [teacherId, students] of teacherTasks.entries()) {
       const teacherInfo = profileMap.get(teacherId)
       if (!teacherInfo?.email) continue
-      
+
       const htmlBody = `
         <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
           <h2 style="color: #9b59b6;">臨床指導老師 待審核通知</h2>
@@ -72,7 +73,7 @@ serve(async (req) => {
     for (const [supervisorId, students] of supervisorTasks.entries()) {
       const supervisorInfo = profileMap.get(supervisorId)
       if (!supervisorInfo?.email) continue
-      
+
       const htmlBody = `
         <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
           <h2 style="color: #e67e22;">單位主管 待結案通知</h2>
