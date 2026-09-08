@@ -1,42 +1,32 @@
 <template>
-  <div class="register-wrapper">
-    <div class="register-container">
-      <h2>註冊臨床實習系統</h2>
-
-      <!-- 新增姓名輸入欄位 -->
-      <div class="form-group">
-        <label>真實姓名：</label>
-        <input type="text" v-model="name" placeholder="請輸入您的真實姓名" />
-      </div>
-
-      <div class="form-group">
-        <label>Email 信箱 (帳號)：</label>
-        <input type="email" v-model="email" placeholder="請輸入醫院或學校信箱" />
-      </div>
-
-      <div class="form-group">
-        <label>設定密碼：</label>
-        <input type="password" v-model="password" placeholder="請設定至少 6 位數密碼" />
-      </div>
-
-      <div class="form-group">
-        <label>請選擇您的身分：</label>
-        <select v-model="role" class="role-select">
-          <option value="" disabled>-- 請選擇身分 --</option>
-          <option value="student">👨‍🎓 學員</option>
-          <option value="teacher">👨‍🏫 臨床老師</option>
-          <option value="supervisor">🏥 單位主管</option>
-        </select>
-      </div>
-
-      <button @click="handleRegister" class="primary-btn" :disabled="isLoading">
-        {{ isLoading ? '註冊中...' : '確認註冊' }}
-      </button>
-
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-
-      <div class="switch-mode">
-        已經有帳號了嗎？ <a href="#" @click.prevent="$emit('switch-to-login')">返回登入</a>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <h2 class="auth-title">📝 學員帳號註冊</h2>
+      <form @submit.prevent="handleRegister">
+        <div class="form-group">
+          <label>姓名：</label>
+          <input type="text" v-model="name" placeholder="請輸入您的真實姓名" required class="auth-input" />
+        </div>
+        <div class="form-group">
+          <label>身分：</label>
+          <p style="color:#7f8c8d; font-size:14px; margin:0; padding: 10px 0;">
+            🎓 系統將自動設為「受訓學員」身分。若需申請老師或主管帳號，請洽系統管理員。
+          </p>
+        </div>
+        <div class="form-group">
+          <label>Email 帳號：</label>
+          <input type="email" v-model="email" placeholder="example@hospital.com" required class="auth-input" />
+        </div>
+        <div class="form-group">
+          <label>密碼：</label>
+          <input type="password" v-model="password" placeholder="請設定至少 6 碼密碼" required class="auth-input" />
+        </div>
+        <button type="submit" class="btn primary-btn auth-btn" :disabled="isLoading">
+          {{ isLoading ? '註冊中...' : '註冊帳號' }}
+        </button>
+      </form>
+      <div class="auth-links">
+        <a href="#" @click.prevent="$emit('switch-to-login')" class="link-text">已有帳號？點此登入</a>
       </div>
     </div>
   </div>
@@ -45,50 +35,44 @@
 <script setup>
 import { ref } from 'vue'
 import { supabase } from '../supabase'
+import Swal from 'sweetalert2'
 
+const emit = defineEmits(['switch-to-login'])
 const name = ref('')
 const email = ref('')
 const password = ref('')
-const role = ref('')
-const errorMessage = ref('')
 const isLoading = ref(false)
 
-const emit = defineEmits(['switch-to-login'])
-
 async function handleRegister() {
-  if (!name.value || !email.value || !password.value || !role.value) {
-    errorMessage.value = '請完整填寫姓名、信箱、密碼與身分！'
-    return
-  }
-  
   isLoading.value = true
-  errorMessage.value = ''
-
-  // 1. 在 Supabase Auth 建立帳號密碼
+  
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: email.value,
     password: password.value,
   })
 
   if (authError) {
-    errorMessage.value = '註冊失敗：' + authError.message
+    let errorMsg = authError.message
+    if (errorMsg.includes('User already registered')) errorMsg = '此 Email 已經註冊過囉！'
+    if (errorMsg.includes('Password should be at least')) errorMsg = '密碼長度至少需要 6 碼！'
+    
+    Swal.fire({ icon: 'error', title: '註冊失敗', text: errorMsg, confirmButtonColor: '#3498db' })
     isLoading.value = false
     return
   }
 
-  // 2. 將姓名與身分寫入 profiles 資料表
   const userId = authData.user?.id
   if (userId) {
+    // 強制寫死 role 為 student，不信任前端輸入
     const { error: profileError } = await supabase.from('profiles').insert([
-      { id: userId, name: name.value, email: email.value, role: role.value }
+      { id: userId, name: name.value, email: email.value, role: 'student' }
     ])
 
     if (profileError) {
-      errorMessage.value = '身分設定失敗，請聯繫管理員。'
-      console.error(profileError)
+      Swal.fire({ icon: 'error', title: '建立個人資料失敗', text: profileError.message, confirmButtonColor: '#3498db' })
     } else {
-      alert('註冊成功！系統將自動登入。')
-      location.reload()
+      Swal.fire({ icon: 'success', title: '註冊成功！', text: '請使用新帳號登入系統', confirmButtonColor: '#2ecc71' })
+      emit('switch-to-login')
     }
   }
   isLoading.value = false
@@ -96,42 +80,20 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-.register-wrapper {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f0f2f5;
-  box-sizing: border-box;
-  overflow-y: auto; /* 避免螢幕太小時內容被截斷 */
-}
-
-.register-container { 
-  width: 100%;
-  max-width: 400px; 
-  padding: 30px; 
-  background: white; 
-  border: 1px solid #ddd; 
-  border-radius: 8px; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
-  font-family: "微軟正黑體", sans-serif; 
-  box-sizing: border-box;
-  margin: auto;
-}
-
-/* 以下保留原本的元件樣式 */
-h2 { text-align: center; color: #2c3e50; margin-top: 0; margin-bottom: 20px; }
-.form-group { margin-bottom: 15px; }
-label { font-size: 14px; font-weight: bold; color: #333; display: block; margin-bottom: 5px; }
-input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
-.primary-btn { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
-.primary-btn:disabled { background-color: #95a5a6; cursor: not-allowed; }
-.primary-btn:hover:not(:disabled) { background-color: #2ecc71; }
-.error { color: #e74c3c; font-size: 14px; margin-top: 10px; text-align: center; font-weight: bold; }
-.switch-mode { margin-top: 20px; text-align: center; font-size: 14px; }
-.switch-mode a { color: #3498db; text-decoration: none; font-weight: bold; }
+/* 樣式沿用您原有的 auth-wrapper, auth-card, auth-input 等設定 */
+.auth-wrapper { display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100vw; background-color: #f0f2f5; font-family: "微軟正黑體", sans-serif; position: absolute; top: 0; left: 0; }
+.auth-card { background: white; padding: 45px 40px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); width: 90%; max-width: 420px; box-sizing: border-box; }
+.auth-title { text-align: center; color: #2c3e50; margin-top: 0; margin-bottom: 35px; font-weight: 900; font-size: 24px; }
+.form-group { margin-bottom: 22px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #34495e; font-size: 15px; }
+.auth-input { width: 100%; padding: 14px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; transition: border-color 0.2s, box-shadow 0.2s; }
+.auth-input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2); }
+.auth-btn { width: 100%; padding: 15px; font-size: 16px; margin-top: 15px; letter-spacing: 1px; border-radius: 6px; }
+.btn { border: none; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+.primary-btn { background-color: #3498db; color: white; }
+.primary-btn:hover:not(:disabled) { background-color: #2980b9; transform: translateY(-1px); }
+.primary-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+.auth-links { margin-top: 30px; text-align: center; font-size: 14px; display: flex; justify-content: center; align-items: center; }
+.link-text { color: #3498db; text-decoration: none; font-weight: bold; transition: color 0.2s; }
+.link-text:hover { text-decoration: underline; color: #2980b9; }
 </style>
