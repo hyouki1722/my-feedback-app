@@ -5,9 +5,15 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const SYSTEM_URL = Deno.env.get('SYSTEM_URL') ?? 'https://my-feedback-app-tau.vercel.app'
+const CRON_SECRET = Deno.env.get('CRON_SECRET') // 新增：排程專用密鑰
 
 serve(async (req) => {
   try {
+    // 0. 雙重防護：驗證呼叫者是否為排程系統本身，而非一般使用者
+    if (!CRON_SECRET || req.headers.get('X-Cron-Secret') !== CRON_SECRET) {
+      return new Response(JSON.stringify({ error: '未授權的呼叫來源' }), { status: 401 })
+    }
+
     // 1. 明確檢查環境變數防呆
     if (!RESEND_API_KEY) {
       throw new Error('伺服器設定錯誤：未設定 RESEND_API_KEY')
