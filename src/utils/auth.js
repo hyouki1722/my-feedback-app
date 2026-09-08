@@ -2,13 +2,15 @@ import Swal from 'sweetalert2'
 import { supabase } from '../supabase'
 
 export async function checkAndEnforcePasswordChange(userId) {
+  // 多撈取 role 欄位來判斷身分
   const { data, error } = await supabase
     .from('profiles')
-    .select('must_change_password')
+    .select('must_change_password, role')
     .eq('id', userId)
     .single()
 
-  if (error || !data?.must_change_password) return;
+  // 核心修改：如果是 admin，或是 must_change_password 已經是 false，就直接放行
+  if (error || !data?.must_change_password || data?.role === 'admin') return;
 
   // 阻擋式對話框，無法點擊外部關閉
   let isValid = false;
