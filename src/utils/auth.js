@@ -8,14 +8,13 @@ export async function checkAndEnforcePasswordChange(userId) {
     .eq('id', userId)
     .single()
 
-  // 若為 admin 或已修改過密碼，直接放行
   if (error || !data?.must_change_password || data?.role === 'admin') return;
 
   let isValid = false;
   while (!isValid) {
     const { value: newPassword } = await Swal.fire({
       title: '首次登入請修改密碼',
-      html: '基於資安規範，預設密碼(身分證)須立即變更。<br><span style="color:#e74c3c; font-size:14px;">(密碼長度至少需要 6 碼)</span>',
+      html: '基於資安規範，預設密碼(身分證)須立即變更。<br><span style="color:#e74c3c; font-size:14px;">(密碼長度至少需要 6 碼，且不可與舊密碼相同)</span>',
       input: 'password',
       inputPlaceholder: '請輸入新密碼',
       allowOutsideClick: false,
@@ -34,30 +33,34 @@ export async function checkAndEnforcePasswordChange(userId) {
       // 1. 更新 Auth 密碼
       const { error: updateAuthErr } = await supabase.auth.updateUser({ password: newPassword });
       if (updateAuthErr) {
-        // 加上 await 確保錯誤訊息能被看見，不會瞬間跳回輸入框
-        await Swal.fire('更新失敗', updateAuthErr.message, 'error');
+        // 將原生的英文錯誤訊息轉換為友善中文
+        let errorMsg = updateAuthErr.message;
+        if (errorMsg.includes('different from the old password')) {
+          errorMsg = '新密碼不可與舊密碼（預設密碼）相同，請重新設定！';
+        }
+        
+        await Swal.fire('更新失敗', errorMsg, 'error');
         continue;
       }
 
       // 2. 解除 profiles 的強制修改限制
       const { error: updateProfileErr } = await supabase.from('profiles').update({ must_change_password: false }).eq('id', userId);
       if (updateProfileErr) {
-        // 加上 await
         await Swal.fire('錯誤', '資料庫更新狀態失敗', 'error');
         continue;
       }
 
-      // 3. 成功提示：修改為指定文字，並改用確認按鈕讓使用者手動關閉
+      // 3. 成功提示
       await Swal.fire({ 
         icon: 'success', 
         title: '更新密碼成功', 
-        text: '後續請使用新密碼登入。', 
+        text: '後續請使用新密碼登入系統。', 
         confirmButtonText: '確定',
         confirmButtonColor: '#3498db',
         allowOutsideClick: false
       });
       
-      isValid = true; // 結束迴圈，讓使用者繼續使用系統
+      isValid = true;
     }
   }
 }
