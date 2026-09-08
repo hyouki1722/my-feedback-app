@@ -8,19 +8,24 @@ const SYSTEM_URL = Deno.env.get('SYSTEM_URL') ?? 'https://my-feedback-app-tau.ve
 
 serve(async (req) => {
   try {
+    // 1. 明確檢查環境變數防呆
+    if (!RESEND_API_KEY) {
+      throw new Error('伺服器設定錯誤：未設定 RESEND_API_KEY')
+    }
+
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     
-    // 1. 取得所有人員姓名與信箱對照表
+    // 2. 取得所有人員姓名與信箱對照表
     const { data: profiles } = await supabaseAdmin.from('profiles').select('id, name, email')
     const profileMap = new Map()
     profiles?.forEach(p => profileMap.set(p.id, p))
 
-    // 2. 取得所有師生配對紀錄 (用於任務分派)
+    // 3. 取得所有師生配對紀錄
     const { data: assignments } = await supabaseAdmin.from('assignments').select('*')
     const assignMap = new Map()
     assignments?.forEach(a => assignMap.set(a.student_id, a))
 
-    // 3. 一次撈出所有「待老師」與「待主管」的報告
+    // 4. 一次撈出所有「待老師」與「待主管」的報告
     const { data: pendingReports } = await supabaseAdmin
       .from('feedback_reports')
       .select('*')
@@ -30,7 +35,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: '今日無待審核紀錄，不需發信。' }), { status: 200 })
     }
 
-    // 4. 將任務分類歸戶到對應的老師或主管身上
+    // 5. 將任務分類歸戶
     const teacherTasks = new Map()
     const supervisorTasks = new Map()
 
@@ -50,10 +55,10 @@ serve(async (req) => {
       }
     })
 
-    // 5. 組合收件人與發信內容
-    const emailsToSend = []
+    // 6. 組合收件人與發信內容
+    const emailsToSend: any[] = []
 
-    const prepareEmail = (userMap, taskTitle) => {
+    const prepareEmail = (userMap: Map<string, string[]>, taskTitle: string) => {
       userMap.forEach((students, targetUserId) => {
         const targetUser = profileMap.get(targetUserId)
         if (!targetUser || !targetUser.email) return
@@ -82,17 +87,24 @@ serve(async (req) => {
       return new Response(JSON.stringify({ message: '無有效收件人。' }), { status: 200 })
     }
 
-    // 6. 呼叫 Resend API 批次發送
-    const res = await fetch('https://api.resend.com/emails/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify(emailsToSend)
-    })
+    // 7. 呼叫 Resend API 批次發送 (每 100 筆為一批，避免觸發上限)
+    const CHUNK_SIZE = 100
+    let sentCount = 0
 
-    if (!res.ok) throw new Error(await res.text())
+    for (let i = 0; i < emailsToSend.length; i += CHUNK_SIZE) {
+      const chunk = emailsToSend.slice(i, i + CHUNK_SIZE)
+      const res = await fetch('https://api.resend.com/emails/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RESEND_API_KEY}` },
+        body: JSON.stringify(chunk)
+      })
 
-    return new Response(JSON.stringify({ success: true, sentCount: emailsToSend.length }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-  } catch (error) {
+      if (!res.ok) throw new Error(`Resend API 錯誤: ${await res.text()}`)
+      sentCount += chunk.length
+    }
+
+    return new Response(JSON.stringify({ success: true, sentCount }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
 })

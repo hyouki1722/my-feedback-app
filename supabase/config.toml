@@ -8,6 +8,6 @@ entrypoint = "./functions/create-user/index.ts"
 
 [functions.daily-summary-email]
 enabled = true
-verify_jwt = false
+verify_jwt = true
 import_map = "./functions/daily-summary-email/deno.json"
 entrypoint = "./functions/daily-summary-email/index.ts"
