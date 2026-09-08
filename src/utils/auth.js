@@ -2,17 +2,15 @@ import Swal from 'sweetalert2'
 import { supabase } from '../supabase'
 
 export async function checkAndEnforcePasswordChange(userId) {
-  // 多撈取 role 欄位來判斷身分
   const { data, error } = await supabase
     .from('profiles')
     .select('must_change_password, role')
     .eq('id', userId)
     .single()
 
-  // 核心修改：如果是 admin，或是 must_change_password 已經是 false，就直接放行
+  // 若為 admin 或已修改過密碼，直接放行
   if (error || !data?.must_change_password || data?.role === 'admin') return;
 
-  // 阻擋式對話框，無法點擊外部關閉
   let isValid = false;
   while (!isValid) {
     const { value: newPassword } = await Swal.fire({
@@ -36,19 +34,30 @@ export async function checkAndEnforcePasswordChange(userId) {
       // 1. 更新 Auth 密碼
       const { error: updateAuthErr } = await supabase.auth.updateUser({ password: newPassword });
       if (updateAuthErr) {
-        Swal.fire('錯誤', updateAuthErr.message, 'error');
+        // 加上 await 確保錯誤訊息能被看見，不會瞬間跳回輸入框
+        await Swal.fire('更新失敗', updateAuthErr.message, 'error');
         continue;
       }
 
-      // 2. 解除 profiles 限制
+      // 2. 解除 profiles 的強制修改限制
       const { error: updateProfileErr } = await supabase.from('profiles').update({ must_change_password: false }).eq('id', userId);
       if (updateProfileErr) {
-        Swal.fire('錯誤', '資料庫更新失敗', 'error');
+        // 加上 await
+        await Swal.fire('錯誤', '資料庫更新狀態失敗', 'error');
         continue;
       }
 
-      Swal.fire({ icon: 'success', title: '密碼修改成功', text: '請妥善保管您的新密碼！', timer: 2000, showConfirmButton: false });
-      isValid = true;
+      // 3. 成功提示：修改為指定文字，並改用確認按鈕讓使用者手動關閉
+      await Swal.fire({ 
+        icon: 'success', 
+        title: '更新密碼成功', 
+        text: '後續請使用新密碼登入。', 
+        confirmButtonText: '確定',
+        confirmButtonColor: '#3498db',
+        allowOutsideClick: false
+      });
+      
+      isValid = true; // 結束迴圈，讓使用者繼續使用系統
     }
   }
 }
