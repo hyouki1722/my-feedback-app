@@ -164,9 +164,11 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import * as XLSX from 'xlsx'
+import { formatDate } from '../utils/format'
+import { checkAndEnforcePasswordChange } from '../utils/auth'
 
 const activeTab = ref('users')
-const roleFilter = ref('all') // 用於篩選清單
+const roleFilter = ref('all') 
 const users = ref([])
 const students = ref([])
 const teachers = ref([])
@@ -174,20 +176,18 @@ const supervisors = ref([])
 const assignmentData = ref({})
 const isCreating = ref(false)
 
-const newUser = ref({
-  email: '',
-  password: '',
-  name: '',
-  role: 'student'
-})
+const newUser = ref({ email: '', password: '', name: '', role: 'student' })
 
-// 根據過濾器計算要顯示的使用者
 const filteredUsers = computed(() => {
   if (roleFilter.value === 'all') return users.value
   return users.value.filter(u => u.role === roleFilter.value)
 })
 
 onMounted(async () => {
+  // 取得當前使用者，並檢查是否需要強制改密碼
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) await checkAndEnforcePasswordChange(user.id)
+
   await loadUsers()
   await loadAssignments()
 })
@@ -197,12 +197,6 @@ function getRoleName(role) {
   return map[role] || role
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-TW')
-}
-
-// 載入所有使用者資料
 async function loadUsers() {
   const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
   if (error) return console.error(error)
@@ -219,7 +213,6 @@ async function loadUsers() {
   })
 }
 
-// 載入現有配對紀錄
 async function loadAssignments() {
   const { data, error } = await supabase.from('assignments').select('*')
   if (error) return console.error(error)
@@ -232,14 +225,10 @@ async function loadAssignments() {
   })
 }
 
-// 建立單筆帳號
 async function createUser() {
   isCreating.value = true
   try {
-    const { data, error } = await supabase.functions.invoke('create-user', {
-      body: newUser.value
-    })
-
+    const { data, error } = await supabase.functions.invoke('create-user', { body: newUser.value })
     if (error || (data && data.error)) throw new Error(error?.message || data?.error)
 
     Swal.fire({ icon: 'success', title: '建立成功', timer: 1500, showConfirmButton: false })
@@ -252,7 +241,6 @@ async function createUser() {
   }
 }
 
-// 刪除帳號 (改用已排除 Foreign Key 問題的 RPC)
 async function deleteUser(userId) {
   const confirmResult = await Swal.fire({
     title: '確定要刪除此人員嗎？',
@@ -270,7 +258,6 @@ async function deleteUser(userId) {
   Swal.fire({ title: '刪除中...', text: '正在清理系統資料', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
   const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
-
   if (error) {
     Swal.fire({ icon: 'error', title: '刪除失敗', text: error.message })
   } else {
@@ -279,20 +266,24 @@ async function deleteUser(userId) {
   }
 }
 
-// 下載 Excel 範本
 function downloadTemplate() {
-  const ws = XLSX.utils.json_to_sheet([{ 
-    "姓名": "王大明", 
-    "身分證字號": "A123456789", 
-    "Email": "test@hospital.com", 
-    "身分": "學員" 
-  }])
+  const ws = XLSX.utils.json_to_sheet([{ "姓名": "王大明", "身分證字號": "A123456789", "Email": "test@hospital.com", "身分": "學員" }])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, "人員匯入範本")
   XLSX.writeFile(wb, "系統人員匯入範本.xlsx")
 }
 
-// Excel 批次匯入
+// 嚴格身分對照表
+const ROLE_MAP = {
+  '學員': 'student',
+  '受訓學員': 'student',
+  '老師': 'teacher',
+  '指導老師': 'teacher',
+  '主管': 'supervisor',
+  '單位主管': 'supervisor',
+  '管理員': 'admin'
+}
+
 async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -302,37 +293,44 @@ async function handleFileUpload(event) {
     try {
       const data = new Uint8Array(e.target.result)
       const workbook = XLSX.read(data, { type: 'array' })
-      const firstSheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[firstSheetName]
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
       if (jsonData.length === 0) return Swal.fire('錯誤', 'Excel 內無資料', 'error')
 
       Swal.fire({ title: '批次匯入中...', text: '請勿關閉視窗', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-      let successCount = 0
-      let errorCount = 0
+      const results = { success: 0, fail: 0, failRows: [] }
+      const concurrency = 5 // 限制併發數，避免灌爆伺服器
+      
+      for (let i = 0; i < jsonData.length; i += concurrency) {
+        const batch = jsonData.slice(i, i + concurrency)
+        await Promise.all(batch.map(async (row) => {
+          if (!row.Email || !row['姓名'] || !row['身分證字號']) {
+            results.fail++; results.failRows.push(`${row['姓名'] || '未知'}：欄位缺漏`); return;
+          }
+          
+          const roleText = row['身分']?.toString().trim() || '學員'
+          const role = ROLE_MAP[roleText]
+          if (!role) {
+            results.fail++; results.failRows.push(`${row['姓名']}：身分「${roleText}」無法辨識`); return;
+          }
 
-      for (const row of jsonData) {
-        if (!row.Email || !row['姓名'] || !row['身分證字號']) {
-          errorCount++
-          continue
-        }
+          const { error } = await supabase.functions.invoke('create-user', {
+            body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role }
+          })
 
-        let role = 'student'
-        if (row['身分']?.includes('老師')) role = 'teacher'
-        if (row['身分']?.includes('主管')) role = 'supervisor'
-
-        const { error } = await supabase.functions.invoke('create-user', {
-          body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role: role }
-        })
-
-        if (error) errorCount++
-        else successCount++
+          if (error) { results.fail++; results.failRows.push(`${row['姓名']}：${error.message}`) }
+          else results.success++
+        }))
       }
 
       await loadUsers()
-      Swal.fire({ icon: 'info', title: '匯入完成', text: `成功: ${successCount} 筆，失敗/略過: ${errorCount} 筆` })
+      Swal.fire({ 
+        icon: 'info', 
+        title: '匯入完成', 
+        html: `成功: ${results.success} 筆，失敗: ${results.fail} 筆<br><br><span style="color:#e74c3c;font-size:13px">${results.failRows.slice(0,5).join('<br>')}</span>` 
+      })
     } catch (err) {
       Swal.fire('錯誤', '檔案解析失敗', 'error')
     }
@@ -341,25 +339,16 @@ async function handleFileUpload(event) {
   reader.readAsArrayBuffer(file)
 }
 
-// 儲存學員配對
 async function saveAssignment(studentId) {
   const data = assignmentData.value[studentId]
-  if (!data.teacher_id || !data.supervisor_id) {
-    return Swal.fire({ icon: 'warning', title: '提示', text: '請完整選擇指導老師與單位主管' })
-  }
+  if (!data.teacher_id || !data.supervisor_id) return Swal.fire({ icon: 'warning', title: '提示', text: '請完整選擇指導老師與單位主管' })
 
   const { error } = await supabase.from('assignments').upsert({
-    student_id: studentId,
-    teacher_id: data.teacher_id,
-    supervisor_id: data.supervisor_id,
-    updated_at: new Date().toISOString()
+    student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id, updated_at: new Date().toISOString()
   }, { onConflict: 'student_id' })
 
-  if (error) {
-    Swal.fire({ icon: 'error', title: '儲存失敗', text: error.message })
-  } else {
-    Swal.fire({ icon: 'success', title: '配對已儲存', timer: 1500, showConfirmButton: false })
-  }
+  if (error) Swal.fire({ icon: 'error', title: '儲存失敗', text: error.message })
+  else Swal.fire({ icon: 'success', title: '配對已儲存', timer: 1500, showConfirmButton: false })
 }
 
 async function handleLogout() {
