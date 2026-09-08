@@ -9,67 +9,103 @@
         </div>
       </div>
 
-      <!-- 狀態進度條 -->
-      <div class="status-bar" v-if="report.id">
-        目前狀態：<span class="status-badge" :class="report.status">{{ getStatusText(report.status) }}</span>
-      </div>
-
-      <!-- 學員填寫區 -->
-      <div class="card section-card">
-        <h3>🎓 學員心得反思</h3>
-        <div class="form-group">
-          <label>訓練類別：</label>
-          <select v-model="report.category" :disabled="!isStudent || report.status !== 'draft'" class="form-input">
-            <option value="">-- 請選擇訓練類別 --</option>
-            <option value="ward_practice">病房臨床實習</option>
-            <option value="skill_eval">特定技術評核</option>
-            <option value="case_study">個案討論</option>
+      <!-- 報告選擇區 (列印時隱藏) -->
+      <div class="card section-card no-print">
+        <div class="selector-header">
+          <h3>📂 待辦與歷史報告清單</h3>
+          <button v-if="isStudent" @click="createNewDraft" class="btn success-btn small-btn">➕ 建立新心得</button>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <select v-model="selectedReportId" @change="selectReport" class="form-input">
+            <option value="">-- 請選擇要查閱或審核的報告 --</option>
+            <option v-for="r in reportList" :key="r.id" :value="r.id">
+              {{ r.studentName }} 的心得 (狀態: {{ getStatusText(r.status) }}) - {{ formatDate(r.updated_at) }}
+            </option>
           </select>
         </div>
-        <div class="form-group">
-          <label>心得與反思內容：</label>
-          <textarea v-model="report.content" rows="6" placeholder="請詳實填寫您的學習心得..." :disabled="!isStudent || report.status !== 'draft'" class="form-input"></textarea>
-        </div>
-        
-        <!-- 學員操作按鈕 -->
-        <div class="action-row" v-if="isStudent && report.status === 'draft'">
-          <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
-          <button @click="submitReport" class="btn primary-btn" :disabled="isSaving">送出審核</button>
-        </div>
       </div>
 
-      <!-- 臨床指導老師回饋區 -->
-      <div class="card section-card" v-if="report.status !== 'draft'">
-        <h3>👩‍⚕️ 臨床指導老師回饋</h3>
-        <div class="form-group">
-          <textarea v-model="report.teacher_feedback" rows="4" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input"></textarea>
-        </div>
+      <!-- 報告主體區塊 -->
+      <div v-if="report.id || (isStudent && report.status === 'draft')">
         
-        <!-- 老師操作按鈕 -->
-        <div class="action-row" v-if="isTeacher && report.status === 'pending_teacher'">
-          <button @click="returnToStudent" class="btn danger-btn" :disabled="isSaving">退回修改</button>
-          <button @click="submitTeacherFeedback" class="btn primary-btn" :disabled="isSaving">送出至主管</button>
+        <!-- 狀態與基本資料 -->
+        <div class="status-bar">
+          <div class="meta-info">
+            <p><strong>撰寫學員：</strong> {{ currentReportMeta.studentName || profile?.name }}</p>
+            <p v-if="!isStudent"><strong>指導老師：</strong> {{ currentReportMeta.teacherName || '尚未指派' }}</p>
+          </div>
+          <div>
+            目前狀態：<span class="status-badge" :class="report.status">{{ getStatusText(report.status) }}</span>
+          </div>
         </div>
-      </div>
 
-      <!-- 單位主管總評區 -->
-      <div class="card section-card" v-if="report.status === 'pending_supervisor' || report.status === 'closed'">
-        <h3>🏥 單位主管總評</h3>
-        <div class="form-group">
-          <textarea v-model="report.supervisor_feedback" rows="4" placeholder="請填寫單位主管總評..." :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input"></textarea>
+        <!-- 學員填寫區 -->
+        <div class="card section-card">
+          <h3>🎓 學員心得反思</h3>
+          <div class="form-group">
+            <label>訓練類別：</label>
+            <select v-model="report.category" :disabled="!isStudent || report.status !== 'draft'" class="form-input">
+              <option value="">-- 請選擇訓練類別 --</option>
+              <option value="ward_practice">病房臨床實習</option>
+              <option value="skill_eval">特定技術評核</option>
+              <option value="case_study">個案討論</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>心得與反思內容：</label>
+            <textarea v-model="report.content" rows="6" placeholder="請詳實填寫您的學習心得..." :disabled="!isStudent || report.status !== 'draft'" class="form-input"></textarea>
+          </div>
+          
+          <!-- 學員操作按鈕 -->
+          <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
+            <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
+            <button @click="submitReport" class="btn primary-btn" :disabled="isSaving">送出審核</button>
+          </div>
         </div>
-        
-        <!-- 主管操作按鈕 -->
-        <div class="action-row" v-if="isSupervisor && report.status === 'pending_supervisor'">
-          <button @click="returnToTeacher" class="btn danger-btn" :disabled="isSaving">退回修改</button>
-          <button @click="closeReport" class="btn success-btn" :disabled="isSaving">確認結案</button>
-        </div>
-      </div>
 
-      <!-- 結案後功能區 -->
-      <div class="action-row center" v-if="report.status === 'closed'">
-        <button @click="exportToPDF" class="btn dark-btn">📄 匯出 PDF 存查</button>
-        <button v-if="isSupervisor" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
+        <!-- 臨床指導老師回饋區 -->
+        <div class="card section-card" v-if="report.status !== 'draft'">
+          <h3>👩‍⚕️ 臨床指導老師回饋</h3>
+          <div class="form-group">
+            <textarea v-model="report.teacher_feedback" rows="5" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input"></textarea>
+          </div>
+          
+          <!-- 老師操作按鈕 -->
+          <div class="action-row no-print" v-if="isTeacher && report.status === 'pending_teacher'">
+            <button @click="returnToStudent" class="btn danger-btn" :disabled="isSaving">退回修改</button>
+            <button @click="submitTeacherFeedback" class="btn primary-btn" :disabled="isSaving">送出至主管</button>
+          </div>
+        </div>
+
+        <!-- 單位主管總評區 -->
+        <div class="card section-card" v-if="report.status === 'pending_supervisor' || report.status === 'closed'">
+          <h3>🏥 單位主管總評</h3>
+          <div class="form-group">
+            <textarea v-model="report.supervisor_feedback" rows="5" 
+              placeholder="請給予具體之臨床專業講評與期勉。建議包含：對學員臨床表現之肯定、核心護理能力之評估，以及未來精進之方向與建議..." 
+              :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input"></textarea>
+          </div>
+          
+          <!-- 主管操作按鈕 -->
+          <div class="action-row no-print" v-if="isSupervisor && report.status === 'pending_supervisor'">
+            <button @click="returnToTeacher" class="btn danger-btn" :disabled="isSaving">退回給老師</button>
+            <button @click="closeReport" class="btn success-btn" :disabled="isSaving">確認結案</button>
+          </div>
+        </div>
+
+        <!-- 結案後功能區 (全角色共用) -->
+        <div class="action-row center no-print" v-if="report.status === 'closed'">
+          <button @click="exportToPDF" class="btn dark-btn">📄 匯出 PDF 存查</button>
+          <!-- 僅主管或管理員可解鎖 -->
+          <button v-if="isSupervisor || isAdmin" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
+        </div>
+
+      </div>
+      
+      <!-- 空白狀態提示 -->
+      <div v-else class="card section-card empty-state">
+        <p v-if="isStudent">請點擊上方「建立新心得」開始填寫。</p>
+        <p v-else>目前未選擇任何報告，請由上方選單挑選您管轄的學員紀錄。</p>
       </div>
 
     </div>
@@ -80,75 +116,119 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
-// 引入我們剛建立的共用 Utils
-import { formatDate, formatDateTime } from '../utils/format'
+import { formatDate } from '../utils/format'
 import { Toast } from '../utils/toast'
 import { checkAndEnforcePasswordChange } from '../utils/auth'
 
 const profile = ref(null)
 const isSaving = ref(false)
 
-// 表單資料結構
+const reportList = ref([])
+const selectedReportId = ref('')
+const currentReportMeta = ref({})
+
 const report = ref({
   id: null,
   category: '',
   content: '',
   teacher_feedback: '',
   supervisor_feedback: '',
-  status: 'draft' // draft, pending_teacher, pending_supervisor, closed
+  status: 'draft'
 })
 
-// 身分判斷
 const isStudent = computed(() => profile.value?.role === 'student')
 const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
+const isAdmin = computed(() => profile.value?.role === 'admin')
 
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
-    // 1. 強制檢查並修改密碼 (若 must_change_password 為 true 會在此處阻擋)
     await checkAndEnforcePasswordChange(user.id)
-    
-    // 2. 載入使用者資料
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
-    
-    // 3. 載入表單 (此處簡化為載入最新一筆或建立新表單，實務上可根據路由 ID 讀取)
-    await loadLatestReport(user.id)
+    await loadReportsList(user.id, userProfile.role)
   }
 })
 
-// 載入表單邏輯
-async function loadLatestReport(userId) {
-  let query = supabase.from('feedback_reports').select('*').order('created_at', { ascending: false }).limit(1)
-  
-  if (profile.value.role === 'student') {
+// 精確讀取該角色轄下的報告清單
+async function loadReportsList(userId, role) {
+  // 1. 取得所有帳號名稱對照表
+  const { data: profs } = await supabase.from('profiles').select('id, name')
+  const profilesMap = {}
+  profs.forEach(p => profilesMap[p.id] = p.name)
+
+  // 2. 取得所有配對紀錄
+  const { data: assigns } = await supabase.from('assignments').select('*')
+  const assignsMap = {}
+  assigns.forEach(a => assignsMap[a.student_id] = a)
+
+  // 3. 根據角色篩選要撈取的報告
+  let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
+
+  if (role === 'student') {
     query = query.eq('student_id', userId)
-  } else if (profile.value.role === 'teacher') {
-    query = query.eq('status', 'pending_teacher')
-  } else if (profile.value.role === 'supervisor') {
-    query = query.eq('status', 'pending_supervisor')
+  } else if (role === 'teacher') {
+    // 找出分配給這位老師的學員
+    const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
+    query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
+  } else if (role === 'supervisor') {
+    // 找出分配給這位主管的學員
+    const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
+    query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   }
 
-  const { data, error } = await query
-  if (data && data.length > 0) {
-    report.value = data[0]
+  const { data: reports } = await query
+
+  // 4. 裝配顯示用中介資料 (Meta)
+  if (reports) {
+    reportList.value = reports.map(r => {
+      const assign = assignsMap[r.student_id] || {}
+      return {
+        ...r,
+        studentName: profilesMap[r.student_id] || '未知學員',
+        teacherName: profilesMap[assign.teacher_id] || '尚未指派',
+        supervisorName: profilesMap[assign.supervisor_id] || '尚未指派'
+      }
+    })
+  }
+
+  // 5. 自動選取第一筆待辦 (若無則保持空)
+  if (reportList.value.length > 0) {
+    let autoSelect = reportList.value[0]
+    if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
+    if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]
+    
+    selectedReportId.value = autoSelect.id
+    selectReport()
   }
 }
 
-// 狀態文字轉換
-function getStatusText(status) {
-  const map = {
-    'draft': '📝 草稿',
-    'pending_teacher': '⏳ 待老師回饋',
-    'pending_supervisor': '⏳ 待主管結案',
-    'closed': '✅ 已結案'
+// 下拉選單切換報告
+function selectReport() {
+  const found = reportList.value.find(r => r.id === selectedReportId.value)
+  if (found) {
+    report.value = { ...found }
+    currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
+  } else {
+    createNewDraft()
   }
+}
+
+// 建立全新草稿
+function createNewDraft() {
+  selectedReportId.value = ''
+  report.value = { id: null, category: '', content: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft' }
+  currentReportMeta.value = {}
+}
+
+function getStatusText(status) {
+  const map = { 'draft': '📝 草稿', 'pending_teacher': '⏳ 待老師', 'pending_supervisor': '⏳ 待主管', 'closed': '✅ 已結案' }
   return map[status] || status
 }
 
 function getRoleName(role) {
-  const map = { student: '學員', teacher: '指導老師', supervisor: '主管', admin: '管理員' }
+  const map = { student: '學員', teacher: '老師', supervisor: '主管', admin: '管理員' }
   return map[role] || role
 }
 
@@ -156,14 +236,7 @@ function getRoleName(role) {
 async function saveDraft() {
   isSaving.value = true
   try {
-    const payload = {
-      student_id: profile.value.id,
-      category: report.value.category,
-      content: report.value.content,
-      status: 'draft',
-      updated_at: new Date().toISOString()
-    }
-
+    const payload = { student_id: profile.value.id, category: report.value.category, content: report.value.content, status: 'draft', updated_at: new Date().toISOString() }
     if (report.value.id) {
       await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
     } else {
@@ -171,28 +244,21 @@ async function saveDraft() {
       if (data) report.value.id = data[0].id
     }
     Toast.fire({ icon: 'success', title: '草稿已儲存' })
+    await loadReportsList(profile.value.id, profile.value.role) // 刷新清單
   } catch (error) {
     Swal.fire('錯誤', '儲存失敗', 'error')
-  } finally {
-    isSaving.value = false
-  }
+  } finally { isSaving.value = false }
 }
 
 // 學員 - 送出審核
 async function submitReport() {
-  if (!report.value.category || !report.value.content) {
-    return Swal.fire('提示', '請完整填寫訓練類別與心得內容', 'warning')
-  }
+  if (!report.value.category || !report.value.content) return Swal.fire('提示', '請填寫類別與內容', 'warning')
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ 
-    status: 'pending_teacher',
-    updated_at: new Date().toISOString()
-  }).eq('id', report.value.id)
-  
+  const { error } = await supabase.from('feedback_reports').update({ status: 'pending_teacher', updated_at: new Date().toISOString() }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) {
-    report.value.status = 'pending_teacher'
     Swal.fire({ icon: 'success', title: '已送出', text: '表單已送出給指導老師' })
+    await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
@@ -200,27 +266,21 @@ async function submitReport() {
 async function submitTeacherFeedback() {
   if (!report.value.teacher_feedback) return Swal.fire('提示', '請填寫指導回饋', 'warning')
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ 
-    teacher_feedback: report.value.teacher_feedback,
-    status: 'pending_supervisor',
-    updated_at: new Date().toISOString()
-  }).eq('id', report.value.id)
-  
+  const { error } = await supabase.from('feedback_reports').update({ teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', updated_at: new Date().toISOString() }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) {
-    report.value.status = 'pending_supervisor'
     Swal.fire({ icon: 'success', title: '回饋已送出', text: '表單已移交單位主管' })
+    await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
 // 老師 - 退回修改
 async function returnToStudent() {
-  const { isConfirmed } = await Swal.fire({ title: '確定要退回給學員嗎？', showCancelButton: true })
-  if (!isConfirmed) return
-  const { error } = await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
-  if (!error) {
-    report.value.status = 'draft'
-    Toast.fire({ icon: 'info', title: '已退回學員' })
+  const { isConfirmed } = await Swal.fire({ title: '退回學員？', text: '退回後學員將可重新編輯內容', showCancelButton: true })
+  if (isConfirmed) {
+    await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
+    Toast.fire({ icon: 'info', title: '已退回' })
+    await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
@@ -228,35 +288,29 @@ async function returnToStudent() {
 async function closeReport() {
   if (!report.value.supervisor_feedback) return Swal.fire('提示', '請填寫主管總評', 'warning')
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ 
-    supervisor_feedback: report.value.supervisor_feedback,
-    status: 'closed',
-    updated_at: new Date().toISOString()
-  }).eq('id', report.value.id)
-  
+  const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) {
-    report.value.status = 'closed'
-    Swal.fire({ icon: 'success', title: '結案成功', text: '此表單已正式鎖定存查' })
+    Swal.fire({ icon: 'success', title: '結案成功', text: '表單已正式鎖定存查' })
+    await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
 // 主管 - 退回老師修改
 async function returnToTeacher() {
-  const { error } = await supabase.from('feedback_reports').update({ status: 'pending_teacher' }).eq('id', report.value.id)
-  if (!error) report.value.status = 'pending_teacher'
+  await supabase.from('feedback_reports').update({ status: 'pending_teacher' }).eq('id', report.value.id)
+  await loadReportsList(profile.value.id, profile.value.role)
 }
 
-// 主管 - 解鎖表單 (特殊權限)
+// 主管 - 解鎖表單
 async function unlockReport() {
-  const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', text: '將退回至「待主管結案」狀態', icon: 'warning', showCancelButton: true })
+  const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', text: '將退回至待主管結案狀態', icon: 'warning', showCancelButton: true })
   if (isConfirmed) {
     await supabase.from('feedback_reports').update({ status: 'pending_supervisor' }).eq('id', report.value.id)
-    report.value.status = 'pending_supervisor'
+    await loadReportsList(profile.value.id, profile.value.role)
   }
 }
 
-// 匯出 PDF 功能
 function exportToPDF() {
   window.print()
 }
@@ -267,26 +321,19 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.app-wrapper {
-  background-color: #f0f2f5;
-  min-height: 100vh;
-  width: 100vw;
-  position: absolute;
-  top: 0;
-  left: 0;
-  padding: 30px 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.form-container { width: 100%; max-width: 800px; font-family: "微軟正黑體", sans-serif; }
+.app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
+.form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .header-section h2 { margin: 0; color: #2c3e50; font-weight: 900;}
 .user-info { font-weight: bold; color: #34495e; margin-right: 15px; }
 
-.status-bar { margin-bottom: 20px; font-weight: bold; color: #2c3e50; font-size: 16px; }
+.selector-header { display: flex; justify-content: space-between; align-items: center; }
+.empty-state { text-align: center; color: #7f8c8d; padding: 40px !important; font-weight: bold; }
+
+.status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; color: #2c3e50; font-size: 15px; background: #ecf0f1; padding: 15px 20px; border-radius: 8px;}
+.meta-info p { margin: 0 0 5px 0; }
+.meta-info p:last-child { margin: 0; }
+
 .status-badge { padding: 5px 12px; border-radius: 20px; margin-left: 10px; color: white; font-size: 14px; }
 .status-badge.draft { background: #95a5a6; }
 .status-badge.pending_teacher { background: #f39c12; }
@@ -306,7 +353,7 @@ async function handleLogout() {
 .action-row.center { justify-content: center; }
 
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
-.small-btn { padding: 6px 12px; font-size: 13px; }
+.small-btn { padding: 8px 14px; font-size: 13px; }
 .primary-btn { background: #3498db; color: white; }
 .secondary-btn { background: #95a5a6; color: white; }
 .success-btn { background: #2ecc71; color: white; }
@@ -317,8 +364,8 @@ async function handleLogout() {
 
 @media print {
   .app-wrapper { background: white; padding: 0; }
-  .header-actions, .action-row, .status-bar { display: none !important; }
-  .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+  .no-print { display: none !important; }
+  .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; margin-bottom: 15px; }
   .form-input { border: none; padding: 0; background: transparent !important; color: black !important; }
 }
 </style>
