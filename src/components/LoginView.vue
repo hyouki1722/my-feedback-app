@@ -8,24 +8,12 @@
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label>登入信箱：</label>
-          <input 
-            type="email" 
-            v-model="email" 
-            placeholder="請輸入註冊的 Email" 
-            class="form-input" 
-            required 
-          />
+          <input type="email" v-model="email" placeholder="請輸入註冊的 Email" class="form-input" required />
         </div>
 
         <div class="form-group">
           <label>密碼：</label>
-          <input 
-            type="password" 
-            v-model="password" 
-            placeholder="請輸入密碼" 
-            class="form-input" 
-            required 
-          />
+          <input type="password" v-model="password" placeholder="請輸入密碼" class="form-input" required />
           <small class="password-hint">
             💡 預設密碼為身分證字號（第一碼英文字母須為大寫）
           </small>
