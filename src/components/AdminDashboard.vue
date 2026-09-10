@@ -391,7 +391,7 @@ async function saveAssignment(studentId) {
   if (!data.teacher_id || !data.supervisor_id) return Swal.fire({ icon: 'warning', title: '提示', text: '請完整選擇指導老師與單位主管' })
 
   const { error } = await supabase.from('assignments').upsert({
-    student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id, updated_at: new Date().toISOString()
+    student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id
   }, { onConflict: 'student_id' })
 
   if (error) Swal.fire({ icon: 'error', title: '儲存失敗', text: error.message })
