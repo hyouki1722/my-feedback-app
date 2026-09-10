@@ -8,12 +8,24 @@
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label>登入信箱：</label>
-          <input type="email" v-model="email" placeholder="請輸入註冊的 Email" class="form-input" required />
+          <input 
+            type="email" 
+            v-model="email" 
+            placeholder="請輸入註冊的 Email" 
+            class="form-input" 
+            required 
+          />
         </div>
 
         <div class="form-group">
           <label>密碼：</label>
-          <input type="password" v-model="password" placeholder="請輸入密碼" class="form-input" required />
+          <input 
+            type="password" 
+            v-model="password" 
+            placeholder="請輸入密碼" 
+            class="form-input" 
+            required 
+          />
           <small class="password-hint">
             💡 預設密碼為身分證字號（第一碼英文字母須為大寫）
           </small>
@@ -45,7 +57,6 @@ const password = ref('')
 const isLoading = ref(false)
 const router = useRouter()
 
-// 處理一般登入
 async function handleLogin() {
   if (!email.value || !password.value) {
     return Swal.fire({ icon: 'warning', title: '提示', text: '請完整填寫信箱與密碼' })
@@ -74,7 +85,6 @@ async function handleLogin() {
   }
 }
 
-// 處理忘記密碼：彈出輸入框並呼叫 Supabase 重設 API
 async function handleForgotPassword() {
   const { value: resetEmail } = await Swal.fire({
     title: '重設密碼',
@@ -157,21 +167,24 @@ async function handleForgotPassword() {
   color: #2c3e50;
 }
 
-.form-input {
+/* 🏆 關鍵修改：增強 CSS 權重，強制所有 input 聽從這個樣式 */
+.form-group input.form-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #dcdde1;
-  border-radius: 6px;
+  border: 1px solid #dcdde1 !important; /* 強制覆蓋預設黑框 */
+  border-radius: 6px !important;       /* 強制覆蓋圓角 */
   box-sizing: border-box;
   font-size: 15px;
   font-family: inherit;
   transition: border-color 0.2s;
+  background-color: white;
+  color: #2c3e50;
 }
 
-.form-input:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+.form-group input.form-input:focus {
+  outline: none !important;
+  border-color: #3498db !important;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.3) !important;
 }
 
 .password-hint {
