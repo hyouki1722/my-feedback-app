@@ -44,16 +44,30 @@
           <h3>🎓 學員心得反思</h3>
           <div class="form-group">
             <label>訓練類別：</label>
-            <select v-model="report.category" :disabled="!isStudent || report.status !== 'draft'" class="form-input">
-              <option value="">-- 請選擇訓練類別 --</option>
-              <option value="ward_practice">病房臨床實習</option>
-              <option value="skill_eval">特定技術評核</option>
-              <option value="case_study">個案討論</option>
+            <select v-model="report.training_category" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required>
+              <option value="" disabled>-- 請選擇訓練類別 --</option>
+              <option value="第一年：到職訓練">第一年：到職訓練</option>
+              <option value="第一年：三個月新進人員訓練">第一年：三個月新進人員訓練</option>
+              <option value="第一年：基層護理人員臨床專業能力訓練">第一年：基層護理人員臨床專業能力訓練</option>
+              <option value="第二年：基層護理人員臨床專業能力訓練">第二年：基層護理人員臨床專業能力訓練</option>
+              <option value="換照人員：臨床專業能力訓練">換照人員：臨床專業能力訓練</option>
+              <option value="病房臨床實習">病房臨床實習</option>
             </select>
           </div>
+
           <div class="form-group">
-            <label>心得與反思內容：</label>
-            <textarea v-model="report.content" rows="6" placeholder="請詳實填寫您的學習心得..." :disabled="!isStudent || report.status !== 'draft'" class="form-input"></textarea>
+            <label>實習/訓練日期：</label>
+            <input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required />
+          </div>
+
+          <div class="form-group">
+            <label>學習內容重點摘要：</label>
+            <textarea v-model="report.content" rows="5" placeholder="請簡述今日學習的核心護理技術或照護重點..." :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>自我反思與心得：</label>
+            <textarea v-model="report.reflection" rows="5" placeholder="請描述執行過程中的反思、遭遇的困難或後續改進方向..." :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea>
           </div>
           
           <!-- 學員操作按鈕 -->
@@ -99,9 +113,8 @@
           <!-- 僅主管或管理員可解鎖 -->
           <button v-if="isSupervisor || isAdmin" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
         </div>
-
       </div>
-      
+
       <!-- 空白狀態提示 -->
       <div v-else class="card section-card empty-state">
         <p v-if="isStudent">請點擊上方「建立新心得」開始填寫。</p>
@@ -129,8 +142,10 @@ const currentReportMeta = ref({})
 
 const report = ref({
   id: null,
-  category: '',
+  training_category: '',
+  training_date: new Date().toISOString().split('T')[0],
   content: '',
+  reflection: '',
   teacher_feedback: '',
   supervisor_feedback: '',
   status: 'draft'
@@ -153,17 +168,14 @@ onMounted(async () => {
 
 // 精確讀取該角色轄下的報告清單
 async function loadReportsList(userId, role) {
-  // 1. 取得所有帳號名稱對照表
   const { data: profs } = await supabase.from('profiles').select('id, name')
   const profilesMap = {}
   profs.forEach(p => profilesMap[p.id] = p.name)
 
-  // 2. 取得所有配對紀錄
   const { data: assigns } = await supabase.from('assignments').select('*')
   const assignsMap = {}
   assigns.forEach(a => assignsMap[a.student_id] = a)
 
-  // 3. 根據角色篩選要撈取的報告
   let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
 
   if (role === 'student') {
@@ -178,7 +190,6 @@ async function loadReportsList(userId, role) {
 
   const { data: reports } = await query
 
-  // 4. 裝配顯示用中介資料 (Meta)
   if (reports) {
     reportList.value = reports.map(r => {
       const assign = assignsMap[r.student_id] || {}
@@ -191,7 +202,6 @@ async function loadReportsList(userId, role) {
     })
   }
 
-  // 5. 自動選取第一筆待辦 (若無則保持空)
   if (reportList.value.length > 0) {
     let autoSelect = reportList.value[0]
     if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
@@ -214,7 +224,16 @@ function selectReport() {
 
 function createNewDraft() {
   selectedReportId.value = ''
-  report.value = { id: null, category: '', content: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft' }
+  report.value = { 
+    id: null, 
+    training_category: '', 
+    training_date: new Date().toISOString().split('T')[0],
+    content: '', 
+    reflection: '',
+    teacher_feedback: '', 
+    supervisor_feedback: '', 
+    status: 'draft' 
+  }
   currentReportMeta.value = {}
 }
 
@@ -232,37 +251,74 @@ function getRoleName(role) {
 async function saveDraft() {
   isSaving.value = true
   try {
-    const payload = { student_id: profile.value.id, category: report.value.category, content: report.value.content, status: 'draft', updated_at: new Date().toISOString() }
+    const payload = { 
+      student_id: profile.value.id, 
+      training_category: report.value.training_category, 
+      training_date: report.value.training_date,
+      content: report.value.content, 
+      reflection: report.value.reflection,
+      status: 'draft', 
+      updated_at: new Date().toISOString() 
+    }
+
     if (report.value.id) {
       await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
     } else {
       const { data } = await supabase.from('feedback_reports').insert([payload]).select()
       if (data) report.value.id = data[0].id
     }
+    
     Toast.fire({ icon: 'success', title: '草稿已儲存' })
     await loadReportsList(profile.value.id, profile.value.role) 
   } catch (error) {
     Swal.fire('錯誤', '儲存失敗', 'error')
-  } finally { isSaving.value = false }
+  } finally { 
+    isSaving.value = false 
+  }
 }
 
 // 學員 - 送出審核
 async function submitReport() {
-  if (!report.value.category || !report.value.content) return Swal.fire('提示', '請填寫類別與內容', 'warning')
+  if (!report.value.training_category || !report.value.content || !report.value.reflection) {
+    return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
+  }
+
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ status: 'pending_teacher', updated_at: new Date().toISOString() }).eq('id', report.value.id)
+  const payload = { 
+    student_id: profile.value.id, 
+    training_category: report.value.training_category, 
+    training_date: report.value.training_date,
+    content: report.value.content, 
+    reflection: report.value.reflection,
+    status: 'pending_teacher', 
+    updated_at: new Date().toISOString() 
+  }
+
+  let error;
+  if (report.value.id) {
+    ({ error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id))
+  } else {
+    ({ error } = await supabase.from('feedback_reports').insert([payload]))
+  }
+
   isSaving.value = false
   if (!error) {
     Swal.fire({ icon: 'success', title: '已送出', text: '表單已送出給指導老師' })
     await loadReportsList(profile.value.id, profile.value.role)
+  } else {
+    Swal.fire('錯誤', '送出失敗: ' + error.message, 'error')
   }
 }
 
 // 老師 - 送出回饋
 async function submitTeacherFeedback() {
   if (!report.value.teacher_feedback) return Swal.fire('提示', '請填寫指導回饋', 'warning')
+  
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', updated_at: new Date().toISOString() }).eq('id', report.value.id)
+  const { error } = await supabase.from('feedback_reports')
+    .update({ teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', updated_at: new Date().toISOString() })
+    .eq('id', report.value.id)
+  
   isSaving.value = false
   if (!error) {
     Swal.fire({ icon: 'success', title: '回饋已送出', text: '表單已移交單位主管' })
@@ -280,7 +336,7 @@ async function returnToStudent() {
   }
 }
 
-// 主管 - 確認結案（加入防呆與防護）
+// 主管 - 確認結案
 async function closeReport() {
   if (!report.value.supervisor_feedback) return Swal.fire('提示', '請填寫主管總評', 'warning')
 
@@ -292,18 +348,21 @@ async function closeReport() {
   if (!isConfirmed) return
 
   isSaving.value = true
-  const { error } = await supabase.from('feedback_reports').update({ 
-    supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() 
-  }).eq('id', report.value.id)
+  const { error } = await supabase.from('feedback_reports')
+    .update({ supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() })
+    .eq('id', report.value.id)
+  
   isSaving.value = false
 
   if (!error) {
     Swal.fire({ icon: 'success', title: '結案成功', text: '表單已正式鎖定存查' })
     await loadReportsList(profile.value.id, profile.value.role)
+  } else {
+    Swal.fire({ icon: 'error', title: '儲存失敗', text: error.message })
   }
 }
 
-// 主管 - 退回老師修改（加入防呆與防護）
+// 主管 - 退回老師修改
 async function returnToTeacher() {
   const { isConfirmed } = await Swal.fire({ 
     title: '退回給老師？', text: '老師將可重新編輯回饋內容', showCancelButton: true, confirmButtonColor: '#e74c3c'
@@ -315,7 +374,7 @@ async function returnToTeacher() {
   await loadReportsList(profile.value.id, profile.value.role)
 }
 
-// 主管/管理員 - 解鎖表單（加入防呆與防護）
+// 主管/管理員 - 解鎖表單
 async function unlockReport() {
   const { isConfirmed } = await Swal.fire({ 
     title: '解除鎖定？', text: '將退回至待主管結案狀態', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c'
@@ -376,7 +435,7 @@ async function handleLogout() {
 .danger-btn { background: #e74c3c; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
-.btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+.btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
 /* 列印專用樣式 */
 @media print {
