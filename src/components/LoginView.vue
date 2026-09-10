@@ -47,7 +47,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
@@ -55,7 +54,6 @@ const emit = defineEmits(['switch-to-register'])
 const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
-const router = useRouter()
 
 async function handleLogin() {
   if (!email.value || !password.value) {
@@ -72,7 +70,9 @@ async function handleLogin() {
     if (error) throw error
 
     Swal.fire({ icon: 'success', title: '登入成功', timer: 1500, showConfirmButton: false })
-    router.push('/') 
+    
+    // 💡 關鍵修復：拔除 vue-router，改用原生 JavaScript 強制導向首頁並重整狀態
+    window.location.href = '/'
     
   } catch (error) {
     let errorMsg = '帳號或密碼錯誤，請重新確認'
