@@ -9,7 +9,7 @@
         </div>
       </div>
 
-      <!-- 報告選擇區 (列印時隱藏) -->
+      <!-- 報告選擇區 -->
       <div class="card section-card no-print">
         <div class="selector-header">
           <h3>📂 待辦與歷史報告清單</h3>
@@ -28,7 +28,6 @@
       <!-- 報告主體區塊 -->
       <div v-if="report.id || (isStudent && report.status === 'draft')">
         
-        <!-- 狀態與基本資料 -->
         <div class="status-bar">
           <div class="meta-info">
             <p><strong>撰寫學員：</strong> {{ currentReportMeta.studentName || profile?.name }}</p>
@@ -44,14 +43,10 @@
           <h3>🎓 學員心得反思</h3>
           <div class="form-group">
             <label>訓練類別：</label>
+            <!-- 🆕 動態渲染選項清單 -->
             <select v-model="report.training_category" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required>
               <option value="" disabled>-- 請選擇訓練類別 --</option>
-              <option value="第一年：到職訓練">第一年：到職訓練</option>
-              <option value="第一年：三個月新進人員訓練">第一年：三個月新進人員訓練</option>
-              <option value="第一年：基層護理人員臨床專業能力訓練">第一年：基層護理人員臨床專業能力訓練</option>
-              <option value="第二年：基層護理人員臨床專業能力訓練">第二年：基層護理人員臨床專業能力訓練</option>
-              <option value="換照人員：臨床專業能力訓練">換照人員：臨床專業能力訓練</option>
-              <option value="病房臨床實習">病房臨床實習</option>
+              <option v-for="cat in dynamicCategories" :key="cat.id" :value="cat.name">{{ cat.name }}</option>
             </select>
           </div>
 
@@ -70,7 +65,6 @@
             <textarea v-model="report.reflection" rows="5" placeholder="請描述執行過程中的反思、遭遇的困難或後續改進方向..." :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea>
           </div>
           
-          <!-- 學員操作按鈕 -->
           <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
             <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
             <button @click="submitReport" class="btn primary-btn" :disabled="isSaving">送出審核</button>
@@ -83,8 +77,6 @@
           <div class="form-group">
             <textarea v-model="report.teacher_feedback" rows="5" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input"></textarea>
           </div>
-          
-          <!-- 老師操作按鈕 -->
           <div class="action-row no-print" v-if="isTeacher && report.status === 'pending_teacher'">
             <button @click="returnToStudent" class="btn danger-btn" :disabled="isSaving">退回修改</button>
             <button @click="submitTeacherFeedback" class="btn primary-btn" :disabled="isSaving">送出至主管</button>
@@ -99,18 +91,15 @@
               placeholder="請給予具體之臨床專業講評與期勉。建議包含：對學員臨床表現之肯定、核心護理能力之評估，以及未來精進之方向與建議..." 
               :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input"></textarea>
           </div>
-          
-          <!-- 主管操作按鈕 -->
           <div class="action-row no-print" v-if="isSupervisor && report.status === 'pending_supervisor'">
             <button @click="returnToTeacher" class="btn danger-btn" :disabled="isSaving">退回給老師</button>
             <button @click="closeReport" class="btn success-btn" :disabled="isSaving">確認結案</button>
           </div>
         </div>
 
-        <!-- 結案後功能區 (全角色共用) -->
+        <!-- 結案後功能區 -->
         <div class="action-row center no-print" v-if="report.status === 'closed'">
           <button @click="exportToPDF" class="btn dark-btn">📄 匯出 PDF 存查</button>
-          <!-- 僅主管或管理員可解鎖 -->
           <button v-if="isSupervisor || isAdmin" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
         </div>
       </div>
@@ -139,6 +128,7 @@ const isSaving = ref(false)
 const reportList = ref([])
 const selectedReportId = ref('')
 const currentReportMeta = ref({})
+const dynamicCategories = ref([]) // 🆕 存放從資料庫抓下來的類別
 
 const report = ref({
   id: null,
@@ -162,11 +152,20 @@ onMounted(async () => {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
+    
+    await loadCategories() // 載入動態類別
     await loadReportsList(user.id, userProfile.role)
   }
 })
 
-// 精確讀取該角色轄下的報告清單
+// 🆕 讀取動態訓練類別
+async function loadCategories() {
+  const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true })
+  if (!error && data) {
+    dynamicCategories.value = data
+  }
+}
+
 async function loadReportsList(userId, role) {
   const { data: profs } = await supabase.from('profiles').select('id, name')
   const profilesMap = {}
@@ -437,7 +436,6 @@ async function handleLogout() {
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-/* 列印專用樣式 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
@@ -445,7 +443,6 @@ async function handleLogout() {
   .form-input { border: none; padding: 0; background: transparent !important; color: black !important; }
 }
 
-/* 補回手機版 RWD 樣式 */
 @media screen and (max-width: 600px) {
   .header-section { flex-direction: column; align-items: stretch; gap: 12px; text-align: center; }
   .header-actions { justify-content: center; flex-wrap: wrap; gap: 10px; }

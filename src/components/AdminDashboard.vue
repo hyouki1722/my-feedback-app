@@ -69,7 +69,7 @@
 
         <!-- 人員總覽清單 -->
         <div class="admin-card">
-          <div class="card-header-flex align-center" style="margin-bottom: 0;">
+          <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
             
             <!-- 身分角色篩選按鈕 -->
@@ -82,10 +82,20 @@
             </div>
           </div>
 
+          <!-- 🆕 批次操作工具列 (只有在有選取人員時才會出現) -->
+          <div class="batch-action-bar" v-if="selectedUserIds.length > 0">
+            <span>已選取 <strong>{{ selectedUserIds.length }}</strong> 名人員</span>
+            <button @click="batchDeleteUsers" class="btn danger-btn small-btn">🗑️ 批次刪除所選人員</button>
+          </div>
+
           <div class="table-responsive">
             <table class="data-table">
               <thead>
                 <tr>
+                  <!-- 🆕 全選核取方塊 -->
+                  <th style="width: 40px; text-align: center;">
+                    <input type="checkbox" class="custom-checkbox" :checked="isAllSelectedOnPage" @change="toggleSelectAllOnPage" title="全選本頁" />
+                  </th>
                   <th>姓名</th>
                   <th>Email</th>
                   <th>身分角色</th>
@@ -94,18 +104,21 @@
                 </tr>
               </thead>
               <tbody>
-                <!-- 改為渲染 paginatedUsers (分頁後的資料) -->
-                <tr v-for="user in paginatedUsers" :key="user.id">
+                <tr v-for="user in paginatedUsers" :key="user.id" :class="{'selected-row': selectedUserIds.includes(user.id)}">
+                  <!-- 🆕 單筆選取核取方塊 -->
+                  <td style="text-align: center;">
+                    <input type="checkbox" class="custom-checkbox" :value="user.id" v-model="selectedUserIds" />
+                  </td>
                   <td><strong>{{ user.name }}</strong></td>
                   <td>{{ user.email }}</td>
                   <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
                   <td>{{ formatDate(user.created_at) }}</td>
                   <td>
-                    <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除人員</button>
+                    <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除</button>
                   </td>
                 </tr>
                 <tr v-if="filteredUsers.length === 0">
-                  <td colspan="5" class="empty-state">此分類下尚無人員資料</td>
+                  <td colspan="6" class="empty-state">此分類下尚無人員資料</td>
                 </tr>
               </tbody>
             </table>
@@ -193,25 +206,22 @@ const newUser = ref({
 
 // === 分頁邏輯設定 ===
 const currentPage = ref(1)
-const itemsPerPage = 10 // 每頁顯示 10 筆
+const itemsPerPage = 10 
 
-// 監聽篩選器變更，自動重置回第一頁
 watch(roleFilter, () => {
   currentPage.value = 1
+  selectedUserIds.value = [] // 切換篩選器時清空選取，避免誤刪
 })
 
-// 根據過濾器計算要顯示的使用者 (過濾後總資料)
 const filteredUsers = computed(() => {
   if (roleFilter.value === 'all') return users.value
   return users.value.filter(u => u.role === roleFilter.value)
 })
 
-// 計算總頁數
 const totalPages = computed(() => {
   return Math.ceil(filteredUsers.value.length / itemsPerPage) || 1
 })
 
-// 切割當前頁面要顯示的資料
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   const end = start + itemsPerPage
@@ -225,7 +235,81 @@ function prevPage() {
 function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
-// ====================
+
+// === 🆕 批次刪除選取邏輯 ===
+const selectedUserIds = ref([]) // 存放目前被勾選的使用者 ID 陣列
+
+// 判斷當前頁面的使用者是否「全部」都被勾選了
+const isAllSelectedOnPage = computed(() => {
+  if (paginatedUsers.value.length === 0) return false
+  return paginatedUsers.value.every(user => selectedUserIds.value.includes(user.id))
+})
+
+// 全選/取消全選 (僅限當前頁面顯示的人員)
+function toggleSelectAllOnPage() {
+  if (isAllSelectedOnPage.value) {
+    // 取消全選本頁：將本頁的 ID 從 selectedUserIds 移除
+    const currentIds = paginatedUsers.value.map(u => u.id)
+    selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id))
+  } else {
+    // 全選本頁：將本頁還沒被加入的 ID 塞進 selectedUserIds
+    paginatedUsers.value.forEach(user => {
+      if (!selectedUserIds.value.includes(user.id)) {
+        selectedUserIds.value.push(user.id)
+      }
+    })
+  }
+}
+
+// 執行批次刪除
+async function batchDeleteUsers() {
+  if (selectedUserIds.value.length === 0) return
+
+  const confirmResult = await Swal.fire({
+    title: `確定要刪除這 ${selectedUserIds.value.length} 名人員嗎？`,
+    text: '刪除後將無法恢復，且會連帶清理該員的所有歷史心得與配對紀錄！',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e74c3c',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '確定批次刪除',
+    cancelButtonText: '取消'
+  })
+
+  if (!confirmResult.isConfirmed) return
+
+  Swal.fire({ title: '批次刪除中...', text: '正在清理系統資料，請稍候', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+
+  let successCount = 0
+  let failCount = 0
+
+  // 透過迴圈呼叫刪除 API
+  for (const userId of selectedUserIds.value) {
+    const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
+    if (error) {
+      failCount++
+      console.error(`刪除 ID ${userId} 失敗:`, error)
+    } else {
+      successCount++
+    }
+  }
+
+  // 刪除完畢後的提示與畫面重置
+  if (failCount === 0) {
+    Swal.fire({ icon: 'success', title: '批次刪除成功', text: `已成功移除 ${successCount} 名人員`, timer: 2000, showConfirmButton: false })
+  } else {
+    Swal.fire({ icon: 'warning', title: '部分刪除失敗', text: `成功: ${successCount} 筆，失敗: ${failCount} 筆，請檢查系統日誌。` })
+  }
+
+  selectedUserIds.value = [] // 清空選取狀態
+  await loadUsers() // 重新讀取清單
+  
+  // 防呆：如果刪除後總頁數變少，退回合法頁碼
+  if (currentPage.value > totalPages.value && totalPages.value > 0) {
+    currentPage.value = totalPages.value
+  }
+}
+// =============================
 
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -307,9 +391,10 @@ async function deleteUser(userId) {
     Swal.fire({ icon: 'error', title: '刪除失敗', text: error.message })
   } else {
     Swal.fire({ icon: 'success', title: '刪除成功', timer: 1500, showConfirmButton: false })
+    // 如果這筆剛好在勾選清單中，將其移除
+    selectedUserIds.value = selectedUserIds.value.filter(id => id !== userId)
     await loadUsers()
     
-    // 如果刪除後當前頁碼超出總頁數，自動退回上一頁
     if (currentPage.value > totalPages.value && totalPages.value > 0) {
       currentPage.value = totalPages.value
     }
@@ -432,13 +517,21 @@ async function handleLogout() {
 .create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-group { flex: 1; }
 .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
-.form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; }
+.form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; }
 .form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
+
+/* 🆕 批次操作列樣式 */
+.batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+.custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
 
 .table-responsive { overflow-x: auto; margin-top: 15px; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-.data-table th, .data-table td { padding: 14px; border-bottom: 1px solid #ecf0f1; text-align: left; color: #2c3e50; }
+.data-table th, .data-table td { padding: 14px; border-bottom: 1px solid #ecf0f1; text-align: left; color: #2c3e50; transition: background 0.2s; }
 .data-table th { background: #f8f9fa; font-weight: bold; }
+.data-table tbody tr:hover { background: #f9fbfc; }
+.data-table tbody tr.selected-row { background: #fdf2f2; }
 .empty-state { text-align: center; color: #95a5a6; padding: 30px !important; }
 
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; display: inline-block; }
@@ -476,5 +569,6 @@ async function handleLogout() {
   .import-actions .btn, .import-actions label { width: 100%; box-sizing: border-box; }
   .create-form .form-row { flex-direction: column; gap: 10px; }
   .filter-tabs { justify-content: flex-start; }
+  .batch-action-bar { flex-direction: column; gap: 10px; text-align: center; }
 }
 </style>
