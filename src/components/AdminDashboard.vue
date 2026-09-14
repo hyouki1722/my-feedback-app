@@ -12,17 +12,25 @@
       <div class="tabs">
         <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號與權限管理</button>
         <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 學員配對管理</button>
-        <!-- 🆕 新增訓練類別管理頁籤 -->
         <button :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">🗂️ 訓練類別管理</button>
       </div>
 
-      <!-- 訓練類別管理區塊 (🆕 新增) -->
+      <!-- 訓練類別管理區塊 -->
       <div v-if="activeTab === 'categories'" class="tab-content">
         <div class="admin-card">
           <h3>➕ 新增訓練類別選項</h3>
           <p class="desc">在此新增的類別，將會即時顯示於學員填寫心得時的下拉選單中。</p>
+          
+          <!-- 💡 已經為 input 加入 flex: 1，讓輸入框能完整顯示內容 -->
           <div class="add-category-row" style="display: flex; gap: 10px; margin-top: 15px;">
-            <input type="text" v-model="newCategoryName" placeholder="請輸入類別名稱（例如：PGY 基礎訓練）" class="form-input" @keyup.enter="addCategory" />
+            <input 
+              type="text" 
+              v-model="newCategoryName" 
+              placeholder="請輸入類別名稱（例如：PGY 基礎訓練）" 
+              class="form-input" 
+              style="flex: 1;" 
+              @keyup.enter="addCategory" 
+            />
             <button @click="addCategory" class="btn primary-btn" style="white-space: nowrap;">新增選項</button>
           </div>
         </div>
@@ -240,7 +248,7 @@ const newUser = ref({
   role: 'student'
 })
 
-// === 🆕 動態類別管理邏輯 ===
+// === 動態類別管理邏輯 ===
 const dynamicCategories = ref([])
 const newCategoryName = ref('')
 
@@ -286,8 +294,8 @@ async function deleteCategory(id, name) {
   Swal.fire({ icon: 'success', title: '類別已刪除', timer: 1500, showConfirmButton: false })
   await loadCategories()
 }
-// =============================
 
+// === 分頁與選取邏輯 ===
 const currentPage = ref(1)
 const itemsPerPage = 10 
 
@@ -389,7 +397,7 @@ onMounted(async () => {
 
   await loadUsers()
   await loadAssignments()
-  await loadCategories() // 載入分類
+  await loadCategories() 
 })
 
 function getRoleName(role) {
