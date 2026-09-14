@@ -13,6 +13,57 @@
         <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號與權限管理</button>
         <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 學員配對管理</button>
         <button :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">🗂️ 訓練類別管理</button>
+        <!-- 🆕 新增 PDF 範本演示頁籤 -->
+        <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本演示</button>
+      </div>
+
+      <!-- 🆕 PDF 範本演示區塊 -->
+      <div v-if="activeTab === 'demo'" class="tab-content">
+        <div class="admin-card no-print">
+          <h3>📄 系統 PDF 匯出範本演示</h3>
+          <p class="desc">這是一份完整的學習心得測試範本。您可以在教學、系統交接或評鑑展示時，點擊下方按鈕直接預覽實際匯出的 PDF 排版效果（列印時會自動隱藏所有系統按鈕與選單）。</p>
+          <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
+        </div>
+
+        <!-- 這是實際會被列印出來的正式範本區塊 -->
+        <div class="admin-card printable-demo">
+          <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
+            📘 臨床學習護照 - 心得反思紀錄
+          </h2>
+
+          <div class="demo-info-grid">
+            <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
+            <p><strong>指導老師：</strong> 臨床指導教師</p>
+            <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
+            <p><strong>訓練日期：</strong> 2026-09-14</p>
+          </div>
+
+          <div class="demo-section">
+            <h4>📚 學習內容重點摘要</h4>
+            <div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位（如避開關節處、選擇彈性佳的靜脈），以及下針時的角度拿捏。同時也學習了遇到點滴不滴或病人反應疼痛時的初步排除與異常處理流程。</div>
+          </div>
+
+          <div class="demo-section">
+            <h4>💡 自我反思與心得</h4>
+            <div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張，導致下針猶豫不決。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。我意識到自己對血管走向的判斷還不夠敏銳，未來在臨床跟診時會多加觀察學姊們的選位技巧，並利用空檔重複練習無菌撕貼步驟，期許能讓動作更加流暢，減少病人的不適感。</div>
+          </div>
+
+          <div class="demo-section">
+            <h4>👩‍⚕️ 臨床指導老師回饋</h4>
+            <div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！下針時因為緊張導致角度稍微偏高，建議下次可以深呼吸放鬆手腕，將角度壓低至 15-30 度之間順勢推入。只要多加練習，相信很快就能熟能生巧，繼續保持！</div>
+          </div>
+
+          <div class="demo-section">
+            <h4>🏥 單位主管總評</h4>
+            <div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。臨床護理技術需要時間與經驗的累積，能主動察覺自身的不足並提出改進策略，是極佳的專業成長態度。期許未來在實際面對病患時，除了技術的持續精進外，也能發揮同理心與良好的溝通技巧。核定通過本次臨床評核。</div>
+          </div>
+          
+          <div class="demo-signatures">
+            <div class="sign-box">學員簽章：<span>(系統已認證)</span></div>
+            <div class="sign-box">老師簽章：<span>(系統已認證)</span></div>
+            <div class="sign-box">主管簽章：<span>(系統已認證)</span></div>
+          </div>
+        </div>
       </div>
 
       <!-- 訓練類別管理區塊 -->
@@ -20,8 +71,6 @@
         <div class="admin-card">
           <h3>➕ 新增訓練類別選項</h3>
           <p class="desc">在此新增的類別，將會即時顯示於學員填寫心得時的下拉選單中。</p>
-          
-          <!-- 💡 已經為 input 加入 flex: 1，讓輸入框能完整顯示內容 -->
           <div class="add-category-row" style="display: flex; gap: 10px; margin-top: 15px;">
             <input 
               type="text" 
@@ -66,7 +115,6 @@
       <!-- 帳號管理區塊 -->
       <div v-if="activeTab === 'users'" class="tab-content">
         
-        <!-- 批次匯入區塊 -->
         <div class="admin-card">
           <div class="card-header-flex">
             <div class="card-header-text">
@@ -81,7 +129,6 @@
           </div>
         </div>
 
-        <!-- 單筆建立區塊 -->
         <div class="admin-card">
           <h3>➕ 單筆建立使用者帳號</h3>
           <form @submit.prevent="createUser" class="create-form">
@@ -116,7 +163,6 @@
           </form>
         </div>
 
-        <!-- 人員總覽清單 -->
         <div class="admin-card">
           <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
@@ -247,6 +293,11 @@ const newUser = ref({
   name: '',
   role: 'student'
 })
+
+// 🆕 列印 PDF 功能
+function exportDemoToPDF() {
+  window.print()
+}
 
 // === 動態類別管理邏輯 ===
 const dynamicCategories = ref([])
@@ -581,7 +632,7 @@ async function handleLogout() {
 
 .admin-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 25px; }
 .admin-card h3 { margin-top: 0; color: #34495e; margin-bottom: 10px; font-weight: 900;}
-.desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; }
+.desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; line-height: 1.5; }
 
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 .card-header-flex.align-center { align-items: center; }
@@ -600,7 +651,6 @@ async function handleLogout() {
 .form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
 .form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
 
-/* 批次操作列樣式 */
 .batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -637,6 +687,37 @@ async function handleLogout() {
 .page-btn:disabled { color: #bdc3c7; cursor: not-allowed; background: #f8f9fa; }
 .page-info { font-size: 14px; color: #7f8c8d; font-weight: bold; }
 
+/* 🆕 PDF 範本專用排版樣式 */
+.demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
+.demo-info-grid p { margin: 0; font-size: 15px; color: #2c3e50; }
+.demo-section { margin-bottom: 20px; }
+.demo-section h4 { margin: 0 0 10px 0; color: #34495e; font-size: 16px; font-weight: bold; }
+.demo-text-box { background: white; border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; color: #2c3e50; min-height: 80px; }
+.demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
+.sign-box { font-weight: bold; color: #2c3e50; font-size: 15px; }
+.sign-box span { font-weight: normal; color: #7f8c8d; font-style: italic; margin-left: 10px; }
+
+/* 🆕 列印時的專屬過濾設定：完美隱藏無關元素 */
+@media print {
+  .app-wrapper { background: white; padding: 0; }
+  /* 隱藏所有的頁首、頁籤、操作按鈕，以及「不是」範本本身的卡片 */
+  .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
+  
+  /* 讓範本區域完全展開、去除陰影與邊框，貼合紙張 */
+  .printable-demo { 
+    box-shadow: none !important; 
+    border: none !important; 
+    padding: 0 !important; 
+    margin: 0 !important; 
+    width: 100% !important; 
+    max-width: 100% !important; 
+  }
+  
+  /* 列印時文字框改為實線黑框，避免跨頁截斷 */
+  .demo-text-box { border: 1px solid #000; break-inside: avoid; }
+  .demo-info-grid { background: transparent; border: 1px solid #000; }
+}
+
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; }
   .admin-header button { width: 100%; }
@@ -649,5 +730,6 @@ async function handleLogout() {
   .create-form .form-row { flex-direction: column; gap: 10px; }
   .filter-tabs { justify-content: flex-start; }
   .batch-action-bar { flex-direction: column; gap: 10px; text-align: center; }
+  .demo-info-grid { grid-template-columns: 1fr; }
 }
 </style>
