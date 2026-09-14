@@ -12,6 +12,47 @@
       <div class="tabs">
         <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號與權限管理</button>
         <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 學員配對管理</button>
+        <!-- 🆕 新增訓練類別管理頁籤 -->
+        <button :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">🗂️ 訓練類別管理</button>
+      </div>
+
+      <!-- 訓練類別管理區塊 (🆕 新增) -->
+      <div v-if="activeTab === 'categories'" class="tab-content">
+        <div class="admin-card">
+          <h3>➕ 新增訓練類別選項</h3>
+          <p class="desc">在此新增的類別，將會即時顯示於學員填寫心得時的下拉選單中。</p>
+          <div class="add-category-row" style="display: flex; gap: 10px; margin-top: 15px;">
+            <input type="text" v-model="newCategoryName" placeholder="請輸入類別名稱（例如：PGY 基礎訓練）" class="form-input" @keyup.enter="addCategory" />
+            <button @click="addCategory" class="btn primary-btn" style="white-space: nowrap;">新增選項</button>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>📋 目前啟用的訓練類別清單</h3>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>類別名稱</th>
+                  <th>建立時間</th>
+                  <th style="width: 100px; text-align: center;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="cat in dynamicCategories" :key="cat.id">
+                  <td><strong>{{ cat.name }}</strong></td>
+                  <td>{{ formatDate(cat.created_at) }}</td>
+                  <td style="text-align: center;">
+                    <button @click="deleteCategory(cat.id, cat.name)" class="btn danger-btn small-btn">刪除</button>
+                  </td>
+                </tr>
+                <tr v-if="dynamicCategories.length === 0">
+                  <td colspan="3" class="empty-state">尚無自訂的訓練類別</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- 帳號管理區塊 -->
@@ -72,7 +113,6 @@
           <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
             
-            <!-- 身分角色篩選按鈕 -->
             <div class="filter-tabs">
               <button :class="{ active: roleFilter === 'all' }" @click="roleFilter = 'all'">全部</button>
               <button :class="{ active: roleFilter === 'student' }" @click="roleFilter = 'student'">學員</button>
@@ -82,7 +122,6 @@
             </div>
           </div>
 
-          <!-- 🆕 批次操作工具列 (只有在有選取人員時才會出現) -->
           <div class="batch-action-bar" v-if="selectedUserIds.length > 0">
             <span>已選取 <strong>{{ selectedUserIds.length }}</strong> 名人員</span>
             <button @click="batchDeleteUsers" class="btn danger-btn small-btn">🗑️ 批次刪除所選人員</button>
@@ -92,7 +131,6 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <!-- 🆕 全選核取方塊 -->
                   <th style="width: 40px; text-align: center;">
                     <input type="checkbox" class="custom-checkbox" :checked="isAllSelectedOnPage" @change="toggleSelectAllOnPage" title="全選本頁" />
                   </th>
@@ -105,7 +143,6 @@
               </thead>
               <tbody>
                 <tr v-for="user in paginatedUsers" :key="user.id" :class="{'selected-row': selectedUserIds.includes(user.id)}">
-                  <!-- 🆕 單筆選取核取方塊 -->
                   <td style="text-align: center;">
                     <input type="checkbox" class="custom-checkbox" :value="user.id" v-model="selectedUserIds" />
                   </td>
@@ -124,7 +161,6 @@
             </table>
           </div>
 
-          <!-- 分頁控制區塊 -->
           <div class="pagination-controls" v-if="totalPages > 1">
             <button @click="prevPage" :disabled="currentPage === 1" class="page-btn">上一頁</button>
             <span class="page-info">第 {{ currentPage }} 頁 / 共 {{ totalPages }} 頁</span>
@@ -204,13 +240,60 @@ const newUser = ref({
   role: 'student'
 })
 
-// === 分頁邏輯設定 ===
+// === 🆕 動態類別管理邏輯 ===
+const dynamicCategories = ref([])
+const newCategoryName = ref('')
+
+async function loadCategories() {
+  const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true })
+  if (!error && data) {
+    dynamicCategories.value = data
+  }
+}
+
+async function addCategory() {
+  if (!newCategoryName.value.trim()) return Swal.fire('提示', '請輸入類別名稱', 'warning')
+  
+  Swal.showLoading()
+  const { error } = await supabase.from('training_categories').insert([{ name: newCategoryName.value.trim() }])
+  Swal.close()
+
+  if (error) {
+    if (error.code === '23505') return Swal.fire('提示', '該類別已經存在', 'warning')
+    return Swal.fire('錯誤', error.message, 'error')
+  }
+
+  newCategoryName.value = ''
+  Swal.fire({ icon: 'success', title: '類別新增成功', timer: 1500, showConfirmButton: false })
+  await loadCategories()
+}
+
+async function deleteCategory(id, name) {
+  const { isConfirmed } = await Swal.fire({
+    title: `確定要刪除「${name}」嗎？`,
+    text: '刪除後，學員在填寫新心得時將無法選擇此分類，但已提交的歷史紀錄不受影響。',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e74c3c',
+    confirmButtonText: '確認刪除'
+  })
+
+  if (!isConfirmed) return
+
+  const { error } = await supabase.from('training_categories').delete().eq('id', id)
+  if (error) return Swal.fire('錯誤', error.message, 'error')
+  
+  Swal.fire({ icon: 'success', title: '類別已刪除', timer: 1500, showConfirmButton: false })
+  await loadCategories()
+}
+// =============================
+
 const currentPage = ref(1)
 const itemsPerPage = 10 
 
 watch(roleFilter, () => {
   currentPage.value = 1
-  selectedUserIds.value = [] // 切換篩選器時清空選取，避免誤刪
+  selectedUserIds.value = [] 
 })
 
 const filteredUsers = computed(() => {
@@ -236,23 +319,18 @@ function nextPage() {
   if (currentPage.value < totalPages.value) currentPage.value++
 }
 
-// === 🆕 批次刪除選取邏輯 ===
-const selectedUserIds = ref([]) // 存放目前被勾選的使用者 ID 陣列
+const selectedUserIds = ref([])
 
-// 判斷當前頁面的使用者是否「全部」都被勾選了
 const isAllSelectedOnPage = computed(() => {
   if (paginatedUsers.value.length === 0) return false
   return paginatedUsers.value.every(user => selectedUserIds.value.includes(user.id))
 })
 
-// 全選/取消全選 (僅限當前頁面顯示的人員)
 function toggleSelectAllOnPage() {
   if (isAllSelectedOnPage.value) {
-    // 取消全選本頁：將本頁的 ID 從 selectedUserIds 移除
     const currentIds = paginatedUsers.value.map(u => u.id)
     selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id))
   } else {
-    // 全選本頁：將本頁還沒被加入的 ID 塞進 selectedUserIds
     paginatedUsers.value.forEach(user => {
       if (!selectedUserIds.value.includes(user.id)) {
         selectedUserIds.value.push(user.id)
@@ -261,7 +339,6 @@ function toggleSelectAllOnPage() {
   }
 }
 
-// 執行批次刪除
 async function batchDeleteUsers() {
   if (selectedUserIds.value.length === 0) return
 
@@ -283,33 +360,28 @@ async function batchDeleteUsers() {
   let successCount = 0
   let failCount = 0
 
-  // 透過迴圈呼叫刪除 API
   for (const userId of selectedUserIds.value) {
     const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
     if (error) {
       failCount++
-      console.error(`刪除 ID ${userId} 失敗:`, error)
     } else {
       successCount++
     }
   }
 
-  // 刪除完畢後的提示與畫面重置
   if (failCount === 0) {
     Swal.fire({ icon: 'success', title: '批次刪除成功', text: `已成功移除 ${successCount} 名人員`, timer: 2000, showConfirmButton: false })
   } else {
     Swal.fire({ icon: 'warning', title: '部分刪除失敗', text: `成功: ${successCount} 筆，失敗: ${failCount} 筆，請檢查系統日誌。` })
   }
 
-  selectedUserIds.value = [] // 清空選取狀態
-  await loadUsers() // 重新讀取清單
+  selectedUserIds.value = []
+  await loadUsers() 
   
-  // 防呆：如果刪除後總頁數變少，退回合法頁碼
   if (currentPage.value > totalPages.value && totalPages.value > 0) {
     currentPage.value = totalPages.value
   }
 }
-// =============================
 
 onMounted(async () => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -317,6 +389,7 @@ onMounted(async () => {
 
   await loadUsers()
   await loadAssignments()
+  await loadCategories() // 載入分類
 })
 
 function getRoleName(role) {
@@ -391,7 +464,6 @@ async function deleteUser(userId) {
     Swal.fire({ icon: 'error', title: '刪除失敗', text: error.message })
   } else {
     Swal.fire({ icon: 'success', title: '刪除成功', timer: 1500, showConfirmButton: false })
-    // 如果這筆剛好在勾選清單中，將其移除
     selectedUserIds.value = selectedUserIds.value.filter(id => id !== userId)
     await loadUsers()
     
@@ -517,10 +589,10 @@ async function handleLogout() {
 .create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-group { flex: 1; }
 .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
-.form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; }
+.form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
 .form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
 
-/* 🆕 批次操作列樣式 */
+/* 批次操作列樣式 */
 .batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -540,9 +612,9 @@ async function handleLogout() {
 .role-badge.supervisor { background: #e67e22; }
 .role-badge.admin { background: #34495e; }
 
-.pairing-select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; }
+.pairing-select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; font-family: inherit; }
 
-.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; white-space: nowrap; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; white-space: nowrap; font-family: inherit; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
 .primary-btn { background: #3498db; color: white; }
 .success-btn { background: #2ecc71; color: white; display: inline-flex; align-items: center; justify-content: center; }
@@ -551,7 +623,6 @@ async function handleLogout() {
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-/* 分頁按鈕樣式 */
 .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; }
 .page-btn { padding: 6px 12px; border: 1px solid #bdc3c7; background: white; border-radius: 4px; cursor: pointer; color: #2c3e50; font-weight: bold; transition: 0.2s; }
 .page-btn:hover:not(:disabled) { background: #ecf0f1; border-color: #95a5a6; }
