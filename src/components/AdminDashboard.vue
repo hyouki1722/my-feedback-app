@@ -17,14 +17,71 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本演示</button>
       </div>
 
-      <!-- 🆕 測驗題庫管理區塊 -->
+      <!-- 📝 測驗題庫管理區塊 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
-        <div class="admin-card">
+        
+        <!-- 尚未有預覽時，顯示上傳區塊 -->
+        <div class="admin-card" v-if="previewQuestions.length === 0">
           <h3>➕ 匯入 Word 測驗卷</h3>
           <p class="desc">支援匯入標準格式之 .docx 測驗卷，系統將自動解析題目與答案。</p>
           <div style="margin-top: 15px;">
             <input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" />
             <label for="exam-upload" class="btn success-btn">上傳 .docx 測驗卷</label>
+          </div>
+        </div>
+
+        <!-- 🆕 測驗卷預覽與編輯中心 (解析後顯示) -->
+        <div class="admin-card preview-card" v-else>
+          <div class="card-header-flex align-center">
+            <h3>👁️ 測驗卷預覽與校對</h3>
+            <div class="action-row" style="margin-top: 0;">
+              <button @click="cancelPreview" class="btn danger-btn small-btn">取消匯入</button>
+              <button @click="confirmSaveExam" class="btn primary-btn small-btn">✅ 確認無誤並儲存</button>
+            </div>
+          </div>
+          
+          <div class="form-row" style="background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
+            <div class="form-group">
+              <label>測驗卷名稱：</label>
+              <input type="text" v-model="previewExamTitle" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>測驗類型：</label>
+              <select v-model="previewExamType" class="form-input">
+                <option value="pre_test">課前測驗</option>
+                <option value="post_test">課後測驗</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="shuffle-options">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="shuffleQuestionsMode" class="custom-checkbox">
+              🔀 儲存時隨機打亂「題目順序」
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="shuffleOptionsMode" class="custom-checkbox">
+              🔀 儲存時隨機打亂「選項順序」(僅套用於選擇題)
+            </label>
+          </div>
+
+          <div class="preview-questions-list">
+            <div v-for="(q, qIndex) in previewQuestions" :key="qIndex" class="question-item">
+              <div class="q-header">
+                <span class="q-num">Q{{ qIndex + 1 }}</span>
+                <input v-model="q.text" class="form-input q-text-input" />
+                <button @click="removePreviewQuestion(qIndex)" class="btn danger-btn small-btn" title="刪除此題">🗑️</button>
+              </div>
+              
+              <ul class="q-options">
+                <li v-for="(opt, oIndex) in q.options" :key="oIndex" :class="{'is-correct': q.correct === opt}">
+                  <!-- 點選 radio 可設定為正確解答 -->
+                  <input type="radio" :name="'correct_' + qIndex" :value="opt" v-model="q.correct" class="custom-radio" title="設為正確解答" />
+                  <input v-model="q.options[oIndex]" class="form-input opt-text-input" :disabled="q.options.length === 2" />
+                  <span v-if="q.correct === opt" class="correct-badge">正確解答</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -313,21 +370,35 @@ const supervisors = ref([])
 const assignmentData = ref({})
 const isCreating = ref(false)
 
-const newUser = ref({
-  email: '',
-  password: '',
-  name: '',
-  role: 'student'
-})
+const newUser = ref({ email: '', password: '', name: '', role: 'student' })
 
-// === 🆕 測驗題庫解析邏輯 ===
+// === 🆕 測驗題庫解析與校對邏輯 ===
 const examList = ref([])
+
+// 預覽狀態變數
+const previewQuestions = ref([])
+const previewExamTitle = ref('')
+const previewExamType = ref('pre_test')
+const shuffleQuestionsMode = ref(true) // 預設打亂題目
+const shuffleOptionsMode = ref(true)   // 預設打亂選項
 
 async function loadExams() {
   const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false })
   if (!error && data) examList.value = data
 }
 
+// 陣列洗牌函數 (Fisher-Yates)
+function shuffleArray(array) {
+  let currentIndex = array.length, randomIndex;
+  while (currentIndex !== 0) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+    [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+  }
+  return array;
+}
+
+// 讀取並進入預覽模式
 async function handleExamUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -342,7 +413,7 @@ async function handleExamUpload(event) {
       const result = await mammoth.extractRawText({ arrayBuffer })
       const text = result.value
 
-      const examTitle = file.name.replace('.docx', '')
+      previewExamTitle.value = file.name.replace('.docx', '')
 
       const answerSection = text.split('【參考答案】')[1]
       if (!answerSection) throw new Error('找不到【參考答案】區塊')
@@ -357,51 +428,103 @@ async function handleExamUpload(event) {
         const qContent = match[2].trim()
         let options = []
         let questionText = ''
+        let correctText = ''
 
         if (qContent.includes('□ ○')) {
           questionText = qContent.split('□')[0].trim()
           options = ['○', '×']
+          correctText = answers[qNum - 1] // ○ 或 ×
         } else if (qContent.includes('A.')) {
           questionText = qContent.substring(0, qContent.indexOf('A.')).trim()
-          const optA = qContent.substring(qContent.indexOf('A.'), qContent.indexOf('B.')).trim()
-          const optB = qContent.substring(qContent.indexOf('B.'), qContent.indexOf('C.')).trim()
-          const optC = qContent.substring(qContent.indexOf('C.'), qContent.indexOf('D.')).trim()
-          const optD = qContent.substring(qContent.indexOf('D.')).trim()
+          const optA = qContent.substring(qContent.indexOf('A.') + 2, qContent.indexOf('B.')).trim()
+          const optB = qContent.substring(qContent.indexOf('B.') + 2, qContent.indexOf('C.')).trim()
+          const optC = qContent.substring(qContent.indexOf('C.') + 2, qContent.indexOf('D.')).trim()
+          const optD = qContent.substring(qContent.indexOf('D.') + 2).trim()
           options = [optA, optB, optC, optD]
+          
+          // 轉換正確選項的文字內容 (A對應index 0)
+          const correctLetter = answers[qNum - 1] 
+          const correctIndex = correctLetter.charCodeAt(0) - 65 
+          correctText = options[correctIndex]
         }
 
         questions.push({
-          num: qNum,
           text: questionText,
           options: options,
-          correct: answers[qNum - 1]
+          correct: correctText // 儲存確切的文字，打亂選項時答案才不會跑掉
         })
       }
 
-      const { data: examData, error: examErr } = await supabase.from('exams').insert([{
-        title: examTitle, type: 'pre_test'
-      }]).select()
-      if (examErr) throw examErr
-
-      const examId = examData[0].id
-      const qPayload = questions.map(q => ({
-        exam_id: examId,
-        question_text: q.text,
-        options: q.options,
-        correct_answer: q.correct
-      }))
-
-      const { error: qErr } = await supabase.from('questions').insert(qPayload)
-      if (qErr) throw qErr
-
-      Swal.fire('成功', `已成功匯入「${examTitle}」共 ${questions.length} 題！`, 'success')
+      previewQuestions.value = questions
+      Swal.close()
       event.target.value = ''
-      await loadExams()
     }
     reader.readAsArrayBuffer(file)
   } catch (err) {
     Swal.fire('解析失敗', err.message, 'error')
     event.target.value = ''
+  }
+}
+
+// 移除預覽中的特定題目
+function removePreviewQuestion(index) {
+  previewQuestions.value.splice(index, 1)
+}
+
+// 取消預覽
+function cancelPreview() {
+  previewQuestions.value = []
+}
+
+// 確認無誤，進行洗牌並寫入 Supabase
+async function confirmSaveExam() {
+  if (!previewExamTitle.value.trim()) return Swal.fire('提示', '測驗卷名稱不能為空', 'warning')
+  if (previewQuestions.value.length === 0) return Swal.fire('提示', '測驗卷內沒有任何題目', 'warning')
+
+  Swal.fire({ title: '儲存中...', text: '正在將題庫寫入系統', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+
+  try {
+    let finalQuestions = JSON.parse(JSON.stringify(previewQuestions.value)) // 深拷貝防污染
+
+    // 1. 如果有勾選打亂選項 (只打亂非是非題的選項)
+    if (shuffleOptionsMode.value) {
+      finalQuestions.forEach(q => {
+        if (q.options.length > 2) {
+          q.options = shuffleArray(q.options)
+        }
+      })
+    }
+
+    // 2. 如果有勾選打亂題目
+    if (shuffleQuestionsMode.value) {
+      finalQuestions = shuffleArray(finalQuestions)
+    }
+
+    // 3. 寫入 Exams 總表
+    const { data: examData, error: examErr } = await supabase.from('exams').insert([{
+      title: previewExamTitle.value, 
+      type: previewExamType.value
+    }]).select()
+    if (examErr) throw examErr
+
+    const examId = examData[0].id
+
+    // 4. 寫入 Questions 題庫
+    const qPayload = finalQuestions.map(q => ({
+      exam_id: examId,
+      question_text: q.text,
+      options: q.options,
+      correct_answer: q.correct
+    }))
+
+    const { error: qErr } = await supabase.from('questions').insert(qPayload)
+    if (qErr) throw qErr
+
+    Swal.fire('成功', `已成功寫入題庫，共 ${finalQuestions.length} 題！`, 'success')
+    previewQuestions.value = [] // 清空預覽
+    await loadExams() // 更新列表
+  } catch (err) {
+    Swal.fire('寫入失敗', err.message, 'error')
   }
 }
 
@@ -452,8 +575,7 @@ async function addCategory() {
 
 async function deleteCategory(id, name) {
   const { isConfirmed } = await Swal.fire({
-    title: `確定要刪除「${name}」嗎？`,
-    text: '刪除後學員將無法選擇此分類，但歷史紀錄不受影響。',
+    title: `確定要刪除「${name}」嗎？`, text: '刪除後學員將無法選擇此分類，但歷史紀錄不受影響。',
     icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c', confirmButtonText: '確認刪除'
   })
   if (!isConfirmed) return
@@ -466,10 +588,7 @@ async function deleteCategory(id, name) {
 
 const currentPage = ref(1)
 const itemsPerPage = 10 
-
-watch(roleFilter, () => {
-  currentPage.value = 1; selectedUserIds.value = [] 
-})
+watch(roleFilter, () => { currentPage.value = 1; selectedUserIds.value = [] })
 
 const filteredUsers = computed(() => {
   if (roleFilter.value === 'all') return users.value
@@ -535,7 +654,7 @@ onMounted(async () => {
   await loadUsers()
   await loadAssignments()
   await loadCategories() 
-  await loadExams() // 載入考卷清單
+  await loadExams() 
 })
 
 function getRoleName(role) {
@@ -657,6 +776,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 </script>
 
 <style scoped>
+/* 基礎排版與共用 UI */
 .app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
@@ -669,7 +789,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 .admin-card h3 { margin-top: 0; color: #34495e; margin-bottom: 10px; font-weight: 900;}
 .desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; line-height: 1.5; }
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
-.card-header-flex.align-center { align-items: center; }
+.card-header-flex.align-center { align-items: center; border-bottom: none; padding-bottom: 0; }
 .card-header-text { display: flex; flex-direction: column; gap: 5px; }
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
 .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -680,8 +800,8 @@ async function handleLogout() { await supabase.auth.signOut() }
 .create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-group { flex: 1; }
 .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
-.form-group input:not([type="checkbox"]), .form-group select { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: #3498db; }
+.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
+.form-input:focus { outline: none; border-color: #3498db; }
 .batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
@@ -711,6 +831,24 @@ async function handleLogout() { await supabase.auth.signOut() }
 .page-btn:hover:not(:disabled) { background: #ecf0f1; border-color: #95a5a6; }
 .page-btn:disabled { color: #bdc3c7; cursor: not-allowed; background: #f8f9fa; }
 .page-info { font-size: 14px; color: #7f8c8d; font-weight: bold; }
+
+/* 🆕 預覽與編輯區塊專用樣式 */
+.preview-card { border: 2px solid #3498db; box-shadow: 0 0 15px rgba(52, 152, 219, 0.2); }
+.shuffle-options { display: flex; gap: 20px; margin: 15px 0 25px 0; background: #f0f8ff; padding: 12px; border-radius: 6px; border: 1px solid #bce0fd; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #2980b9; cursor: pointer; font-size: 14px; }
+.preview-questions-list { display: flex; flex-direction: column; gap: 15px; }
+.question-item { background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 8px; padding: 15px; }
+.q-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.q-num { font-weight: 900; color: #3498db; font-size: 18px; width: 35px; }
+.q-text-input { font-weight: bold; font-size: 16px; border-color: #bdc3c7; }
+.q-options { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.q-options li { display: flex; align-items: center; gap: 10px; background: white; padding: 8px; border-radius: 6px; border: 1px solid #eee; transition: 0.2s; }
+.q-options li.is-correct { border-color: #2ecc71; background: #f4fdf8; }
+.custom-radio { width: 18px; height: 18px; cursor: pointer; accent-color: #2ecc71; }
+.opt-text-input { padding: 8px 12px; font-size: 14px; }
+.correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+
+/* PDF 演示專用 */
 .demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
 .demo-info-grid p { margin: 0; font-size: 15px; color: #2c3e50; }
 .demo-section { margin-bottom: 20px; }
@@ -741,5 +879,6 @@ async function handleLogout() { await supabase.auth.signOut() }
   .filter-tabs { justify-content: flex-start; }
   .batch-action-bar { flex-direction: column; gap: 10px; text-align: center; }
   .demo-info-grid { grid-template-columns: 1fr; }
+  .shuffle-options { flex-direction: column; gap: 10px; }
 }
 </style>
