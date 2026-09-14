@@ -43,21 +43,27 @@
           <h3>🎓 學員心得反思</h3>
           <div class="form-group">
             <label>訓練類別：</label>
-            <!-- 🆕 動態渲染選項清單 -->
             <select v-model="report.training_category" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required>
               <option value="" disabled>-- 請選擇訓練類別 --</option>
               <option v-for="cat in dynamicCategories" :key="cat.id" :value="cat.name">{{ cat.name }}</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label>實習/訓練日期：</label>
-            <input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required />
+          <!-- 🆕 日期區間選取 (左右並排) -->
+          <div class="form-row">
+            <div class="form-group">
+              <label>實習/訓練開始日期：</label>
+              <input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label>實習/訓練結束日期：</label>
+              <input type="date" v-model="report.training_end_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required />
+            </div>
           </div>
 
           <div class="form-group">
             <label>學習內容重點摘要：</label>
-            <textarea v-model="report.content" rows="5" placeholder="請簡述今日學習的核心護理技術或照護重點..." :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea>
+            <textarea v-model="report.content" rows="5" placeholder="請簡述這段區間內學習的核心護理技術或照護重點..." :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea>
           </div>
 
           <div class="form-group">
@@ -128,12 +134,13 @@ const isSaving = ref(false)
 const reportList = ref([])
 const selectedReportId = ref('')
 const currentReportMeta = ref({})
-const dynamicCategories = ref([]) // 🆕 存放從資料庫抓下來的類別
+const dynamicCategories = ref([])
 
 const report = ref({
   id: null,
   training_category: '',
   training_date: new Date().toISOString().split('T')[0],
+  training_end_date: new Date().toISOString().split('T')[0], // 🆕 新增結束日期預設值
   content: '',
   reflection: '',
   teacher_feedback: '',
@@ -153,12 +160,11 @@ onMounted(async () => {
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
     
-    await loadCategories() // 載入動態類別
+    await loadCategories()
     await loadReportsList(user.id, userProfile.role)
   }
 })
 
-// 🆕 讀取動態訓練類別
 async function loadCategories() {
   const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true })
   if (!error && data) {
@@ -215,6 +221,10 @@ function selectReport() {
   const found = reportList.value.find(r => r.id === selectedReportId.value)
   if (found) {
     report.value = { ...found }
+    // 💡 相容舊紀錄：如果舊資料沒有結束日期，預設與開始日期相同
+    if (!report.value.training_end_date) {
+      report.value.training_end_date = report.value.training_date
+    }
     currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
   } else {
     createNewDraft()
@@ -227,6 +237,7 @@ function createNewDraft() {
     id: null, 
     training_category: '', 
     training_date: new Date().toISOString().split('T')[0],
+    training_end_date: new Date().toISOString().split('T')[0],
     content: '', 
     reflection: '',
     teacher_feedback: '', 
@@ -248,12 +259,18 @@ function getRoleName(role) {
 
 // 學員 - 儲存草稿
 async function saveDraft() {
+  // 防呆：檢查結束日期是否早於開始日期
+  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) {
+    return Swal.fire('提示', '「結束日期」不能早於「開始日期」，請重新選擇', 'warning')
+  }
+
   isSaving.value = true
   try {
     const payload = { 
       student_id: profile.value.id, 
       training_category: report.value.training_category, 
       training_date: report.value.training_date,
+      training_end_date: report.value.training_end_date, // 寫入結束日期
       content: report.value.content, 
       reflection: report.value.reflection,
       status: 'draft', 
@@ -282,11 +299,17 @@ async function submitReport() {
     return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
   }
 
+  // 防呆：檢查結束日期是否早於開始日期
+  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) {
+    return Swal.fire('提示', '「結束日期」不能早於「開始日期」，請重新確認', 'warning')
+  }
+
   isSaving.value = true
   const payload = { 
     student_id: profile.value.id, 
     training_category: report.value.training_category, 
     training_date: report.value.training_date,
+    training_end_date: report.value.training_end_date, // 寫入結束日期
     content: report.value.content, 
     reflection: report.value.reflection,
     status: 'pending_teacher', 
@@ -417,6 +440,10 @@ async function handleLogout() {
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
 .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
+/* 🆕 左右並排設計專用 CSS */
+.form-row { display: flex; gap: 15px; margin-bottom: 15px; }
+.form-row .form-group { flex: 1; margin-bottom: 0; }
+
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
 .form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; }
@@ -449,6 +476,7 @@ async function handleLogout() {
   .status-bar { flex-direction: column; align-items: flex-start; gap: 12px; padding: 15px; }
   .action-row { flex-direction: column; }
   .action-row button { width: 100%; margin-bottom: 5px; }
+  .form-row { flex-direction: column; gap: 15px; margin-bottom: 15px; }
   .card { padding: 18px; }
   .selector-header { flex-direction: column; gap: 10px; align-items: stretch; }
 }
