@@ -249,7 +249,6 @@
                   <td>{{ user.email }}</td>
                   <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
                   <td style="text-align: center; white-space: nowrap;">
-                    <!-- 💡 補回編輯修改身分別按鈕 -->
                     <button @click="editUser(user)" class="btn primary-btn small-btn" style="margin-right: 5px;">編輯</button>
                     <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除</button>
                   </td>
@@ -306,7 +305,7 @@
         </div>
       </div>
 
-      <!-- 🗂️ 訓練類別管理區塊 (保留原有) -->
+      <!-- 🗂️ 訓練類別管理區塊 -->
       <div v-if="activeTab === 'categories'" class="tab-content">
         <div class="admin-card">
           <h3>➕ 新增訓練類別選項</h3>
@@ -328,7 +327,7 @@
         </div>
       </div>
 
-      <!-- 📄 PDF 範本演示區塊 (保留原有) -->
+      <!-- 📄 PDF 範本演示區塊 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -653,8 +652,9 @@ async function createUser() {
   finally { isCreating.value = false }
 }
 
-// 💡 編輯人員資料功能 (支援身分與實習單位修改)
 async function editUser(user) {
+  const currentUnit = (user.unit === '未指定單位' || !user.unit) ? '' : user.unit;
+
   const { value: formValues } = await Swal.fire({
     title: '✏️ 修改人員資料',
     html: `
@@ -667,7 +667,7 @@ async function editUser(user) {
           <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系統管理員</option>
         </select>
         <label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;">實習單位：</label>
-        <input id="edit-unit" class="swal2-input" value="${user.unit || ''}" placeholder="未指定單位" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;">
+        <input id="edit-unit" class="swal2-input" value="${currentUnit}" placeholder="例如：5B病房 (留空則為未指定)" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;">
       </div>
     `,
     showCancelButton: true,
@@ -685,10 +685,14 @@ async function editUser(user) {
 
   if (formValues) {
     Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: formValues.role, unit: formValues.unit || null })
-      .eq('id', user.id);
+    
+    const finalUnit = formValues.unit ? formValues.unit : '未指定單位';
+
+    const { error } = await supabase.rpc('update_user_admin', { 
+      target_user_id: user.id,
+      new_role: formValues.role,
+      new_unit: finalUnit
+    });
 
     if (error) {
       Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error');
