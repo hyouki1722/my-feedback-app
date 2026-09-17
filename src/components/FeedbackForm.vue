@@ -137,10 +137,10 @@
             </div>
           </div>
 
-          <!-- 📊 老師與主管專用：學員測驗成績總覽 -->
-          <div v-if="!isStudent && studentExamRecords.length > 0" class="card section-card result-card">
-            <h3>📊 該學員測驗成績總覽</h3>
-            <p class="desc">您可以參考學員的客觀測驗分數，以給予更精準的主觀指導回饋。</p>
+          <!-- 📊 學員測驗成績總覽 (螢幕與列印皆會顯示) -->
+          <div v-if="studentExamRecords.length > 0" class="card section-card result-card">
+            <h3>📊 測驗成績紀錄</h3>
+            <p class="desc no-print">匯出 PDF 存查時，系統會自動將此成績列表附在報告中。</p>
             <div class="score-tags">
               <div v-for="record in studentExamRecords" :key="record.id" class="score-tag">
                 <span class="exam-name">{{ record.exams?.title }}</span>
@@ -284,7 +284,7 @@ onMounted(async () => {
     
     // 依據身分決定預設畫面
     if (userProfile.role === 'student') {
-      activeModule.value = 'exams' // 學員登入預設先看到測驗任務
+      activeModule.value = 'exams' 
       await loadMyExams()
     }
     
@@ -300,7 +300,6 @@ onMounted(async () => {
 async function loadMyExams() {
   if (!isStudent.value) return
 
-  // 1. 抓取待辦任務 (未完成的派發紀錄)
   const { data: dispatches } = await supabase
     .from('exam_dispatch')
     .select('*, exams(title, type)')
@@ -309,7 +308,6 @@ async function loadMyExams() {
     .order('created_at', { ascending: false })
   pendingExams.value = dispatches || []
 
-  // 2. 抓取已完成的歷史成績
   const { data: records } = await supabase
     .from('exam_records')
     .select('*, exams(title, type)')
@@ -318,14 +316,9 @@ async function loadMyExams() {
   myExamRecords.value = records || []
 }
 
-// 開始測驗
 async function startExam(task) {
   Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  
-  const { data: qData, error } = await supabase
-    .from('questions')
-    .select('*')
-    .eq('exam_id', task.exam_id)
+  const { data: qData, error } = await supabase.from('questions').select('*').eq('exam_id', task.exam_id)
 
   if (error || !qData) {
     return Swal.fire('錯誤', '題目載入失敗', 'error')
@@ -337,14 +330,9 @@ async function startExam(task) {
   Swal.close()
 }
 
-// 取消作答 (暫離)
 function cancelExam() {
   Swal.fire({
-    title: '確定要暫離嗎？',
-    text: '目前作答的進度將不會被保留！',
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#e74c3c'
+    title: '確定要暫離嗎？', text: '目前作答的進度將不會被保留！', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c'
   }).then((result) => {
     if (result.isConfirmed) {
       examTaking.value = null
@@ -353,7 +341,6 @@ function cancelExam() {
   })
 }
 
-// 交卷並計分
 async function submitExam() {
   const answeredCount = Object.keys(studentAnswers.value).length
   const totalCount = examQuestions.value.length
@@ -362,49 +349,28 @@ async function submitExam() {
     return Swal.fire('提示', `您還有 ${totalCount - answeredCount} 題尚未作答，請檢查！`, 'warning')
   }
 
-  const { isConfirmed } = await Swal.fire({
-    title: '確定要交卷嗎？',
-    text: '交卷後即無法修改答案！',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#3498db'
-  })
-
+  const { isConfirmed } = await Swal.fire({ title: '確定要交卷嗎？', text: '交卷後即無法修改答案！', icon: 'question', showCancelButton: true, confirmButtonColor: '#3498db' })
   if (!isConfirmed) return
 
   Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-  // 計算分數
   let correctCount = 0
   examQuestions.value.forEach(q => {
-    if (studentAnswers.value[q.id] === q.correct_answer) {
-      correctCount++
-    }
+    if (studentAnswers.value[q.id] === q.correct_answer) correctCount++
   })
   const score = Math.round((correctCount / totalCount) * 100)
 
-  // 1. 寫入成績紀錄
-  await supabase.from('exam_records').insert({
-    student_id: profile.value.id,
-    exam_id: examTaking.value.exam_id,
-    score: score,
-    answers: studentAnswers.value
-  })
-
-  // 2. 更新派發狀態為已完成
-  await supabase.from('exam_dispatch')
-    .update({ is_completed: true })
-    .eq('id', examTaking.value.id)
+  await supabase.from('exam_records').insert({ student_id: profile.value.id, exam_id: examTaking.value.exam_id, score: score, answers: studentAnswers.value })
+  await supabase.from('exam_dispatch').update({ is_completed: true }).eq('id', examTaking.value.id)
 
   Swal.fire({
-    icon: 'success',
-    title: '測驗完成！',
+    icon: 'success', title: '測驗完成！',
     html: `您的得分為：<strong style="font-size: 24px; color: ${score >= 60 ? '#2ecc71' : '#e74c3c'};">${score} 分</strong>`,
   })
 
   examTaking.value = null
   studentAnswers.value = {}
-  await loadMyExams() // 重新載入列表
+  await loadMyExams() 
 }
 
 function getScoreColor(score) {
@@ -433,9 +399,8 @@ async function loadReportsList(userId, role) {
 
   let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
 
-  if (role === 'student') {
-    query = query.eq('student_id', userId)
-  } else if (role === 'teacher') {
+  if (role === 'student') query = query.eq('student_id', userId)
+  else if (role === 'teacher') {
     const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   } else if (role === 'supervisor') {
@@ -449,10 +414,7 @@ async function loadReportsList(userId, role) {
     reportList.value = reports.map(r => {
       const assign = assignsMap[r.student_id] || {}
       return {
-        ...r,
-        studentName: profilesMap[r.student_id] || '未知學員',
-        teacherName: profilesMap[assign.teacher_id] || '尚未指派',
-        supervisorName: profilesMap[assign.supervisor_id] || '尚未指派'
+        ...r, studentName: profilesMap[r.student_id] || '未知學員', teacherName: profilesMap[assign.teacher_id] || '尚未指派', supervisorName: profilesMap[assign.supervisor_id] || '尚未指派'
       }
     })
   }
@@ -461,31 +423,25 @@ async function loadReportsList(userId, role) {
     let autoSelect = reportList.value[0]
     if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
     if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]
-    
     selectedReportId.value = autoSelect.id
     await selectReport()
   }
 }
 
-// 選擇報告時，如果是老師/主管，順便去撈該學員的考試成績
 async function selectReport() {
   const found = reportList.value.find(r => r.id === selectedReportId.value)
   if (found) {
     report.value = { ...found }
-    if (!report.value.training_end_date) {
-      report.value.training_end_date = report.value.training_date
-    }
+    if (!report.value.training_end_date) report.value.training_end_date = report.value.training_date
     currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
 
-    // 🌟 核心整合：老師/主管在看報告時，撈取該學員的考試成績
-    if (!isStudent.value) {
-      const { data: records } = await supabase
-        .from('exam_records')
-        .select('*, exams(title)')
-        .eq('student_id', found.student_id)
-        .order('completed_at', { ascending: false })
-      studentExamRecords.value = records || []
-    }
+    // 🌟 核心整合：不限身分，只要檢視報告就撈取該學員的考試成績 (供匯出 PDF 使用)
+    const { data: records } = await supabase
+      .from('exam_records')
+      .select('*, exams(title)')
+      .eq('student_id', found.student_id)
+      .order('completed_at', { ascending: false })
+    studentExamRecords.value = records || []
   } else {
     createNewDraft()
   }
@@ -493,12 +449,7 @@ async function selectReport() {
 
 function createNewDraft() {
   selectedReportId.value = ''
-  report.value = { 
-    id: null, training_category: '', 
-    training_date: new Date().toISOString().split('T')[0],
-    training_end_date: new Date().toISOString().split('T')[0],
-    content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft' 
-  }
+  report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft' }
   currentReportMeta.value = {}
   studentExamRecords.value = []
 }
@@ -514,18 +465,9 @@ function getRoleName(role) {
 }
 
 async function saveDraft() {
-  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) {
-    return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning')
-  }
-
+  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning')
   isSaving.value = true
-  const payload = { 
-    student_id: profile.value.id, training_category: report.value.training_category, 
-    training_date: report.value.training_date, training_end_date: report.value.training_end_date,
-    content: report.value.content, reflection: report.value.reflection,
-    status: 'draft', updated_at: new Date().toISOString() 
-  }
-
+  const payload = { student_id: profile.value.id, training_category: report.value.training_category, training_date: report.value.training_date, training_end_date: report.value.training_end_date, content: report.value.content, reflection: report.value.reflection, status: 'draft', updated_at: new Date().toISOString() }
   if (report.value.id) await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
   else {
     const { data } = await supabase.from('feedback_reports').insert([payload]).select()
@@ -537,30 +479,18 @@ async function saveDraft() {
 }
 
 async function submitReport() {
-  if (!report.value.training_category || !report.value.content || !report.value.reflection) {
-    return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
-  }
-  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) {
-    return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning')
-  }
+  if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
+  if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning')
 
   isSaving.value = true
-  const payload = { 
-    student_id: profile.value.id, training_category: report.value.training_category, 
-    training_date: report.value.training_date, training_end_date: report.value.training_end_date,
-    content: report.value.content, reflection: report.value.reflection,
-    status: 'pending_teacher', updated_at: new Date().toISOString() 
-  }
-
+  const payload = { student_id: profile.value.id, training_category: report.value.training_category, training_date: report.value.training_date, training_end_date: report.value.training_end_date, content: report.value.content, reflection: report.value.reflection, status: 'pending_teacher', updated_at: new Date().toISOString() }
   let error;
   if (report.value.id) ({ error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id))
   else ({ error } = await supabase.from('feedback_reports').insert([payload]))
 
   isSaving.value = false
-  if (!error) {
-    Swal.fire({ icon: 'success', title: '已送出', text: '表單已送出給指導老師' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  } else Swal.fire('錯誤', '送出失敗: ' + error.message, 'error')
+  if (!error) { Swal.fire({ icon: 'success', title: '已送出', text: '表單已送出給指導老師' }); await loadReportsList(profile.value.id, profile.value.role) } 
+  else Swal.fire('錯誤', '送出失敗: ' + error.message, 'error')
 }
 
 async function submitTeacherFeedback() {
@@ -574,11 +504,7 @@ async function submitTeacherFeedback() {
 
 async function returnToStudent() {
   const { isConfirmed } = await Swal.fire({ title: '退回學員？', text: '退回後學員將可重新編輯內容', showCancelButton: true })
-  if (isConfirmed) {
-    await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id)
-    Toast.fire({ icon: 'info', title: '已退回' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'draft' }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function closeReport() {
@@ -589,28 +515,17 @@ async function closeReport() {
   isSaving.value = true
   const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: new Date().toISOString() }).eq('id', report.value.id)
   isSaving.value = false
-  if (!error) {
-    Swal.fire({ icon: 'success', title: '結案成功' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function returnToTeacher() {
   const { isConfirmed } = await Swal.fire({ title: '退回給老師？', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) {
-    await supabase.from('feedback_reports').update({ status: 'pending_teacher' }).eq('id', report.value.id)
-    Toast.fire({ icon: 'info', title: '已退回給老師' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_teacher' }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回給老師' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function unlockReport() {
   const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) {
-    await supabase.from('feedback_reports').update({ status: 'pending_supervisor' }).eq('id', report.value.id)
-    Toast.fire({ icon: 'success', title: '已解除鎖定' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_supervisor' }).eq('id', report.value.id); Toast.fire({ icon: 'success', title: '已解除鎖定' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 function exportToPDF() { window.print() }
@@ -681,7 +596,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 .role-badge.student { background: #3498db; }
 .role-badge.teacher { background: #9b59b6; }
 
-/* 成績徽章與卡片 */
+/* 🏆 成績標籤設計 */
 .score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; color: white; display: inline-block; min-width: 50px; }
 .score-high { background-color: #2ecc71; }
 .score-pass { background-color: #f39c12; }
@@ -707,11 +622,17 @@ async function handleLogout() { await supabase.auth.signOut() }
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
 .opt-text { font-size: 15px; color: #34495e; line-height: 1.4; }
 
+/* 🖨️ PDF 列印專屬優化 (確保成績框與排版不走鐘) */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
   .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; margin-bottom: 15px; }
   .form-input { border: none; padding: 0; background: transparent !important; color: black !important; }
+  
+  /* 確保成績標籤在列印時不會被強制轉成透明白字 */
+  .score-tag { border: 1px solid #000; }
+  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000; }
+  .score-tag .score-val { color: #000 !important; background: transparent !important; }
 }
 
 @media screen and (max-width: 600px) {

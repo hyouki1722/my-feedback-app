@@ -328,7 +328,7 @@
         </div>
       </div>
 
-      <!-- 📄 PDF 範本演示區塊 (✅ 已修復加回) -->
+      <!-- 📄 PDF 範本演示區塊 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -346,6 +346,22 @@
             <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
             <p><strong>訓練日期：</strong> 2026-09-14</p>
           </div>
+          
+          <!-- 📊 模擬的測驗成績總覽區塊 -->
+          <div class="demo-section">
+            <h4>📊 測驗成績紀錄</h4>
+            <div class="score-tags">
+              <div class="score-tag">
+                <span class="exam-name">兒科實習測驗 (課前)</span>
+                <span class="score-val score-high">90 分</span>
+              </div>
+              <div class="score-tag">
+                <span class="exam-name">兒科實習測驗 (課後)</span>
+                <span class="score-val score-high">100 分</span>
+              </div>
+            </div>
+          </div>
+
           <div class="demo-section">
             <h4>📚 學習內容重點摘要</h4>
             <div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位（如避開關節處、選擇彈性佳的靜脈），以及下針時的角度拿捏。同時也學習了遇到點滴不滴或病人反應疼痛時的初步排除與異常處理流程。</div>
@@ -493,7 +509,6 @@ const previewExamType = ref('pre_test')
 const shuffleQuestionsMode = ref(true)
 const shuffleOptionsMode = ref(true)
 
-// 檢視 Modal 狀態
 const isViewingModalOpen = ref(false)
 const viewingExam = ref(null)
 const viewingQuestions = ref([])
@@ -933,6 +948,13 @@ async function handleLogout() { await supabase.auth.signOut() }
 .opt-label.is-correct-preview { border-color: #2ecc71; background: #f4fdf8; }
 .opt-text { font-size: 15px; color: #34495e; line-height: 1.4; flex: 1; }
 
+/* 測驗成績標籤 (與 FeedbackForm 一致的樣式) */
+.score-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.score-tag { display: flex; align-items: center; border: 1px solid #dcdde1; border-radius: 6px; overflow: hidden; font-weight: bold; background: white;}
+.score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50; }
+.score-tag .score-val { padding: 8px 12px; color: white; }
+.score-high { background-color: #2ecc71; }
+
 /* PDF 演示專用 */
 .demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
 .demo-info-grid p { margin: 0; font-size: 15px; color: #2c3e50; }
@@ -942,12 +964,16 @@ async function handleLogout() { await supabase.auth.signOut() }
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
 .sign-box { font-weight: bold; color: #2c3e50; font-size: 15px; }
 .sign-box span { font-weight: normal; color: #7f8c8d; font-style: italic; margin-left: 10px; }
+
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
   .printable-demo { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
   .demo-text-box { border: 1px solid #000; break-inside: avoid; }
   .demo-info-grid { background: transparent; border: 1px solid #000; }
+  .score-tag { border: 1px solid #000; }
+  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000; }
+  .score-tag .score-val { color: #000 !important; background: transparent !important; }
 }
 
 @media screen and (max-width: 768px) {
