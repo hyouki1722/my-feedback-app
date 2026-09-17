@@ -238,7 +238,7 @@
                   <th>姓名</th>
                   <th>Email</th>
                   <th>身分角色</th>
-                  <th>操作</th>
+                  <th style="width: 140px; text-align: center;">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -248,7 +248,11 @@
                   <td><strong>{{ user.name }}</strong></td>
                   <td>{{ user.email }}</td>
                   <td><span class="role-badge" :class="user.role">{{ getRoleName(user.role) }}</span></td>
-                  <td><button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除</button></td>
+                  <td style="text-align: center; white-space: nowrap;">
+                    <!-- 💡 補回編輯修改身分別按鈕 -->
+                    <button @click="editUser(user)" class="btn primary-btn small-btn" style="margin-right: 5px;">編輯</button>
+                    <button @click="deleteUser(user.id)" class="btn danger-btn small-btn">刪除</button>
+                  </td>
                 </tr>
                 <tr v-if="filteredUsers.length === 0"><td colspan="6" class="empty-state">此分類下尚無人員資料</td></tr>
               </tbody>
@@ -324,7 +328,7 @@
         </div>
       </div>
 
-      <!-- 📄 PDF 範本演示區塊 -->
+      <!-- 📄 PDF 範本演示區塊 (保留原有) -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -442,7 +446,6 @@ function shuffleArray(array) {
   return array;
 }
 
-// 🟡 中優先修復：捕捉非同步錯誤並加入防呆
 async function handleExamUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -581,7 +584,6 @@ function toggleSelectAllOnPage() {
   }
 }
 
-// 🟢 小優化：批次刪除加上併發與成功/失敗狀態統計
 async function batchDeleteUsers() {
   if (selectedUserIds.value.length === 0) return
   const { isConfirmed } = await Swal.fire({ title: `確定刪除 ${selectedUserIds.value.length} 名人員？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
@@ -651,6 +653,52 @@ async function createUser() {
   finally { isCreating.value = false }
 }
 
+// 💡 編輯人員資料功能 (支援身分與實習單位修改)
+async function editUser(user) {
+  const { value: formValues } = await Swal.fire({
+    title: '✏️ 修改人員資料',
+    html: `
+      <div style="text-align: left; margin-top: 10px;">
+        <label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;">身分角色：</label>
+        <select id="edit-role" class="swal2-select" style="width: 100%; max-width: 100%; margin: 0 0 15px 0; font-size: 15px; padding: 8px;">
+          <option value="student" ${user.role === 'student' ? 'selected' : ''}>受訓學員</option>
+          <option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>指導老師</option>
+          <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>單位主管</option>
+          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系統管理員</option>
+        </select>
+        <label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;">實習單位：</label>
+        <input id="edit-unit" class="swal2-input" value="${user.unit || ''}" placeholder="未指定單位" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;">
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonColor: '#3498db',
+    cancelButtonColor: '#7f8c8d',
+    confirmButtonText: '儲存修改',
+    cancelButtonText: '取消',
+    preConfirm: () => {
+      return {
+        role: document.getElementById('edit-role').value,
+        unit: document.getElementById('edit-unit').value.trim()
+      }
+    }
+  });
+
+  if (formValues) {
+    Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: formValues.role, unit: formValues.unit || null })
+      .eq('id', user.id);
+
+    if (error) {
+      Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error');
+    } else {
+      Toast.fire({ icon: 'success', title: '資料修改成功' });
+      await loadUsers();
+    }
+  }
+}
+
 async function deleteUser(userId) {
   const { isConfirmed } = await Swal.fire({ title: '確定要刪除？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
   if (!isConfirmed) return
@@ -712,7 +760,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 </script>
 
 <style scoped>
-/* 基礎 UI 與排版 (維持不變) */
+/* 基礎 UI 與排版 */
 .app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
