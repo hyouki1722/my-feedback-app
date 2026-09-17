@@ -328,11 +328,45 @@
         </div>
       </div>
 
-      <!-- 📄 PDF 範本演示區塊 -->
+      <!-- 📄 PDF 範本演示區塊 (✅ 已修復加回) -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
-          <button @click="exportDemoToPDF" class="btn dark-btn">🖨️ 列印 / 匯出 PDF 範本</button>
+          <p class="desc">這是一份完整的學習心得測試範本。您可以在教學、系統交接或評鑑展示時，點擊下方按鈕直接預覽實際匯出的 PDF 排版效果（列印時會自動隱藏所有系統按鈕與選單）。</p>
+          <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
+        </div>
+
+        <div class="admin-card printable-demo">
+          <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
+            📘 臨床學習護照 - 心得反思紀錄
+          </h2>
+          <div class="demo-info-grid">
+            <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
+            <p><strong>指導老師：</strong> 臨床指導教師</p>
+            <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
+            <p><strong>訓練日期：</strong> 2026-09-14</p>
+          </div>
+          <div class="demo-section">
+            <h4>📚 學習內容重點摘要</h4>
+            <div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位（如避開關節處、選擇彈性佳的靜脈），以及下針時的角度拿捏。同時也學習了遇到點滴不滴或病人反應疼痛時的初步排除與異常處理流程。</div>
+          </div>
+          <div class="demo-section">
+            <h4>💡 自我反思與心得</h4>
+            <div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張，導致下針猶豫不決。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。我意識到自己對血管走向的判斷還不夠敏銳，未來在臨床跟診時會多加觀察學姊們的選位技巧，並利用空檔重複練習無菌撕貼步驟，期許能讓動作更加流暢，減少病人的不適感。</div>
+          </div>
+          <div class="demo-section">
+            <h4>👩‍⚕️ 臨床指導老師回饋</h4>
+            <div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！下針時因為緊張導致角度稍微偏高，建議下次可以深呼吸放鬆手腕，將角度壓低至 15-30 度之間順勢推入。只要多加練習，相信很快就能熟能生巧，繼續保持！</div>
+          </div>
+          <div class="demo-section">
+            <h4>🏥 單位主管總評</h4>
+            <div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。臨床護理技術需要時間與經驗的累積，能主動察覺自身的不足並提出改進策略，是極佳的專業成長態度。期許未來在實際面對病患時，除了技術的持續精進外，也能發揮同理心與良好的溝通技巧。核定通過本次臨床評核。</div>
+          </div>
+          <div class="demo-signatures">
+            <div class="sign-box">學員簽章：<span>(系統已認證)</span></div>
+            <div class="sign-box">老師簽章：<span>(系統已認證)</span></div>
+            <div class="sign-box">主管簽章：<span>(系統已認證)</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -579,7 +613,6 @@ async function deleteExam(id, title) {
   await loadExams()
 }
 
-// 💡 檢視測驗卷題目功能
 async function viewExam(exam) {
   Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id)
