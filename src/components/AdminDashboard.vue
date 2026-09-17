@@ -18,7 +18,7 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
-      <!-- 🎯 測驗任務派發區塊 (🆕 全新功能) -->
+      <!-- 🎯 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
           <h3>🎯 批次派發測驗卷</h3>
@@ -184,11 +184,11 @@
             <div class="form-row">
               <div class="form-group">
                 <label>姓名：</label>
-                <input type="text" v-model="newUser.name" required placeholder="例如：王小明">
+                <input type="text" v-model="newUser.name" required class="form-input" placeholder="例如：王小明">
               </div>
               <div class="form-group">
                 <label>身分：</label>
-                <select v-model="newUser.role">
+                <select v-model="newUser.role" class="form-input">
                   <option value="student">受訓人員 (學員)</option>
                   <option value="teacher">臨床指導老師</option>
                   <option value="supervisor">單位主管</option>
@@ -197,24 +197,23 @@
               </div>
               <div class="form-group">
                 <label>所屬單位 (選填)：</label>
-                <input type="text" v-model="newUser.unit" placeholder="例如：5B病房">
+                <input type="text" v-model="newUser.unit" class="form-input" placeholder="例如：5B病房">
               </div>
             </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Email 帳號：</label>
-                <input type="email" v-model="newUser.email" required placeholder="例如：user@hospital.com">
+                <input type="email" v-model="newUser.email" required class="form-input" placeholder="例如：user@hospital.com">
               </div>
               <div class="form-group">
                 <label>預設密碼：</label>
-                <input type="text" v-model="newUser.password" required placeholder="至少 6 碼">
+                <input type="text" v-model="newUser.password" required class="form-input" placeholder="至少 6 碼">
               </div>
             </div>
             <button type="submit" class="btn primary-btn" :disabled="isCreating">確認建立</button>
           </form>
         </div>
 
-        <!-- 帳號總覽表格略縮 (維持原有分頁邏輯) -->
         <div class="admin-card">
           <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
@@ -325,7 +324,7 @@
         </div>
       </div>
 
-      <!-- 📄 PDF 範本演示區塊 (保留原有) -->
+      <!-- 📄 PDF 範本演示區塊 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -355,7 +354,6 @@ const supervisors = ref([])
 const assignmentData = ref({})
 const isCreating = ref(false)
 
-// 🆕 新增 unit 欄位
 const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 
 // === 🎯 測驗任務派發邏輯 ===
@@ -444,6 +442,7 @@ function shuffleArray(array) {
   return array;
 }
 
+// 🟡 中優先修復：捕捉非同步錯誤並加入防呆
 async function handleExamUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -451,16 +450,16 @@ async function handleExamUpload(event) {
 
   Swal.fire({ title: '解析中...', text: '正在讀取考卷內容', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-  try {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    try {
       const arrayBuffer = e.target.result
       const result = await mammoth.extractRawText({ arrayBuffer })
       const text = result.value
 
       previewExamTitle.value = file.name.replace('.docx', '')
       const answerSection = text.split('【參考答案】')[1]
-      if (!answerSection) throw new Error('找不到【參考答案】區塊')
+      if (!answerSection) throw new Error('找不到【參考答案】區塊，請確認檔案格式')
       const answers = answerSection.match(/[○×ABCD]/g) 
 
       const questions = []
@@ -471,6 +470,10 @@ async function handleExamUpload(event) {
         const qNum = parseInt(match[1])
         const qContent = match[2].trim()
         let options = [], questionText = '', correctText = ''
+
+        if (!answers || !answers[qNum - 1]) {
+          throw new Error(`第 ${qNum} 題找不到對應的參考答案，請確認【參考答案】區塊與題數是否一致`)
+        }
 
         if (qContent.includes('□ ○')) {
           questionText = qContent.split('□')[0].trim()
@@ -488,15 +491,20 @@ async function handleExamUpload(event) {
         }
         questions.push({ text: questionText, options: options, correct: correctText })
       }
+
+      if (questions.length === 0) {
+        throw new Error('未能解析出任何題目，請確認文件格式是否符合範本規範')
+      }
+
       previewQuestions.value = questions
       Swal.close()
+    } catch (err) {
+      Swal.fire('解析失敗', err.message, 'error')
+    } finally {
       event.target.value = ''
     }
-    reader.readAsArrayBuffer(file)
-  } catch (err) {
-    Swal.fire('解析失敗', err.message, 'error')
-    event.target.value = ''
   }
+  reader.readAsArrayBuffer(file)
 }
 
 function removePreviewQuestion(index) { previewQuestions.value.splice(index, 1) }
@@ -572,14 +580,33 @@ function toggleSelectAllOnPage() {
     paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.value.push(user.id) })
   }
 }
+
+// 🟢 小優化：批次刪除加上併發與成功/失敗狀態統計
 async function batchDeleteUsers() {
   if (selectedUserIds.value.length === 0) return
   const { isConfirmed } = await Swal.fire({ title: `確定刪除 ${selectedUserIds.value.length} 名人員？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
   if (!isConfirmed) return
+  
   Swal.fire({ title: '清理中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  for (const userId of selectedUserIds.value) await supabase.rpc('delete_user_admin', { target_user_id: userId })
-  Swal.fire({ icon: 'success', title: '刪除成功', timer: 1500 })
+  const results = { success: 0, fail: 0 }
+  const concurrency = 5
+
+  for (let i = 0; i < selectedUserIds.value.length; i += concurrency) {
+    const batch = selectedUserIds.value.slice(i, i + concurrency)
+    await Promise.all(batch.map(async (userId) => {
+      const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userId })
+      error ? results.fail++ : results.success++
+    }))
+  }
+
+  if (results.fail === 0) {
+    Swal.fire({ icon: 'success', title: '刪除成功', text: `已成功移除 ${results.success} 名人員`, timer: 1500, showConfirmButton: false })
+  } else {
+    Swal.fire({ icon: 'warning', title: '部分失敗', text: `成功: ${results.success}，失敗: ${results.fail}` })
+  }
+
   selectedUserIds.value = []; await loadUsers()
+  if (currentPage.value > totalPages.value && totalPages.value > 0) currentPage.value = totalPages.value
 }
 
 onMounted(async () => {

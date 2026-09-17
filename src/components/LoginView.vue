@@ -55,6 +55,7 @@ const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
 
+// 處理一般登入
 async function handleLogin() {
   if (!email.value || !password.value) {
     return Swal.fire({ icon: 'warning', title: '提示', text: '請完整填寫信箱與密碼' })
@@ -69,10 +70,11 @@ async function handleLogin() {
 
     if (error) throw error
 
-    Swal.fire({ icon: 'success', title: '登入成功', timer: 1500, showConfirmButton: false })
+    // 🟢 加上 await，讓提示畫面停留 1.5 秒再導頁，避免畫面瞬間重整讓使用者看不到提示
+    await Swal.fire({ icon: 'success', title: '登入成功', timer: 1500, showConfirmButton: false })
     
-    // 💡 關鍵修復：拔除 vue-router，改用原生 JavaScript 強制導向首頁並重整狀態
-    window.location.href = '/'
+    // 移除 vue-router 依賴，改用原生 JavaScript 強制導向首頁並重整狀態
+    window.location.href = '/' 
     
   } catch (error) {
     let errorMsg = '帳號或密碼錯誤，請重新確認'
@@ -85,6 +87,7 @@ async function handleLogin() {
   }
 }
 
+// 處理忘記密碼：彈出輸入框並呼叫 Supabase 重設 API
 async function handleForgotPassword() {
   const { value: resetEmail } = await Swal.fire({
     title: '重設密碼',
@@ -167,12 +170,12 @@ async function handleForgotPassword() {
   color: #2c3e50;
 }
 
-/* 🏆 關鍵修改：增強 CSS 權重，強制所有 input 聽從這個樣式 */
+/* 🏆 關鍵修改：增強 CSS 權重，強制所有 input 聽從這個樣式，覆蓋密碼框破圖問題 */
 .form-group input.form-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #dcdde1 !important; /* 強制覆蓋預設黑框 */
-  border-radius: 6px !important;       /* 強制覆蓋圓角 */
+  border: 1px solid #dcdde1 !important;
+  border-radius: 6px !important;
   box-sizing: border-box;
   font-size: 15px;
   font-family: inherit;
