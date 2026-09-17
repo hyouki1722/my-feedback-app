@@ -143,7 +143,7 @@
                   <th>測驗卷名稱</th>
                   <th>測驗類型</th>
                   <th>建立時間</th>
-                  <th style="width: 100px; text-align: center;">操作</th>
+                  <th style="width: 140px; text-align: center;">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,7 +151,9 @@
                   <td><strong>{{ exam.title }}</strong></td>
                   <td><span class="role-badge" :class="exam.type === 'pre_test' ? 'student' : 'teacher'">{{ exam.type === 'pre_test' ? '課前測驗' : '課後測驗' }}</span></td>
                   <td>{{ formatDate(exam.created_at) }}</td>
-                  <td style="text-align: center;">
+                  <td style="text-align: center; white-space: nowrap;">
+                    <!-- 💡 新增檢視按鈕 -->
+                    <button @click="viewExam(exam)" class="btn primary-btn small-btn" style="margin-right: 5px;">檢視</button>
                     <button @click="deleteExam(exam.id, exam.title)" class="btn danger-btn small-btn">刪除</button>
                   </td>
                 </tr>
@@ -335,6 +337,32 @@
         </div>
       </div>
     </div>
+
+    <!-- 💡 測驗卷預覽彈出視窗 (Modal) -->
+    <div v-if="isViewingModalOpen" class="modal-overlay" @click.self="closeViewModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3>
+          <button @click="closeViewModal" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div class="exam-warning">💡 此畫面為學員測驗時的模擬視角（附帶正確解答標示）。</div>
+          <div class="question-list">
+            <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
+              <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
+              <div class="q-options">
+                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" :class="{'is-correct-preview': opt === q.correct_answer}">
+                  <input type="radio" disabled class="custom-radio">
+                  <span class="opt-text">{{ opt }}</span>
+                  <span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">正確解答</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -422,13 +450,18 @@ async function submitDispatch() {
   }
 }
 
-// === 📝 測驗題庫解析邏輯 ===
+// === 📝 測驗題庫解析與預覽邏輯 ===
 const examList = ref([])
 const previewQuestions = ref([])
 const previewExamTitle = ref('')
 const previewExamType = ref('pre_test')
 const shuffleQuestionsMode = ref(true)
 const shuffleOptionsMode = ref(true)
+
+// 檢視 Modal 狀態
+const isViewingModalOpen = ref(false)
+const viewingExam = ref(null)
+const viewingQuestions = ref([])
 
 async function loadExams() {
   const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false })
@@ -543,6 +576,26 @@ async function deleteExam(id, title) {
   if (error) return Swal.fire('錯誤', error.message, 'error')
   Toast.fire({ icon: 'success', title: '測驗卷已刪除' })
   await loadExams()
+}
+
+// 💡 檢視測驗卷題目功能
+async function viewExam(exam) {
+  Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id)
+  if (error) {
+    Swal.fire('錯誤', '題目載入失敗', 'error')
+    return
+  }
+  viewingExam.value = exam
+  viewingQuestions.value = data
+  isViewingModalOpen.value = true
+  Swal.close()
+}
+
+function closeViewModal() {
+  isViewingModalOpen.value = false
+  viewingExam.value = null
+  viewingQuestions.value = []
 }
 
 // === 其他系統邏輯 ===
@@ -685,9 +738,7 @@ async function editUser(user) {
 
   if (formValues) {
     Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
-    
     const finalUnit = formValues.unit ? formValues.unit : '未指定單位';
-
     const { error } = await supabase.rpc('update_user_admin', { 
       target_user_id: user.id,
       new_role: formValues.role,
@@ -818,7 +869,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 .page-btn { padding: 6px 12px; border: 1px solid #bdc3c7; background: white; border-radius: 4px; cursor: pointer; color: #2c3e50; font-weight: bold; transition: 0.2s; }
 .page-btn:hover:not(:disabled) { background: #ecf0f1; border-color: #95a5a6; }
 
-/* 預覽區塊樣式 */
+/* 編輯區塊樣式 */
 .preview-card { border: 2px solid #3498db; box-shadow: 0 0 15px rgba(52, 152, 219, 0.2); }
 .shuffle-options { display: flex; gap: 20px; margin: 15px 0 25px 0; background: #f0f8ff; padding: 12px; border-radius: 6px; border: 1px solid #bce0fd; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #2980b9; cursor: pointer; font-size: 14px; }
@@ -833,6 +884,19 @@ async function handleLogout() { await supabase.auth.signOut() }
 .custom-radio { width: 18px; height: 18px; cursor: pointer; accent-color: #2ecc71; }
 .opt-text-input { padding: 8px 12px; font-size: 14px; }
 .correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+
+/* 💡 Modal 預覽視窗樣式 */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+.modal-content { background: white; width: 100%; max-width: 850px; max-height: 90vh; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease-out; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; }
+.modal-header h3 { margin: 0; color: #2c3e50; font-size: 20px; font-weight: 900; }
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d; padding: 0; line-height: 1; transition: 0.2s; }
+.close-btn:hover { color: #e74c3c; }
+.modal-body { padding: 25px; overflow-y: auto; background: #f4f7f6; border-radius: 0 0 8px 8px; }
+.exam-warning { background: #e8f4fd; color: #2980b9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 14px; border: 1px solid #bce0fd; }
+.opt-label { display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px; background: white; border-radius: 6px; border: 1px solid #dcdde1; width: 100%; box-sizing: border-box; }
+.opt-label.is-correct-preview { border-color: #2ecc71; background: #f4fdf8; }
+.opt-text { font-size: 15px; color: #34495e; line-height: 1.4; flex: 1; }
 
 /* PDF 演示專用 */
 .demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
