@@ -152,7 +152,6 @@
                   <td><span class="role-badge" :class="exam.type === 'pre_test' ? 'student' : 'teacher'">{{ exam.type === 'pre_test' ? '課前測驗' : '課後測驗' }}</span></td>
                   <td>{{ formatDate(exam.created_at) }}</td>
                   <td style="text-align: center; white-space: nowrap;">
-                    <!-- 💡 新增檢視按鈕 -->
                     <button @click="viewExam(exam)" class="btn primary-btn small-btn" style="margin-right: 5px;">檢視</button>
                     <button @click="deleteExam(exam.id, exam.title)" class="btn danger-btn small-btn">刪除</button>
                   </td>
@@ -346,7 +345,9 @@
           <button @click="closeViewModal" class="close-btn">✖</button>
         </div>
         <div class="modal-body">
-          <div class="exam-warning">💡 此畫面為學員測驗時的模擬視角（附帶正確解答標示）。</div>
+          <div class="exam-warning">
+            💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。學員在實際作答時，<strong>「絕對不會」</strong>看到任何綠色的正確解答標示，請放心！
+          </div>
           <div class="question-list">
             <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
@@ -894,6 +895,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 .close-btn:hover { color: #e74c3c; }
 .modal-body { padding: 25px; overflow-y: auto; background: #f4f7f6; border-radius: 0 0 8px 8px; }
 .exam-warning { background: #e8f4fd; color: #2980b9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 14px; border: 1px solid #bce0fd; }
+.q-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 15px; line-height: 1.5; }
 .opt-label { display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px; background: white; border-radius: 6px; border: 1px solid #dcdde1; width: 100%; box-sizing: border-box; }
 .opt-label.is-correct-preview { border-color: #2ecc71; background: #f4fdf8; }
 .opt-text { font-size: 15px; color: #34495e; line-height: 1.4; flex: 1; }
