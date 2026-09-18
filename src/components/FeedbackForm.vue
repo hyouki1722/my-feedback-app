@@ -436,7 +436,8 @@ async function loadMyExams() {
 
 async function startExam(task) {
   Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const { data: qData, error } = await supabase.from('questions').select('*').eq('exam_id', task.exam_id)
+  // 只選取作答需要的欄位，絕不選取 correct_answer
+  const { data: qData, error } = await supabase.from('questions').select('id, question_text, options').eq('exam_id', task.exam_id)
   if (error || !qData) return Swal.fire('錯誤', '題目載入失敗', 'error')
   examQuestions.value = qData; examTaking.value = task; studentAnswers.value = {}; Swal.close()
 }
@@ -453,15 +454,18 @@ async function submitExam() {
   if (!isConfirmed) return
 
   Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  let correctCount = 0
-  examQuestions.value.forEach(q => { if (studentAnswers.value[q.id] === q.correct_answer) correctCount++ })
-  const score = Math.round((correctCount / totalCount) * 100)
 
-  await supabase.from('exam_records').insert({ student_id: profile.value.id, exam_id: examTaking.value.exam_id, score: score, answers: studentAnswers.value })
-  await supabase.from('exam_dispatch').update({ is_completed: true }).eq('id', examTaking.value.id)
+  // 改由後端 Edge Function 進行批改，前端全程不接觸正確答案
+  const { data, error } = await supabase.functions.invoke('submit-exam', {
+    body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value }
+  })
 
-  Swal.fire({ icon: 'success', title: '測驗完成！', html: `您的得分為：<strong style="font-size: 24px;">${score} 分</strong>` })
-  examTaking.value = null; studentAnswers.value = {}; await loadMyExams() 
+  if (error || data?.error) {
+    return Swal.fire('錯誤', error?.message || data?.error, 'error')
+  }
+
+  Swal.fire({ icon: 'success', title: '測驗完成！', html: `您的得分為：<strong style="font-size: 24px;">${data.score} 分</strong>` })
+  examTaking.value = null; studentAnswers.value = {}; await loadMyExams()
 }
 
 function getScoreColor(score) {

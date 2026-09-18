@@ -4,12 +4,11 @@
     <meta charset="UTF-8" />
     
     <!-- 💡 網站 Icon 與手機捷徑圖示設定 -->
-    <!-- 如果您最後決定用去背的 PNG，請把這裡的 .jpg 改成 .png，type 改成 image/png -->
     <link rel="icon" type="image/jpeg" href="/Internship_Learning_System.jpg" />
     <link rel="apple-touch-icon" href="/Internship_Learning_System.jpg" />
     
-    <!-- 確保在手機裝置上能完美呈現且比例正確 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- 確保在手機裝置上能完美呈現且比例正確 (已移除 user-scalable=no 友善無障礙閱讀) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- 網站標題 -->
     <title>實習生學習系統</title>
@@ -17,7 +16,7 @@
   <body>
     <div id="app"></div>
     
-    <!-- 這是 Vue 專案的主要進入點，請確認您的檔案是 main.js (若是 TypeScript 專案則改為 main.ts) -->
-    <script type="module" src="/src/main.js"></script>
+    <!-- 🟢 已確實將進入點修正為 TypeScript 專案的 main.ts -->
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

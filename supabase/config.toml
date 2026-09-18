@@ -11,3 +11,9 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/daily-summary-email/deno.json"
 entrypoint = "./functions/daily-summary-email/index.ts"
+
+[functions.submit-exam]
+enabled = true
+verify_jwt = true
+import_map = "./functions/submit-exam/deno.json"
+entrypoint = "./functions/submit-exam/index.ts"
