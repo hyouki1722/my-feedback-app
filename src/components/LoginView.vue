@@ -2,7 +2,7 @@
   <div class="login-wrapper">
     <div class="login-card">
       <div class="login-header">
-        <h2>📘 學習護照系統 - 登入</h2>
+        <h2>📘 實習生學習系統 - 登入</h2>
       </div>
 
       <form @submit.prevent="handleLogin">

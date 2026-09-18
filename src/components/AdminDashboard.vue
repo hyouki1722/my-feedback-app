@@ -3,7 +3,7 @@
     <div class="admin-container">
       <div class="admin-header">
         <div class="header-titles">
-          <h2>⚙️ 系統管理員後台</h2>
+          <h2>⚙️ 實習生學習系統 - 系統管理員後台</h2>
         </div>
         <button @click="handleLogout" class="btn dark-btn">登出系統</button>
       </div>
@@ -338,7 +338,7 @@
 
         <div class="admin-card printable-demo">
           <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
-            📘 臨床學習護照 - 心得反思紀錄
+            📘 實習生學習系統 - 心得反思紀錄
           </h2>
           <div class="demo-info-grid">
             <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>

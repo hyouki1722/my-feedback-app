@@ -2,7 +2,7 @@
   <div class="app-wrapper">
     <div class="form-container">
       <div class="header-section">
-        <h2>📘 臨床學習護照與測驗中心</h2>
+        <h2>📘 實習生學習系統 - 測驗與心得中心</h2>
         <div class="header-actions">
           <span class="user-info" v-if="profile">{{ profile.name }} ({{ getRoleName(profile.role) }})</span>
           <button @click="handleLogout" class="btn dark-btn small-btn">登出</button>
