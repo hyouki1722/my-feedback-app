@@ -3,7 +3,7 @@
     <div class="admin-container">
       <div class="admin-header">
         <div class="header-titles">
-          <h2>⚙️ 實習生學習系統 - 系統管理員後台</h2>
+          <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
         </div>
         <button @click="handleLogout" class="btn dark-btn">登出系統</button>
       </div>
@@ -347,7 +347,6 @@
             <p><strong>訓練日期：</strong> 2026-09-14</p>
           </div>
           
-          <!-- 📊 模擬的測驗成績總覽區塊 -->
           <div class="demo-section">
             <h4>📊 測驗成績紀錄</h4>
             <div class="score-tags">
@@ -501,7 +500,7 @@ async function submitDispatch() {
   }
 }
 
-// === 📝 測驗題庫解析與預覽邏輯 ===
+// === 📝 測驗題庫解析與預覽邏輯 (✅ 已強化智慧解析) ===
 const examList = ref([])
 const previewQuestions = ref([])
 const previewExamTitle = ref('')
@@ -528,6 +527,7 @@ function shuffleArray(array) {
   return array;
 }
 
+// 🔥 核心：智慧解析 Word 題庫
 async function handleExamUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -543,42 +543,110 @@ async function handleExamUpload(event) {
       const text = result.value
 
       previewExamTitle.value = file.name.replace('.docx', '')
-      const answerSection = text.split('【參考答案】')[1]
-      if (!answerSection) throw new Error('找不到【參考答案】區塊，請確認檔案格式')
-      const answers = answerSection.match(/[○×ABCD]/g) 
 
+      // 1. 🔍 智慧尋址：自動偵測解答區塊 (支援多種常見標題)
+      let answerSection = ''
+      let questionSection = text
+      const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答']
+      
+      let foundIndex = -1
+      for (const kw of answerKeywords) {
+        const idx = text.lastIndexOf(kw)
+        // 確保關鍵字出現在文章後半部，避免誤判到標題
+        if (idx !== -1 && idx > text.length / 3) {
+          foundIndex = idx
+          break
+        }
+      }
+
+      if (foundIndex === -1) {
+        throw new Error('找不到解答區塊。請確保文件後半部包含「標準解答」或「參考答案」等關鍵字。')
+      }
+
+      answerSection = text.substring(foundIndex)
+      questionSection = text.substring(0, foundIndex)
+
+      // 2. 🎯 智慧解析解答
+      const answersMap = {}
+      // 支援格式 A: "第 01 題： (B)" 或 "1: A"
+      const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]\s*\(*([A-D○×])\)*/g
+      let matchAns
+      let useStrict = false
+      while ((matchAns = strictAnsRegex.exec(answerSection)) !== null) {
+        answersMap[parseInt(matchAns[1])] = matchAns[2]
+        useStrict = true
+      }
+
+      // 支援格式 B: 舊版純字母連續排列 (A B C D)
+      if (!useStrict) {
+        const pureAnswers = answerSection.match(/[○×ABCD]/g)
+        if (pureAnswers) {
+          pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans })
+        }
+      }
+
+      // 3. 📝 智慧解析題目與選項
       const questions = []
-      const questionRegex = /\(\s*\)\s*(\d+)\.\s*(.*?)(?=\(\s*\)\s*\d+\.|$|【參考答案】)/gs
-      let match
+      // 支援題號格式: "1. ", "( ) 1. ", "【第01題】1. "
+      const qRegex = /(?:^|\n|】|）|\s)0*(\d+)\.\s+(.*?)(?=(?:^|\n|】|）|\s)0*\d+\.\s+|$)/gs
+      let matchQ
 
-      while ((match = questionRegex.exec(text)) !== null) {
-        const qNum = parseInt(match[1])
-        const qContent = match[2].trim()
+      while ((matchQ = qRegex.exec(questionSection)) !== null) {
+        const qNum = parseInt(matchQ[1])
+        let rawText = matchQ[2].trim()
         let options = [], questionText = '', correctText = ''
+        
+        // 若該題查無解答，預設給 A 防呆
+        const ansKey = answersMap[qNum] || 'A'
 
-        if (!answers || !answers[qNum - 1]) {
-          throw new Error(`第 ${qNum} 題找不到對應的參考答案，請確認【參考答案】區塊與題數是否一致`)
-        }
+        // 判斷是否為選擇題：找 (A) 或 A.
+        const idxA = rawText.search(/\s*(?:\(A\)|A\.)\s*/)
+        
+        if (idxA !== -1) {
+          questionText = rawText.substring(0, idxA).trim()
+          const optsPart = rawText.substring(idxA)
+          
+          // 切割出 4 個選項
+          const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.)\s*/).filter(s => s.trim() !== '')
+          if (optMatches.length >= 4) {
+             options = optMatches.slice(0, 4).map(s => s.trim())
+          } else {
+             options = optMatches
+             while (options.length < 4) options.push('選項缺失')
+          }
+          
+          const ansIndex = ansKey === 'A' ? 0 : ansKey === 'B' ? 1 : ansKey === 'C' ? 2 : ansKey === 'D' ? 3 : 0
+          correctText = options[ansIndex] || options[0]
 
-        if (qContent.includes('□ ○')) {
-          questionText = qContent.split('□')[0].trim()
+        } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) {
+          // 處理是非題
+          const idxO = rawText.search(/[○×□]/)
+          if (idxO !== -1 && idxO < rawText.length - 10) {
+             questionText = rawText.substring(0, idxO).trim()
+          } else {
+             questionText = rawText.replace(/[○×□]/g, '').trim()
+          }
           options = ['○', '×']
-          correctText = answers[qNum - 1] 
-        } else if (qContent.includes('A.')) {
-          questionText = qContent.substring(0, qContent.indexOf('A.')).trim()
-          const optA = qContent.substring(qContent.indexOf('A.') + 2, qContent.indexOf('B.')).trim()
-          const optB = qContent.substring(qContent.indexOf('B.') + 2, qContent.indexOf('C.')).trim()
-          const optC = qContent.substring(qContent.indexOf('C.') + 2, qContent.indexOf('D.')).trim()
-          const optD = qContent.substring(qContent.indexOf('D.') + 2).trim()
-          options = [optA, optB, optC, optD]
-          const correctIndex = answers[qNum - 1].charCodeAt(0) - 65 
-          correctText = options[correctIndex]
+          correctText = ansKey
+        } else {
+          // 異常格式容錯
+          questionText = rawText.trim()
+          options = ['(未解析出選項)', '(未解析出選項)']
+          correctText = options[0]
         }
-        questions.push({ text: questionText, options: options, correct: correctText })
+        
+        // 排除解析到非題目的雜訊 (長度過短通常是誤判)
+        if (questionText.length > 2) {
+          questions.push({
+            text: questionText.replace(/^[(\s]+/, ''),
+            options: options,
+            correct: correctText
+          })
+        }
       }
 
       if (questions.length === 0) {
-        throw new Error('未能解析出任何題目，請確認文件格式是否符合範本規範')
+        throw new Error('未能自動解析出題目，請確保題目編號為「1. 」格式，選項為「(A)」格式。')
       }
 
       previewQuestions.value = questions
