@@ -230,7 +230,7 @@
             <button :class="{ active: signatureMode === 'upload' }" @click="signatureMode = 'upload'">上傳印章/圖片</button>
           </div>
           <div v-show="signatureMode === 'draw'" class="canvas-container">
-            <canvas ref="canvasRef" width="400" height="200" class="signature-canvas"
+            <canvas ref="canvasRef" class="signature-canvas"
               @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
               @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
             <button @click="clearCanvas" class="btn secondary-btn small-btn clear-btn">重新簽名</button>
@@ -338,7 +338,7 @@ function closeReviewModal() {
   reviewingRecord.value = null
 }
 
-// === ✍️ 電子簽章面板邏輯 ===
+// === ✍️ 電子簽章面板邏輯 (🌟 核心坐標映射與變形修正) ===
 const showSignatureModal = ref(false)
 const signatureMode = ref('draw') 
 const pendingAction = ref(null) 
@@ -366,25 +366,62 @@ function initiateAction(actionRole) {
 
   nextTick(() => {
     if (canvasRef.value) {
+      // 🟢 核心修正：將畫布內部解析度與外部 CSS 顯示尺寸同步，避免畫筆座標偏移與壓縮
+      const rect = canvasRef.value.getBoundingClientRect()
+      canvasRef.value.width = rect.width
+      canvasRef.value.height = rect.height
+
       ctx = canvasRef.value.getContext('2d')
-      ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#2c3e50'
+      ctx.lineWidth = 3
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.strokeStyle = '#2c3e50'
       clearCanvas()
     }
   })
 }
 
 function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
-function startDraw(e) { isDrawing = true; hasDrawn = true; draw(e) }
-function draw(e) {
-  if (!isDrawing) return
+
+// 🟢 座標轉換計算，確保滑鼠精準對應
+function getMousePos(e) {
   const rect = canvasRef.value.getBoundingClientRect()
   const clientX = e.clientX || (e.touches && e.touches[0].clientX)
   const clientY = e.clientY || (e.touches && e.touches[0].clientY)
-  const x = clientX - rect.left; const y = clientY - rect.top
-  ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y)
+  
+  const scaleX = canvasRef.value.width / rect.width
+  const scaleY = canvasRef.value.height / rect.height
+  
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  }
 }
-function stopDraw() { isDrawing = false; ctx.beginPath() }
-function clearCanvas() { ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
+
+function startDraw(e) { 
+  isDrawing = true
+  hasDrawn = true
+  ctx.beginPath()
+  const pos = getMousePos(e)
+  ctx.moveTo(pos.x, pos.y)
+}
+
+function draw(e) {
+  if (!isDrawing) return
+  const pos = getMousePos(e)
+  ctx.lineTo(pos.x, pos.y)
+  ctx.stroke()
+}
+
+function stopDraw() { 
+  isDrawing = false
+  ctx.closePath()
+}
+
+function clearCanvas() { 
+  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+  hasDrawn = false 
+}
 
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
@@ -566,47 +603,28 @@ function getRoleName(role) {
   return map[role] || role
 }
 
-// 🌟 修正：儲存草稿加入嚴謹防呆與錯誤捕捉
 async function saveDraft() {
-  if (!report.value.training_category) {
-    return Swal.fire('提示', '儲存草稿前，請先在上方選擇「訓練類別」！', 'warning')
-  }
-
+  if (!report.value.training_category) { return Swal.fire('提示', '儲存草稿前，請先在上方選擇「訓練類別」！', 'warning') }
   isSaving.value = true
-  
   const payload = { 
-    student_id: profile.value.id, 
-    training_category: report.value.training_category, 
+    student_id: profile.value.id, training_category: report.value.training_category, 
     training_date: report.value.training_date || new Date().toISOString().split('T')[0], 
     training_end_date: report.value.training_end_date || new Date().toISOString().split('T')[0], 
-    content: report.value.content || '', 
-    reflection: report.value.reflection || '', 
-    status: 'draft', 
-    updated_at: new Date().toISOString() 
+    content: report.value.content || '', reflection: report.value.reflection || '', 
+    status: 'draft', updated_at: new Date().toISOString() 
   }
-  
   let dbError = null
-
   if (report.value.id) { 
     const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
     dbError = error
   } else { 
     const { data, error } = await supabase.from('feedback_reports').insert([payload]).select()
     dbError = error
-    if (data && data.length > 0) {
-      report.value.id = data[0].id
-      selectedReportId.value = data[0].id // 綁定新草稿
-    }
+    if (data && data.length > 0) { report.value.id = data[0].id; selectedReportId.value = data[0].id }
   }
-
   isSaving.value = false 
-  
-  if (dbError) { 
-    Swal.fire('儲存失敗', '資料庫回傳錯誤：' + dbError.message + '<br>請確認是否所有必填欄位都已正確填寫。', 'error') 
-  } else { 
-    Toast.fire({ icon: 'success', title: '草稿已確實儲存' })
-    await loadReportsList(profile.value.id, profile.value.role) 
-  }
+  if (dbError) { Swal.fire('儲存失敗', '資料庫回傳錯誤：' + dbError.message, 'error') } 
+  else { Toast.fire({ icon: 'success', title: '草稿已確實儲存' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function executeStudentSubmit() {
@@ -618,7 +636,6 @@ async function executeStudentSubmit() {
     status: 'pending_teacher', updated_at: new Date().toISOString(),
     student_signature: report.value.student_signature 
   }
-  
   let dbError = null
   if (report.value.id) {
     const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
@@ -628,7 +645,6 @@ async function executeStudentSubmit() {
     dbError = error
     if (data && data.length > 0) selectedReportId.value = data[0].id
   }
-
   isSaving.value = false
   if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); await loadReportsList(profile.value.id, profile.value.role) } 
   else Swal.fire('錯誤', dbError.message, 'error')
@@ -637,10 +653,8 @@ async function executeStudentSubmit() {
 async function executeTeacherSubmit() {
   isSaving.value = true
   await supabase.from('feedback_reports').update({ 
-    teacher_feedback: report.value.teacher_feedback, 
-    status: 'pending_supervisor', 
-    updated_at: new Date().toISOString(),
-    teacher_signature: report.value.teacher_signature 
+    teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', 
+    updated_at: new Date().toISOString(), teacher_signature: report.value.teacher_signature 
   }).eq('id', report.value.id)
   isSaving.value = false
   Swal.fire({ icon: 'success', title: '已移交單位主管' })
@@ -650,10 +664,8 @@ async function executeTeacherSubmit() {
 async function executeSupervisorSubmit() {
   isSaving.value = true
   const { error } = await supabase.from('feedback_reports').update({ 
-    supervisor_feedback: report.value.supervisor_feedback, 
-    status: 'closed', 
-    updated_at: new Date().toISOString(),
-    supervisor_signature: report.value.supervisor_signature 
+    supervisor_feedback: report.value.supervisor_feedback, status: 'closed', 
+    updated_at: new Date().toISOString(), supervisor_signature: report.value.supervisor_signature 
   }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) }
