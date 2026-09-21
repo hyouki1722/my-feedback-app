@@ -189,21 +189,21 @@
               <span class="sign-title">學員簽章</span>
               <img v-if="report.student_signature" :src="report.student_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 🌟 學員專屬修改按鈕 -->
+              <!-- 學員專屬修改按鈕 -->
               <button v-if="report.student_signature && isStudent && report.status !== 'closed'" @click="updateSignature('student')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">老師簽章</span>
               <img v-if="report.teacher_signature" :src="report.teacher_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 🌟 老師專屬修改按鈕 -->
+              <!-- 老師專屬修改按鈕 -->
               <button v-if="report.teacher_signature && isTeacher && report.status !== 'closed'" @click="updateSignature('teacher')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">主管簽章</span>
               <img v-if="report.supervisor_signature" :src="report.supervisor_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 🌟 主管專屬修改按鈕 -->
+              <!-- 主管專屬修改按鈕 -->
               <button v-if="report.supervisor_signature && isSupervisor && report.status !== 'closed'" @click="updateSignature('supervisor')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
           </div>
@@ -240,7 +240,8 @@
             <button @click="clearCanvas" class="btn secondary-btn small-btn clear-btn">重新簽名</button>
           </div>
           <div v-show="signatureMode === 'upload'" class="upload-container">
-            <input type="file" @change="handleSignatureUpload" accept="image/*" class="form-input" />
+            <!-- 限制僅能上傳圖片 -->
+            <input type="file" @change="handleSignatureUpload" accept="image/jpeg, image/png, image/webp" class="form-input" />
             <div v-if="uploadedSignature" class="preview-img-box">
               <img :src="uploadedSignature" class="signature-preview" />
             </div>
@@ -305,15 +306,18 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
+// 頁籤記憶機制
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
+// 測驗任務
 const pendingExams = ref([])
 const myExamRecords = ref([])
 const examTaking = ref(null)
 const examQuestions = ref([])
 const studentAnswers = ref({})
 
+// 報告與成績
 const reportList = ref([])
 const selectedReportId = ref('')
 const currentReportMeta = ref({})
@@ -340,7 +344,6 @@ let isDrawing = false
 let ctx = null
 let hasDrawn = false
 
-// 🌟 追蹤目前的動作是否純粹為「修改簽章」
 const signatureUpdateTarget = ref(null)
 
 watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget], ([show, mode, action, target]) => {
@@ -383,7 +386,6 @@ function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.v
 
 // === ✍️ 電子簽章邏輯 ===
 
-// 🌟 獨立的「修改簽章」觸發函式
 function updateSignature(role) {
   signatureUpdateTarget.value = role
   showSignatureModal.value = true
@@ -404,7 +406,7 @@ function initiateAction(actionRole) {
   }
 
   pendingAction.value = actionRole
-  signatureUpdateTarget.value = null // 確保不是獨立修改模式
+  signatureUpdateTarget.value = null 
   showSignatureModal.value = true
   signatureMode.value = 'draw'
   uploadedSignature.value = null
@@ -467,33 +469,73 @@ function clearCanvas() {
   hasDrawn = false 
 }
 
+// 🌟 強化版自動壓縮功能與嚴格錯誤捕捉
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
 
-  Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const reader = new FileReader()
-  reader.onload = (event) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      let width = img.width; let height = img.height
-      const MAX_DIMENSION = 600 
-      if (width > height && width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION } 
-      else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION }
-      canvas.width = width; canvas.height = height
-      const ctx = canvas.getContext('2d')
-      
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, width, height)
-      ctx.drawImage(img, 0, 0, width, height)
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
-      uploadedSignature.value = compressedDataUrl
-      Swal.close()
-    }
-    img.src = event.target.result
+  // 1. 確保上傳的是圖片檔案
+  if (!file.type.startsWith('image/')) {
+    Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳 JPG 或 PNG 圖檔。', 'error')
+    e.target.value = ''
+    return
   }
-  reader.readAsDataURL(file)
+
+  Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+
+  try {
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          let width = img.width; let height = img.height
+          const MAX_DIMENSION = 600 
+          
+          if (width > height && width > MAX_DIMENSION) { 
+            height *= MAX_DIMENSION / width; width = MAX_DIMENSION 
+          } else if (height > MAX_DIMENSION) { 
+            width *= MAX_DIMENSION / height; height = MAX_DIMENSION 
+          }
+          
+          canvas.width = width; canvas.height = height
+          const ctx = canvas.getContext('2d')
+          
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, width, height)
+          ctx.drawImage(img, 0, 0, width, height)
+          
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
+          
+          // 2. 壓縮後長度防呆檢查 (避免資料庫 Payload 過大)
+          if (compressedDataUrl.length > 800000) {
+            Swal.fire('處理失敗', '圖片過於複雜，壓縮後仍超過系統限制，請嘗試裁切圖片。', 'error')
+            e.target.value = ''
+            return
+          }
+
+          uploadedSignature.value = compressedDataUrl
+          Swal.close()
+        } catch (err) {
+          Swal.fire('圖片渲染失敗', '您的裝置在處理圖片時發生錯誤：' + err.message, 'error')
+        }
+      }
+      img.onerror = () => {
+        Swal.fire('讀取失敗', '無法解析該圖片檔案，檔案可能已損壞。', 'error')
+      }
+      img.src = event.target.result
+    }
+    reader.onerror = () => {
+      Swal.fire('讀取失敗', '無法讀取您手機中的檔案權限，請確認是否允許瀏覽器存取相簿。', 'error')
+    }
+    reader.readAsDataURL(file)
+  } catch (err) {
+    Swal.fire('系統錯誤', '上傳模組發生未知的錯誤：' + err.message, 'error')
+  } finally {
+    // 無論成功或失敗，都清除 input value，確保下次選同一張照片仍可觸發
+    e.target.value = ''
+  }
 }
 
 function confirmSignature() {
@@ -507,7 +549,6 @@ function confirmSignature() {
   }
   showSignatureModal.value = false
 
-  // 🌟 判斷是「獨立更新」還是「送出審核」
   if (signatureUpdateTarget.value) {
     executeSignatureUpdate(signatureUpdateTarget.value, base64Signature)
   } else if (pendingAction.value === 'student') { 
@@ -519,7 +560,6 @@ function confirmSignature() {
   }
 }
 
-// 🌟 獨立更新簽章的專屬函式
 async function executeSignatureUpdate(role, base64) {
   const field = role + '_signature'
   report.value[field] = base64
@@ -772,7 +812,6 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 強制封鎖手機深色模式自動反轉灰階文字的行為 */
 .app-wrapper { 
   background-color: #f0f2f5; 
   min-height: 100vh; 
@@ -793,7 +832,6 @@ async function handleLogout() {
 .header-section h2 { margin: 0; color: #2c3e50; font-weight: 900;}
 .user-info { font-weight: bold; color: #34495e; margin-right: 15px; }
 
-/* 模組切換頁籤 */
 .module-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; }
 .module-tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
 .module-tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
@@ -814,10 +852,8 @@ async function handleLogout() {
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
 .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
-/* 修正文字顯示不清楚：強化對比度 */
 .desc { color: #34495e !important; font-size: 14px; margin-bottom: 0; line-height: 1.6; font-weight: bold; }
 
-/* 表單樣式 */
 .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-row .form-group { flex: 1; margin-bottom: 0; }
 .form-group { margin-bottom: 15px; }
@@ -825,7 +861,6 @@ async function handleLogout() {
 .form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
 
-/* 防範手機原生瀏覽器把 disabled 的欄位字體變淺 */
 .form-input:disabled { 
   background-color: #f0f4f8 !important; 
   color: #1a252f !important; 
@@ -848,7 +883,6 @@ async function handleLogout() {
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-/* 🏆 成績標籤設計 */
 .score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; color: white; display: inline-block; min-width: 50px; }
 .score-high { background-color: #2ecc71; }
 .score-pass { background-color: #f39c12; }
@@ -859,7 +893,6 @@ async function handleLogout() {
 .score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50; }
 .score-tag .score-val { padding: 8px 12px; color: white; }
 
-/* 測驗進行中 UI */
 .exam-card { border-top: 5px solid #3498db; }
 .exam-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px; }
 .exam-warning { background: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #ffeeba; line-height: 1.6; }
@@ -870,20 +903,17 @@ async function handleLogout() {
 .opt-label:hover { border-color: #3498db; background: #f0f8ff; }
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
 
-/* 正確與錯誤標示 */
 .is-correct-preview { border-color: #2ecc71 !important; background: #f4fdf8 !important; }
 .correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 .is-wrong-preview { border-color: #e74c3c !important; background: #fdf2f2 !important; }
 .wrong-badge { background: #e74c3c; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
-/* ✍️ 簽名與印章顯示排版 */
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 30%; }
 .sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
 .unsigned-text { color: #7f8c8d !important; font-style: italic; margin-top: 10px; font-weight: bold; }
 
-/* ✍️ Modal 共用樣式 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
 .modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.2s; overflow: hidden; display: flex; flex-direction: column; }
 .signature-modal { width: 100%; max-width: 500px; }
@@ -903,7 +933,6 @@ async function handleLogout() {
 .preview-img-box { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
 .signature-preview { max-height: 100px; max-width: 100%; object-fit: contain; }
 
-/* 🖨️ PDF 列印專屬優化 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
