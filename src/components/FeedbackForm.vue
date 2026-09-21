@@ -189,16 +189,22 @@
               <span class="sign-title">學員簽章</span>
               <img v-if="report.student_signature" :src="report.student_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
+              <!-- 🌟 學員專屬修改按鈕 -->
+              <button v-if="report.student_signature && isStudent && report.status !== 'closed'" @click="updateSignature('student')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">老師簽章</span>
               <img v-if="report.teacher_signature" :src="report.teacher_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
+              <!-- 🌟 老師專屬修改按鈕 -->
+              <button v-if="report.teacher_signature && isTeacher && report.status !== 'closed'" @click="updateSignature('teacher')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">主管簽章</span>
               <img v-if="report.supervisor_signature" :src="report.supervisor_signature" class="signature-img" />
               <span v-else class="unsigned-text">(尚未簽署)</span>
+              <!-- 🌟 主管專屬修改按鈕 -->
+              <button v-if="report.supervisor_signature && isSupervisor && report.status !== 'closed'" @click="updateSignature('supervisor')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
           </div>
 
@@ -228,7 +234,6 @@
             <button :class="{ active: signatureMode === 'upload' }" @click="signatureMode = 'upload'">上傳印章/圖片</button>
           </div>
           <div v-show="signatureMode === 'draw'" class="canvas-container">
-            <!-- 加入了防呆與觸控事件修正 -->
             <canvas ref="canvasRef" class="signature-canvas"
               @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
               @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
@@ -300,18 +305,15 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-// 頁籤記憶機制
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
-// 測驗任務
 const pendingExams = ref([])
 const myExamRecords = ref([])
 const examTaking = ref(null)
 const examQuestions = ref([])
 const studentAnswers = ref({})
 
-// 報告與成績
 const reportList = ref([])
 const selectedReportId = ref('')
 const currentReportMeta = ref({})
@@ -325,7 +327,6 @@ const report = ref({
   student_signature: null, teacher_signature: null, supervisor_signature: null
 })
 
-// 自動暫存
 watch(report, (newVal) => {
   if (isStudent.value) sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
 }, { deep: true })
@@ -339,8 +340,11 @@ let isDrawing = false
 let ctx = null
 let hasDrawn = false
 
-watch([showSignatureModal, signatureMode, pendingAction], ([show, mode, action]) => {
-  sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action }))
+// 🌟 追蹤目前的動作是否純粹為「修改簽章」
+const signatureUpdateTarget = ref(null)
+
+watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget], ([show, mode, action, target]) => {
+  sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action, target }))
 })
 
 function restoreDraftState() {
@@ -364,6 +368,7 @@ function restoreDraftState() {
         showSignatureModal.value = parsedModal.show
         signatureMode.value = parsedModal.mode
         pendingAction.value = parsedModal.action
+        signatureUpdateTarget.value = parsedModal.target || null
         if (parsedModal.mode === 'draw') nextTick(() => { initCanvas() })
         Toast.fire({ icon: 'info', title: '已自動為您恢復剛剛的填寫進度與簽章畫面' })
       }
@@ -376,7 +381,18 @@ const reviewingRecord = ref(null)
 function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
 function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
 
-// === ✍️ 電子簽章邏輯 (🌟 修正畫布無法繪圖的 Bug) ===
+// === ✍️ 電子簽章邏輯 ===
+
+// 🌟 獨立的「修改簽章」觸發函式
+function updateSignature(role) {
+  signatureUpdateTarget.value = role
+  showSignatureModal.value = true
+  signatureMode.value = 'draw'
+  uploadedSignature.value = null
+  hasDrawn = false
+  setTimeout(() => { initCanvas() }, 350)
+}
+
 function initiateAction(actionRole) {
   if (actionRole === 'student') {
     if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
@@ -388,26 +404,24 @@ function initiateAction(actionRole) {
   }
 
   pendingAction.value = actionRole
+  signatureUpdateTarget.value = null // 確保不是獨立修改模式
   showSignatureModal.value = true
   signatureMode.value = 'draw'
   uploadedSignature.value = null
   hasDrawn = false
 
-  // 🌟 關鍵修正：延遲 350ms 等待 Modal 動畫展開完成，確保能抓到正確寬高，否則畫布解析度會是 0x0
   setTimeout(() => { initCanvas() }, 350)
 }
 
 function initCanvas() {
   if (canvasRef.value) {
     const rect = canvasRef.value.getBoundingClientRect()
-    // 防呆：如果抓到的寬度過小（代表可能動畫異常），給予預設合理寬高
     const finalWidth = rect.width > 50 ? rect.width : 400
     const finalHeight = rect.height > 50 ? rect.height : 200
-
     canvasRef.value.width = finalWidth
     canvasRef.value.height = finalHeight
     ctx = canvasRef.value.getContext('2d')
-    ctx.lineWidth = 4  // 稍微加粗讓筆跡更清晰
+    ctx.lineWidth = 4  
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.strokeStyle = '#000000'
@@ -415,23 +429,20 @@ function initCanvas() {
   }
 }
 
-function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
+function closeSignatureModal() { 
+  showSignatureModal.value = false
+  pendingAction.value = null 
+  signatureUpdateTarget.value = null
+}
 
-// 🌟 關鍵修正：確保觸控事件抓取座標正確
 function getMousePos(e) {
   const rect = canvasRef.value.getBoundingClientRect()
   const isTouch = e.type && e.type.startsWith('touch')
   const clientX = isTouch ? e.touches[0].clientX : e.clientX
   const clientY = isTouch ? e.touches[0].clientY : e.clientY
-  
-  // 避免分母為 0 導致座標計算成 NaN
   const scaleX = rect.width ? canvasRef.value.width / rect.width : 1
   const scaleY = rect.height ? canvasRef.value.height / rect.height : 1
-  
-  return { 
-    x: (clientX - rect.left) * scaleX, 
-    y: (clientY - rect.top) * scaleY 
-  }
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
 }
 
 function startDraw(e) { 
@@ -495,9 +506,39 @@ function confirmSignature() {
     base64Signature = uploadedSignature.value
   }
   showSignatureModal.value = false
-  if (pendingAction.value === 'student') { report.value.student_signature = base64Signature; executeStudentSubmit() } 
-  else if (pendingAction.value === 'teacher') { report.value.teacher_signature = base64Signature; executeTeacherSubmit() } 
-  else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
+
+  // 🌟 判斷是「獨立更新」還是「送出審核」
+  if (signatureUpdateTarget.value) {
+    executeSignatureUpdate(signatureUpdateTarget.value, base64Signature)
+  } else if (pendingAction.value === 'student') { 
+    report.value.student_signature = base64Signature; executeStudentSubmit() 
+  } else if (pendingAction.value === 'teacher') { 
+    report.value.teacher_signature = base64Signature; executeTeacherSubmit() 
+  } else if (pendingAction.value === 'supervisor') { 
+    report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() 
+  }
+}
+
+// 🌟 獨立更新簽章的專屬函式
+async function executeSignatureUpdate(role, base64) {
+  const field = role + '_signature'
+  report.value[field] = base64
+  signatureUpdateTarget.value = null 
+
+  if (!report.value.id) return 
+
+  Swal.fire({ title: '更新簽章中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { error } = await supabase.from('feedback_reports').update({ 
+    [field]: base64,
+    updated_at: new Date().toISOString()
+  }).eq('id', report.value.id)
+
+  if (error) {
+    Swal.fire('錯誤', '簽章更新失敗: ' + error.message, 'error')
+  } else {
+    Toast.fire({ icon: 'success', title: '簽章已成功更新' })
+    await loadReportsList(profile.value.id, profile.value.role)
+  }
 }
 
 function handleVisibilityChange() {
@@ -731,7 +772,7 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 🌟 強制封鎖手機深色模式自動反轉灰階文字的行為 */
+/* 強制封鎖手機深色模式自動反轉灰階文字的行為 */
 .app-wrapper { 
   background-color: #f0f2f5; 
   min-height: 100vh; 
@@ -744,7 +785,7 @@ async function handleLogout() {
   display: flex; 
   flex-direction: column; 
   align-items: center; 
-  color-scheme: light only; /* 破解手機 Dark Mode */
+  color-scheme: light only; 
 }
 
 .form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
@@ -773,7 +814,7 @@ async function handleLogout() {
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
 .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
-/* 🌟 修正文字顯示不清楚：強化對比度 */
+/* 修正文字顯示不清楚：強化對比度 */
 .desc { color: #34495e !important; font-size: 14px; margin-bottom: 0; line-height: 1.6; font-weight: bold; }
 
 /* 表單樣式 */
@@ -784,7 +825,7 @@ async function handleLogout() {
 .form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
 
-/* 🌟 防範手機原生瀏覽器把 disabled 的欄位字體變淺 */
+/* 防範手機原生瀏覽器把 disabled 的欄位字體變淺 */
 .form-input:disabled { 
   background-color: #f0f4f8 !important; 
   color: #1a252f !important; 
@@ -837,11 +878,9 @@ async function handleLogout() {
 
 /* ✍️ 簽名與印章顯示排版 */
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
-.sign-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 30%; }
+.sign-box { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 30%; }
 .sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
-
-/* 🌟 修正未簽署文字的對比度 */
 .unsigned-text { color: #7f8c8d !important; font-style: italic; margin-top: 10px; font-weight: bold; }
 
 /* ✍️ Modal 共用樣式 */
