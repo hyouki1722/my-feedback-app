@@ -9,7 +9,6 @@
         </div>
       </div>
 
-      <!-- 🌟 學員專屬：模組切換頁籤 -->
       <div class="module-tabs no-print" v-if="isStudent">
         <button :class="{ active: activeModule === 'exams' }" @click="activeModule = 'exams'">📝 我的測驗任務</button>
         <button :class="{ active: activeModule === 'feedback' }" @click="activeModule = 'feedback'">📘 實習心得填寫</button>
@@ -25,7 +24,11 @@
             <h3>{{ examTaking.exams?.title }}</h3>
             <span class="role-badge teacher">測驗進行中</span>
           </div>
-          <div class="exam-warning">⚠️ 請注意：作答完畢送出後即無法修改，請確認所有題目皆已填答。</div>
+          <div class="exam-warning">
+            ⚠️ <strong>測驗規定與防弊注意：</strong><br>
+            1. 作答完畢送出後即無法修改，請確認所有題目皆已填答。<br>
+            2. <span style="color: #d63031;"><strong>【嚴禁切換視窗】</strong></span>若系統偵測到您離開或切換瀏覽器分頁，測驗將被強制終止並清空進度！
+          </div>
 
           <div class="question-list">
             <div v-for="(q, index) in examQuestions" :key="q.id" class="question-item">
@@ -39,9 +42,9 @@
             </div>
           </div>
 
+          <!-- 🌟 移除暫離，僅保留交卷 -->
           <div class="action-row center" style="margin-top: 30px;">
-            <button @click="cancelExam" class="btn secondary-btn">取消暫離</button>
-            <button @click="submitExam" class="btn primary-btn" :disabled="isSaving">交卷並計算成績</button>
+            <button @click="submitExam" class="btn primary-btn" :disabled="isSaving" style="width: 100%; max-width: 300px; padding: 15px; font-size: 18px;">交卷並計算成績</button>
           </div>
         </div>
 
@@ -80,6 +83,7 @@
                   <th>測驗卷名稱</th>
                   <th>完成時間</th>
                   <th style="width: 100px; text-align: center;">得分</th>
+                  <th style="width: 120px; text-align: center;">解答與解析</th>
                 </tr>
               </thead>
               <tbody>
@@ -87,8 +91,13 @@
                   <td><strong>{{ record.exams?.title }}</strong></td>
                   <td>{{ formatDate(record.completed_at) }}</td>
                   <td style="text-align: center;"><span class="score-badge" :class="getScoreColor(record.score)">{{ record.score }} 分</span></td>
+                  <td style="text-align: center;">
+                    <!-- 🌟 檢查動態掛載的 is_answers_revealed 標記 -->
+                    <button v-if="record.is_answers_revealed" @click="openReviewModal(record)" class="btn primary-btn small-btn">🔍 檢視</button>
+                    <span v-else style="color: #95a5a6; font-size: 13px; font-weight: bold;">(待統一公開)</span>
+                  </td>
                 </tr>
-                <tr v-if="myExamRecords.length === 0"><td colspan="3" class="empty-state">尚無測驗紀錄</td></tr>
+                <tr v-if="myExamRecords.length === 0"><td colspan="4" class="empty-state">尚無測驗紀錄</td></tr>
               </tbody>
             </table>
           </div>
@@ -134,7 +143,7 @@
             </div>
           </div>
 
-          <div class="card section-card">
+          <div class="card section-card" ref="feedbackFormRef">
             <h3>🎓 學員心得反思</h3>
             <div class="form-group">
               <label>訓練類別：</label>
@@ -152,7 +161,6 @@
             
             <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
               <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
-              <!-- 改為呼叫開啓簽章函式 -->
               <button @click="initiateAction('student')" class="btn primary-btn" :disabled="isSaving">✍️ 簽章並送出審核</button>
             </div>
           </div>
@@ -198,7 +206,6 @@
             </div>
           </div>
 
-          <!-- 結案後功能區 -->
           <div class="action-row center no-print" v-if="report.status === 'closed'" style="margin-top: 30px;">
             <button @click="exportToPDF" class="btn dark-btn">📄 匯出 PDF 存查</button>
             <button v-if="isSupervisor || isAdmin" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
@@ -224,26 +231,12 @@
             <button :class="{ active: signatureMode === 'draw' }" @click="signatureMode = 'draw'">手寫簽名</button>
             <button :class="{ active: signatureMode === 'upload' }" @click="signatureMode = 'upload'">上傳印章/圖片</button>
           </div>
-
-          <!-- 手寫畫布 -->
           <div v-show="signatureMode === 'draw'" class="canvas-container">
-            <canvas 
-              ref="canvasRef" 
-              width="400" 
-              height="200" 
-              class="signature-canvas"
-              @mousedown="startDraw" 
-              @mousemove="draw" 
-              @mouseup="stopDraw" 
-              @mouseleave="stopDraw"
-              @touchstart.prevent="startDraw" 
-              @touchmove.prevent="draw" 
-              @touchend.prevent="stopDraw"
-            ></canvas>
+            <canvas ref="canvasRef" width="400" height="200" class="signature-canvas"
+              @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
+              @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
             <button @click="clearCanvas" class="btn secondary-btn small-btn clear-btn">重新簽名</button>
           </div>
-
-          <!-- 上傳圖片 -->
           <div v-show="signatureMode === 'upload'" class="upload-container">
             <input type="file" @change="handleSignatureUpload" accept="image/*" class="form-input" />
             <div v-if="uploadedSignature" class="preview-img-box">
@@ -251,10 +244,42 @@
             </div>
             <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">請上傳您的印章或簽名圖檔 (建議為白底或去背 PNG)</p>
           </div>
-
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
             <button @click="confirmSignature" class="btn primary-btn">✅ 確認簽章並送出</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 💡 學員檢視解答彈窗 Modal -->
+    <div v-if="isReviewModalOpen" class="modal-overlay" @click.self="closeReviewModal">
+      <div class="modal-content review-modal">
+        <div class="modal-header">
+          <h3>📝 測驗結果檢視：{{ reviewingRecord?.exams?.title }}</h3>
+          <button @click="closeReviewModal" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div class="exam-warning" style="background: #e8f4fd; border-color: #bce0fd; color: #2980b9;">
+            您的最終得分為：<strong style="font-size: 18px;">{{ reviewingRecord?.score }} 分</strong>
+          </div>
+          <div class="question-list">
+            <div v-for="(q, index) in reviewingRecord?.answers?.grading" :key="q.id" class="question-item">
+              <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
+              <div class="q-options">
+                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label"
+                       :class="{
+                         'is-correct-preview': opt === q.correct_answer,
+                         'is-wrong-preview': opt === q.student_answer && q.student_answer !== q.correct_answer
+                       }">
+                  <!-- 加上屬性讓它無法被更動，純顯示用 -->
+                  <input type="radio" disabled class="custom-radio" :checked="opt === q.student_answer">
+                  <span class="opt-text">{{ opt }}</span>
+                  <span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">✅ 正確解答</span>
+                  <span v-else-if="opt === q.student_answer" class="wrong-badge" style="margin-left: auto;">❌ 您的作答</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -264,7 +289,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import { formatDate } from '../utils/format'
@@ -294,6 +319,7 @@ const selectedReportId = ref('')
 const currentReportMeta = ref({})
 const dynamicCategories = ref([])
 const studentExamRecords = ref([])
+const feedbackFormRef = ref(null) 
 
 const report = ref({
   id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0],
@@ -301,17 +327,30 @@ const report = ref({
   student_signature: null, teacher_signature: null, supervisor_signature: null
 })
 
+// === 🌟 檢視解答 Modal 邏輯 ===
+const isReviewModalOpen = ref(false)
+const reviewingRecord = ref(null)
+
+function openReviewModal(record) {
+  reviewingRecord.value = record
+  isReviewModalOpen.value = true
+}
+
+function closeReviewModal() {
+  isReviewModalOpen.value = false
+  reviewingRecord.value = null
+}
+
 // === ✍️ 電子簽章面板邏輯 ===
 const showSignatureModal = ref(false)
-const signatureMode = ref('draw') // 'draw' 或 'upload'
-const pendingAction = ref(null) // 紀錄目前是誰準備要送出 ('student', 'teacher', 'supervisor')
+const signatureMode = ref('draw') 
+const pendingAction = ref(null) 
 const canvasRef = ref(null)
 const uploadedSignature = ref(null)
 let isDrawing = false
 let ctx = null
 let hasDrawn = false
 
-// 開啟簽章視窗前，先驗證表單是否填寫完整
 function initiateAction(actionRole) {
   if (actionRole === 'student') {
     if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
@@ -328,67 +367,43 @@ function initiateAction(actionRole) {
   uploadedSignature.value = null
   hasDrawn = false
 
-  // 等待 DOM 渲染 Modal 後初始化 Canvas
   nextTick(() => {
     if (canvasRef.value) {
       ctx = canvasRef.value.getContext('2d')
-      ctx.lineWidth = 3
-      ctx.lineCap = 'round'
-      ctx.strokeStyle = '#2c3e50'
+      ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#2c3e50'
       clearCanvas()
     }
   })
 }
 
-function closeSignatureModal() {
-  showSignatureModal.value = false
-  pendingAction.value = null
-}
-
-function startDraw(e) {
-  isDrawing = true
-  hasDrawn = true
-  draw(e)
-}
-
+function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
+function startDraw(e) { isDrawing = true; hasDrawn = true; draw(e) }
 function draw(e) {
   if (!isDrawing) return
   const rect = canvasRef.value.getBoundingClientRect()
-  // 支援滑鼠與觸控
   const clientX = e.clientX || (e.touches && e.touches[0].clientX)
   const clientY = e.clientY || (e.touches && e.touches[0].clientY)
-  
-  const x = clientX - rect.left
-  const y = clientY - rect.top
-  
-  ctx.lineTo(x, y)
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(x, y)
+  const x = clientX - rect.left; const y = clientY - rect.top
+  ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y)
 }
-
-function stopDraw() {
-  isDrawing = false
-  ctx.beginPath()
-}
-
-function clearCanvas() {
-  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  hasDrawn = false
-}
+function stopDraw() { isDrawing = false; ctx.beginPath() }
+function clearCanvas() { ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
 
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
+  const MAX_SIZE = 500 * 1024 
+  if (file.size > MAX_SIZE) {
+    Swal.fire('檔案過大', '請上傳 500KB 以內的印章圖檔，建議先壓縮或裁切後再上傳。', 'warning')
+    e.target.value = ''; return
+  }
   const reader = new FileReader()
   reader.onload = (e) => { uploadedSignature.value = e.target.result }
   reader.readAsDataURL(file)
 }
 
-// 確認簽章並執行送出
 function confirmSignature() {
   let base64Signature = null
-
   if (signatureMode.value === 'draw') {
     if (!hasDrawn) return Swal.fire('提示', '請在方框內手寫簽名，或切換至上傳印章。', 'warning')
     base64Signature = canvasRef.value.toDataURL('image/png')
@@ -396,76 +411,86 @@ function confirmSignature() {
     if (!uploadedSignature.value) return Swal.fire('提示', '請上傳您的印章或簽名圖檔。', 'warning')
     base64Signature = uploadedSignature.value
   }
-
   showSignatureModal.value = false
+  if (pendingAction.value === 'student') { report.value.student_signature = base64Signature; executeStudentSubmit() } 
+  else if (pendingAction.value === 'teacher') { report.value.teacher_signature = base64Signature; executeTeacherSubmit() } 
+  else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
+}
 
-  // 依照身分寫入對應欄位，並呼叫原本的送出邏輯
-  if (pendingAction.value === 'student') {
-    report.value.student_signature = base64Signature
-    executeStudentSubmit()
-  } else if (pendingAction.value === 'teacher') {
-    report.value.teacher_signature = base64Signature
-    executeTeacherSubmit()
-  } else if (pendingAction.value === 'supervisor') {
-    report.value.supervisor_signature = base64Signature
-    executeSupervisorSubmit()
+// 🚨 測驗防弊監聽器
+function handleVisibilityChange() {
+  if (document.hidden && examTaking.value) {
+    Swal.fire({ icon: 'error', title: '違規警告：畫面已切換', text: '系統偵測到您在測驗期間離開或切換了瀏覽器視窗。為維護測驗公平性，本次作答已被強制終止並清空！請重新進行測驗。', confirmButtonColor: '#e74c3c' })
+    examTaking.value = null; studentAnswers.value = {}
   }
 }
-// ===================================
 
 onMounted(async () => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
-    
     if (userProfile.role === 'student') { activeModule.value = 'exams'; await loadMyExams() }
-    await loadCategories()
-    await loadReportsList(user.id, userProfile.role)
+    await loadCategories(); await loadReportsList(user.id, userProfile.role)
   }
 })
 
+onUnmounted(() => { document.removeEventListener('visibilitychange', handleVisibilityChange) })
+
 async function loadMyExams() {
   if (!isStudent.value) return
-  const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).eq('is_completed', false).order('created_at', { ascending: false })
-  pendingExams.value = dispatches || []
+  // 抓取所有派發紀錄 (以確認各考卷的解答是否已被管理員公開)
+  const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).order('created_at', { ascending: false })
+  
+  pendingExams.value = dispatches.filter(d => !d.is_completed)
+  const completedDispatches = dispatches.filter(d => d.is_completed)
+
   const { data: records } = await supabase.from('exam_records').select('*, exams(title, type)').eq('student_id', profile.value.id).order('completed_at', { ascending: false })
-  myExamRecords.value = records || []
+
+  // 🌟 將 dispatch 中的最新 show_answers 狀態動態合併給成績紀錄
+  myExamRecords.value = records.map(r => {
+    const dispatchInfo = completedDispatches.find(d => d.exam_id === r.exam_id)
+    return {
+      ...r,
+      is_answers_revealed: dispatchInfo ? dispatchInfo.show_answers : false
+    }
+  })
 }
 
 async function startExam(task) {
   Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  // 只選取作答需要的欄位，絕不選取 correct_answer
   const { data: qData, error } = await supabase.from('questions').select('id, question_text, options').eq('exam_id', task.exam_id)
   if (error || !qData) return Swal.fire('錯誤', '題目載入失敗', 'error')
   examQuestions.value = qData; examTaking.value = task; studentAnswers.value = {}; Swal.close()
 }
 
-function cancelExam() {
-  Swal.fire({ title: '確定要暫離嗎？', text: '進度將不會保留！', icon: 'warning', showCancelButton: true }).then((r) => { if (r.isConfirmed) { examTaking.value = null; studentAnswers.value = {} } })
-}
-
 async function submitExam() {
   const answeredCount = Object.keys(studentAnswers.value).length
   const totalCount = examQuestions.value.length
-  if (answeredCount < totalCount) return Swal.fire('提示', `還有 ${totalCount - answeredCount} 題尚未作答`, 'warning')
+  
+  if (answeredCount < totalCount) return Swal.fire('提示', `您還有 ${totalCount - answeredCount} 題尚未作答，請檢查！`, 'warning')
+  
   const { isConfirmed } = await Swal.fire({ title: '確定要交卷嗎？', icon: 'question', showCancelButton: true })
   if (!isConfirmed) return
 
   Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
-  // 改由後端 Edge Function 進行批改，前端全程不接觸正確答案
   const { data, error } = await supabase.functions.invoke('submit-exam', {
     body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value }
   })
 
-  if (error || data?.error) {
-    return Swal.fire('錯誤', error?.message || data?.error, 'error')
-  }
+  if (error || data?.error) return Swal.fire('錯誤', error?.message || data?.error, 'error')
 
-  Swal.fire({ icon: 'success', title: '測驗完成！', html: `您的得分為：<strong style="font-size: 24px;">${data.score} 分</strong>` })
-  examTaking.value = null; studentAnswers.value = {}; await loadMyExams()
+  // 🌟 交卷時統一給予待公開的提示訊息
+  Swal.fire({ 
+    icon: 'success', 
+    title: '測驗完成！', 
+    html: `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>` 
+  })
+  
+  examTaking.value = null; studentAnswers.value = {}; await loadMyExams() 
 }
 
 function getScoreColor(score) {
@@ -518,7 +543,6 @@ async function selectReport() {
     report.value = { ...found }
     if (!report.value.training_end_date) report.value.training_end_date = report.value.training_date
     currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
-
     const { data: records } = await supabase.from('exam_records').select('*, exams(title)').eq('student_id', found.student_id).order('completed_at', { ascending: false })
     studentExamRecords.value = records || []
   } else createNewDraft()
@@ -528,6 +552,8 @@ function createNewDraft() {
   selectedReportId.value = ''
   report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null }
   currentReportMeta.value = {}; studentExamRecords.value = []
+  Toast.fire({ icon: 'info', title: '已準備好新表單，請填寫內容' })
+  nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
 }
 
 function getStatusText(status) {
@@ -547,7 +573,6 @@ async function saveDraft() {
   Toast.fire({ icon: 'success', title: '草稿已儲存' }); await loadReportsList(profile.value.id, profile.value.role); isSaving.value = false 
 }
 
-// 原本的 submitReport 改由 confirmSignature 呼叫
 async function executeStudentSubmit() {
   isSaving.value = true
   const payload = { 
@@ -555,7 +580,7 @@ async function executeStudentSubmit() {
     training_date: report.value.training_date, training_end_date: report.value.training_end_date,
     content: report.value.content, reflection: report.value.reflection,
     status: 'pending_teacher', updated_at: new Date().toISOString(),
-    student_signature: report.value.student_signature // 寫入簽章
+    student_signature: report.value.student_signature 
   }
   let error;
   if (report.value.id) ({ error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id))
@@ -566,28 +591,26 @@ async function executeStudentSubmit() {
   else Swal.fire('錯誤', error.message, 'error')
 }
 
-// 原本的 submitTeacherFeedback 改由 confirmSignature 呼叫
 async function executeTeacherSubmit() {
   isSaving.value = true
   await supabase.from('feedback_reports').update({ 
     teacher_feedback: report.value.teacher_feedback, 
     status: 'pending_supervisor', 
     updated_at: new Date().toISOString(),
-    teacher_signature: report.value.teacher_signature // 寫入簽章
+    teacher_signature: report.value.teacher_signature 
   }).eq('id', report.value.id)
   isSaving.value = false
   Swal.fire({ icon: 'success', title: '已移交單位主管' })
   await loadReportsList(profile.value.id, profile.value.role)
 }
 
-// 原本的 closeReport 改由 confirmSignature 呼叫
 async function executeSupervisorSubmit() {
   isSaving.value = true
   const { error } = await supabase.from('feedback_reports').update({ 
     supervisor_feedback: report.value.supervisor_feedback, 
     status: 'closed', 
     updated_at: new Date().toISOString(),
-    supervisor_signature: report.value.supervisor_signature // 寫入簽章
+    supervisor_signature: report.value.supervisor_signature 
   }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) }
@@ -677,13 +700,19 @@ async function handleLogout() { await supabase.auth.signOut() }
 /* 測驗進行中 UI */
 .exam-card { border-top: 5px solid #3498db; }
 .exam-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px; }
-.exam-warning { background: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #ffeeba; }
+.exam-warning { background: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #ffeeba; line-height: 1.6; }
 .question-item { background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e1e4e8; margin-bottom: 20px;}
 .q-title { font-size: 16px; color: #2c3e50; margin-bottom: 15px; line-height: 1.5; }
 .q-options { display: flex; flex-direction: column; gap: 10px; }
 .opt-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; padding: 10px 15px; background: white; border-radius: 6px; border: 1px solid #dcdde1; transition: 0.2s; }
 .opt-label:hover { border-color: #3498db; background: #f0f8ff; }
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
+
+/* 🌟 正確與錯誤標示 */
+.is-correct-preview { border-color: #2ecc71 !important; background: #f4fdf8 !important; }
+.correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.is-wrong-preview { border-color: #e74c3c !important; background: #fdf2f2 !important; }
+.wrong-badge { background: #e74c3c; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
 /* ✍️ 簽名與印章顯示排版 */
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
@@ -692,13 +721,16 @@ async function handleLogout() { await supabase.auth.signOut() }
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; }
 .unsigned-text { color: #bdc3c7; font-style: italic; margin-top: 10px; }
 
-/* ✍️ 簽章 Modal 樣式 */
+/* ✍️ Modal 共用樣式 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-.signature-modal { width: 100%; max-width: 500px; background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.2s; overflow: hidden; }
+.modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.2s; overflow: hidden; display: flex; flex-direction: column; }
+.signature-modal { width: 100%; max-width: 500px; }
+.review-modal { width: 100%; max-width: 850px; max-height: 90vh; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; background: #f8f9fa;}
 .modal-header h3 { margin: 0; color: #2c3e50; font-size: 18px; font-weight: 900; }
 .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d; }
-.modal-body { padding: 25px; }
+.modal-body { padding: 25px; overflow-y: auto; }
+
 .signature-tabs { display: flex; gap: 5px; margin-bottom: 15px; }
 .signature-tabs button { flex: 1; padding: 10px; border: 1px solid #dcdde1; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #7f8c8d; transition: 0.2s; }
 .signature-tabs button.active { background: #3498db; color: white; border-color: #3498db; }

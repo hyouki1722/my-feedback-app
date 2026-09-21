@@ -41,6 +41,13 @@
             </div>
           </div>
 
+          <div v-if="dispatchSelectedExam" style="margin-top: 15px; background: #f0f8ff; padding: 12px 15px; border-radius: 8px; border: 1px solid #bce0fd;">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; color: #2980b9;">
+              <input type="checkbox" v-model="dispatchShowAnswers" class="custom-checkbox">
+              ☑️ 派發時直接公開解答（建議預設取消，等全部考完再於下方統一公開）
+            </label>
+          </div>
+
           <div v-if="dispatchSelectedExam" style="margin-top: 20px;">
             <div class="card-header-flex align-center">
               <h4 style="margin: 0; color: #2c3e50;">勾選要派發的學員</h4>
@@ -78,11 +85,50 @@
             </div>
           </div>
         </div>
+
+        <!-- 🌟 新增：已派發測驗之解答統一管理面板 -->
+        <div class="admin-card" style="margin-top: 20px;">
+          <h3>🔓 已派發測驗之解答管理</h3>
+          <p class="desc">為防範提早交卷的學員洩漏答案，您可以在確認所有學員皆完成測驗後，在此處「一鍵公開」正確解答。</p>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>測驗卷名稱</th>
+                  <th style="text-align: center;">交卷進度</th>
+                  <th style="text-align: center;">目前解答狀態</th>
+                  <th style="text-align: center;">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="stat in dispatchStats" :key="stat.exam_id">
+                  <td><strong>{{ stat.title }}</strong></td>
+                  <td style="text-align: center; font-weight: bold;">
+                    <span :style="{ color: stat.completed === stat.total ? '#2ecc71' : '#e67e22' }">
+                      {{ stat.completed }} / {{ stat.total }}
+                    </span>
+                  </td>
+                  <td style="text-align: center;">
+                    <span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span>
+                    <span v-else style="color: #e74c3c; font-weight: bold;">🔒 未公開</span>
+                  </td>
+                  <td style="text-align: center;">
+                    <button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn">一鍵公開解答</button>
+                    <button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn">關閉解答</button>
+                  </td>
+                </tr>
+                <tr v-if="dispatchStats.length === 0">
+                  <td colspan="4" class="empty-state">尚無派發紀錄</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- 📝 測驗題庫管理區塊 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
-        <div class="admin-card" v-if="previewQuestions.length === 0">
+        <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
           <p class="desc">支援匯入標準格式之 .docx 測驗卷，系統將自動解析題目與答案。</p>
           <div style="margin-top: 15px;">
@@ -93,9 +139,9 @@
 
         <div class="admin-card preview-card" v-else>
           <div class="card-header-flex align-center">
-            <h3>👁️ 測驗卷預覽與校對</h3>
+            <h3>{{ editingExamId ? '✏️ 編輯測驗卷與校對' : '👁️ 測驗卷預覽與校對' }}</h3>
             <div class="action-row" style="margin-top: 0;">
-              <button @click="cancelPreview" class="btn danger-btn small-btn">取消匯入</button>
+              <button @click="cancelPreview" class="btn danger-btn small-btn">{{ editingExamId ? '取消編輯' : '取消匯入' }}</button>
               <button @click="confirmSaveExam" class="btn primary-btn small-btn">✅ 確認無誤並儲存</button>
             </div>
           </div>
@@ -131,6 +177,9 @@
                 </li>
               </ul>
             </div>
+            <div class="action-row" style="justify-content: center; margin-top: 10px;">
+              <button @click="addNewQuestion" class="btn success-btn small-btn" style="width: 100%; max-width: 300px;">➕ 手動新增一題</button>
+            </div>
           </div>
         </div>
 
@@ -143,7 +192,7 @@
                   <th>測驗卷名稱</th>
                   <th>測驗類型</th>
                   <th>建立時間</th>
-                  <th style="width: 140px; text-align: center;">操作</th>
+                  <th style="width: 180px; text-align: center;">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,7 +201,8 @@
                   <td><span class="role-badge" :class="exam.type === 'pre_test' ? 'student' : 'teacher'">{{ exam.type === 'pre_test' ? '課前測驗' : '課後測驗' }}</span></td>
                   <td>{{ formatDate(exam.created_at) }}</td>
                   <td style="text-align: center; white-space: nowrap;">
-                    <button @click="viewExam(exam)" class="btn primary-btn small-btn" style="margin-right: 5px;">檢視</button>
+                    <button @click="viewExam(exam)" class="btn primary-btn small-btn" style="margin-right: 5px;">預覽</button>
+                    <button @click="editExam(exam)" class="btn success-btn small-btn" style="margin-right: 5px;">編輯</button>
                     <button @click="deleteExam(exam.id, exam.title)" class="btn danger-btn small-btn">刪除</button>
                   </td>
                 </tr>
@@ -379,7 +429,7 @@
           </div>
           <div class="demo-signatures">
             <div class="sign-box">學員簽章：<span>(系統已認證)</span></div>
-            <div class="sign-box">老師簽章：<span>(系統已認證)</span></div>
+            <div class="sign-box">老師簽章：<span>(系统已認證)</span></div>
             <div class="sign-box">主管簽章：<span>(系統已認證)</span></div>
           </div>
         </div>
@@ -442,6 +492,7 @@ const dispatchRecords = ref([])
 const dispatchSelectedExam = ref('')
 const dispatchSelectedUnit = ref('all')
 const dispatchSelectedStudents = ref([])
+const dispatchShowAnswers = ref(false) 
 
 const uniqueUnits = computed(() => {
   const units = students.value.map(s => s.unit).filter(u => u)
@@ -487,7 +538,8 @@ async function submitDispatch() {
   Swal.fire({ title: '派發中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const payload = dispatchSelectedStudents.value.map(sId => ({
     exam_id: dispatchSelectedExam.value,
-    student_id: sId
+    student_id: sId,
+    show_answers: dispatchShowAnswers.value 
   }))
 
   const { error } = await supabase.from('exam_dispatch').insert(payload)
@@ -500,13 +552,47 @@ async function submitDispatch() {
   }
 }
 
-// === 📝 測驗題庫解析與預覽邏輯 (✅ 已強化智慧解析) ===
+// === 🌟 新增：已派發測驗之解答管理計算屬性與開關 ===
+const dispatchStats = computed(() => {
+  const stats = {}
+  dispatchRecords.value.forEach(r => {
+    if (!stats[r.exam_id]) {
+      const exam = examList.value.find(e => e.id === r.exam_id)
+      stats[r.exam_id] = {
+        exam_id: r.exam_id,
+        title: exam ? exam.title : '未知測驗',
+        total: 0,
+        completed: 0,
+        show_answers: r.show_answers 
+      }
+    }
+    stats[r.exam_id].total++
+    if (r.is_completed) stats[r.exam_id].completed++
+    if (r.show_answers) stats[r.exam_id].show_answers = true
+  })
+  return Object.values(stats)
+})
+
+async function toggleAnswersVisibility(examId, currentStatus) {
+  const newStatus = !currentStatus
+  Swal.fire({ title: '更新中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { error } = await supabase.from('exam_dispatch').update({ show_answers: newStatus }).eq('exam_id', examId)
+  if (error) {
+    Swal.fire('錯誤', error.message, 'error')
+  } else {
+    Toast.fire({ icon: 'success', title: newStatus ? '已全面公開解答' : '已關閉解答' })
+    await loadDispatches()
+  }
+}
+
+// === 📝 測驗題庫解析、預覽與編輯邏輯 ===
 const examList = ref([])
 const previewQuestions = ref([])
 const previewExamTitle = ref('')
 const previewExamType = ref('pre_test')
 const shuffleQuestionsMode = ref(true)
 const shuffleOptionsMode = ref(true)
+const editingExamId = ref(null) 
 
 const isViewingModalOpen = ref(false)
 const viewingExam = ref(null)
@@ -527,7 +613,29 @@ function shuffleArray(array) {
   return array;
 }
 
-// 🔥 核心：智慧解析 Word 題庫
+function addNewQuestion() {
+  previewQuestions.value.push({
+    text: '請輸入新題目內容...',
+    options: ['選項A', '選項B', '選項C', '選項D'],
+    correct: '選項A'
+  })
+}
+
+async function editExam(exam) {
+  Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id)
+  if (error) return Swal.fire('錯誤', '題目載入失敗', 'error')
+  
+  editingExamId.value = exam.id
+  previewExamTitle.value = exam.title
+  previewExamType.value = exam.type
+  previewQuestions.value = data.map(q => ({
+    id: q.id, text: q.question_text, options: q.options, correct: q.correct_answer
+  }))
+  Swal.close()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 async function handleExamUpload(event) {
   const file = event.target.files[0]
   if (!file) return
@@ -541,34 +649,23 @@ async function handleExamUpload(event) {
       const arrayBuffer = e.target.result
       const result = await mammoth.extractRawText({ arrayBuffer })
       const text = result.value
-
       previewExamTitle.value = file.name.replace('.docx', '')
+      editingExamId.value = null 
 
-      // 1. 🔍 智慧尋址：自動偵測解答區塊 (支援多種常見標題)
       let answerSection = ''
       let questionSection = text
       const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答']
-      
       let foundIndex = -1
       for (const kw of answerKeywords) {
         const idx = text.lastIndexOf(kw)
-        // 確保關鍵字出現在文章後半部，避免誤判到標題
-        if (idx !== -1 && idx > text.length / 3) {
-          foundIndex = idx
-          break
-        }
+        if (idx !== -1 && idx > text.length / 3) { foundIndex = idx; break; }
       }
 
-      if (foundIndex === -1) {
-        throw new Error('找不到解答區塊。請確保文件後半部包含「標準解答」或「參考答案」等關鍵字。')
-      }
-
+      if (foundIndex === -1) throw new Error('找不到解答區塊。請確保文件後半部包含「標準解答」或「參考答案」等關鍵字。')
       answerSection = text.substring(foundIndex)
       questionSection = text.substring(0, foundIndex)
 
-      // 2. 🎯 智慧解析解答
       const answersMap = {}
-      // 支援格式 A: "第 01 題： (B)" 或 "1: A"
       const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]\s*\(*([A-D○×])\)*/g
       let matchAns
       let useStrict = false
@@ -576,18 +673,12 @@ async function handleExamUpload(event) {
         answersMap[parseInt(matchAns[1])] = matchAns[2]
         useStrict = true
       }
-
-      // 支援格式 B: 舊版純字母連續排列 (A B C D)
       if (!useStrict) {
         const pureAnswers = answerSection.match(/[○×ABCD]/g)
-        if (pureAnswers) {
-          pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans })
-        }
+        if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans })
       }
 
-      // 3. 📝 智慧解析題目與選項
       const questions = []
-      // 支援題號格式: "1. ", "( ) 1. ", "【第01題】1. "
       const qRegex = /(?:^|\n|】|）|\s)0*(\d+)\.\s+(.*?)(?=(?:^|\n|】|）|\s)0*\d+\.\s+|$)/gs
       let matchQ
 
@@ -595,95 +686,83 @@ async function handleExamUpload(event) {
         const qNum = parseInt(matchQ[1])
         let rawText = matchQ[2].trim()
         let options = [], questionText = '', correctText = ''
-        
-        // 若該題查無解答，預設給 A 防呆
         const ansKey = answersMap[qNum] || 'A'
-
-        // 判斷是否為選擇題：找 (A) 或 A.
         const idxA = rawText.search(/\s*(?:\(A\)|A\.)\s*/)
         
         if (idxA !== -1) {
           questionText = rawText.substring(0, idxA).trim()
           const optsPart = rawText.substring(idxA)
-          
-          // 切割出 4 個選項
           const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.)\s*/).filter(s => s.trim() !== '')
-          if (optMatches.length >= 4) {
-             options = optMatches.slice(0, 4).map(s => s.trim())
-          } else {
-             options = optMatches
-             while (options.length < 4) options.push('選項缺失')
-          }
-          
+          if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim())
+          else { options = optMatches; while (options.length < 4) options.push('選項缺失') }
           const ansIndex = ansKey === 'A' ? 0 : ansKey === 'B' ? 1 : ansKey === 'C' ? 2 : ansKey === 'D' ? 3 : 0
           correctText = options[ansIndex] || options[0]
-
         } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) {
-          // 處理是非題
           const idxO = rawText.search(/[○×□]/)
-          if (idxO !== -1 && idxO < rawText.length - 10) {
-             questionText = rawText.substring(0, idxO).trim()
-          } else {
-             questionText = rawText.replace(/[○×□]/g, '').trim()
-          }
-          options = ['○', '×']
-          correctText = ansKey
+          if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim()
+          else questionText = rawText.replace(/[○×□]/g, '').trim()
+          options = ['○', '×']; correctText = ansKey
         } else {
-          // 異常格式容錯
-          questionText = rawText.trim()
-          options = ['(未解析出選項)', '(未解析出選項)']
-          correctText = options[0]
+          questionText = rawText.trim(); options = ['(未解析出選項)', '(未解析出選項)']; correctText = options[0]
         }
         
-        // 排除解析到非題目的雜訊 (長度過短通常是誤判)
-        if (questionText.length > 2) {
-          questions.push({
-            text: questionText.replace(/^[(\s]+/, ''),
-            options: options,
-            correct: correctText
-          })
-        }
+        if (questionText.length > 2) questions.push({ text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText })
       }
 
-      if (questions.length === 0) {
-        throw new Error('未能自動解析出題目，請確保題目編號為「1. 」格式，選項為「(A)」格式。')
-      }
-
-      previewQuestions.value = questions
-      Swal.close()
-    } catch (err) {
-      Swal.fire('解析失敗', err.message, 'error')
-    } finally {
-      event.target.value = ''
-    }
+      if (questions.length === 0) throw new Error('未能自動解析出題目，請確保題目編號為「1. 」格式，選項為「(A)」格式。')
+      previewQuestions.value = questions; Swal.close()
+    } catch (err) { Swal.fire('解析失敗', err.message, 'error') } finally { event.target.value = '' }
   }
   reader.readAsArrayBuffer(file)
 }
 
 function removePreviewQuestion(index) { previewQuestions.value.splice(index, 1) }
-function cancelPreview() { previewQuestions.value = [] }
+
+function cancelPreview() { 
+  previewQuestions.value = [] 
+  editingExamId.value = null
+  previewExamTitle.value = ''
+}
 
 async function confirmSaveExam() {
   if (!previewExamTitle.value.trim()) return Swal.fire('提示', '名稱不能為空', 'warning')
+  if (previewQuestions.value.length === 0) return Swal.fire('提示', '考卷內不能沒有題目！', 'warning')
+  
   Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
   try {
     let finalQuestions = JSON.parse(JSON.stringify(previewQuestions.value))
     if (shuffleOptionsMode.value) finalQuestions.forEach(q => { if (q.options.length > 2) q.options = shuffleArray(q.options) })
     if (shuffleQuestionsMode.value) finalQuestions = shuffleArray(finalQuestions)
+    let targetExamId = editingExamId.value
 
-    const { data: examData, error: examErr } = await supabase.from('exams').insert([{ title: previewExamTitle.value, type: previewExamType.value }]).select()
-    if (examErr) throw examErr
+    if (targetExamId) {
+      const { error: examErr } = await supabase.from('exams').update({ title: previewExamTitle.value, type: previewExamType.value }).eq('id', targetExamId)
+      if (examErr) throw examErr
 
-    const examId = examData[0].id
-    const qPayload = finalQuestions.map(q => ({ exam_id: examId, question_text: q.text, options: q.options, correct_answer: q.correct }))
-    
-    const { error: qErr } = await supabase.from('questions').insert(qPayload)
-    if (qErr) throw qErr
+      const { data: existingQ } = await supabase.from('questions').select('id').eq('exam_id', targetExamId)
+      const existingIds = existingQ.map(q => q.id)
+      const keptIds = finalQuestions.map(q => q.id).filter(id => id)
+      const idsToDelete = existingIds.filter(id => !keptIds.includes(id))
+      
+      if (idsToDelete.length > 0) await supabase.from('questions').delete().in('id', idsToDelete)
 
-    Swal.fire('成功', `已成功寫入題庫，共 ${finalQuestions.length} 題！`, 'success')
-    previewQuestions.value = []
-    await loadExams()
+      const questionsToUpdate = finalQuestions.filter(q => q.id).map(q => ({ id: q.id, exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct }))
+      const questionsToInsert = finalQuestions.filter(q => !q.id).map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct }))
+
+      if (questionsToUpdate.length > 0) { const { error: updErr } = await supabase.from('questions').upsert(questionsToUpdate); if (updErr) throw updErr }
+      if (questionsToInsert.length > 0) { const { error: insErr } = await supabase.from('questions').insert(questionsToInsert); if (insErr) throw insErr }
+    } else {
+      const { data: examData, error: examErr } = await supabase.from('exams').insert([{ title: previewExamTitle.value, type: previewExamType.value }]).select()
+      if (examErr) throw examErr
+      targetExamId = examData[0].id
+      const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct }))
+      const { error: qErr } = await supabase.from('questions').insert(qPayload)
+      if (qErr) throw qErr
+    }
+
+    Swal.fire('成功', `已成功儲存題庫，共 ${finalQuestions.length} 題！`, 'success')
+    previewQuestions.value = []; editingExamId.value = null; previewExamTitle.value = ''; await loadExams()
   } catch (err) { Swal.fire('寫入失敗', err.message, 'error') }
 }
 
@@ -699,23 +778,12 @@ async function deleteExam(id, title) {
 async function viewExam(exam) {
   Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id)
-  if (error) {
-    Swal.fire('錯誤', '題目載入失敗', 'error')
-    return
-  }
-  viewingExam.value = exam
-  viewingQuestions.value = data
-  isViewingModalOpen.value = true
+  if (error) { Swal.fire('錯誤', '題目載入失敗', 'error'); return }
+  viewingExam.value = exam; viewingQuestions.value = data; isViewingModalOpen.value = true
   Swal.close()
 }
+function closeViewModal() { isViewingModalOpen.value = false; viewingExam.value = null; viewingQuestions.value = [] }
 
-function closeViewModal() {
-  isViewingModalOpen.value = false
-  viewingExam.value = null
-  viewingQuestions.value = []
-}
-
-// === 其他系統邏輯 ===
 function exportDemoToPDF() { window.print() }
 const dynamicCategories = ref([]); const newCategoryName = ref('')
 async function loadCategories() {
@@ -748,9 +816,7 @@ function toggleSelectAllOnPage() {
   if (isAllSelectedOnPage.value) {
     const currentIds = paginatedUsers.value.map(u => u.id)
     selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id))
-  } else {
-    paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.value.push(user.id) })
-  }
+  } else { paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.value.push(user.id) }) }
 }
 
 async function batchDeleteUsers() {
@@ -770,11 +836,8 @@ async function batchDeleteUsers() {
     }))
   }
 
-  if (results.fail === 0) {
-    Swal.fire({ icon: 'success', title: '刪除成功', text: `已成功移除 ${results.success} 名人員`, timer: 1500, showConfirmButton: false })
-  } else {
-    Swal.fire({ icon: 'warning', title: '部分失敗', text: `成功: ${results.success}，失敗: ${results.fail}` })
-  }
+  if (results.fail === 0) { Swal.fire({ icon: 'success', title: '刪除成功', text: `已成功移除 ${results.success} 名人員`, timer: 1500, showConfirmButton: false }) } 
+  else { Swal.fire({ icon: 'warning', title: '部分失敗', text: `成功: ${results.success}，失敗: ${results.fail}` }) }
 
   selectedUserIds.value = []; await loadUsers()
   if (currentPage.value > totalPages.value && totalPages.value > 0) currentPage.value = totalPages.value
@@ -816,8 +879,7 @@ async function createUser() {
     const { data, error } = await supabase.functions.invoke('create-user', { body: newUser.value })
     if (error || (data && data.error)) throw new Error(error?.message || data?.error)
     Swal.fire({ icon: 'success', title: '建立成功', timer: 1500, showConfirmButton: false })
-    newUser.value = { email: '', password: '', name: '', role: 'student', unit: '' }
-    await loadUsers()
+    newUser.value = { email: '', password: '', name: '', role: 'student', unit: '' }; await loadUsers()
   } catch (err) { Swal.fire({ icon: 'error', title: '建立失敗', text: err.message }) } 
   finally { isCreating.value = false }
 }
@@ -840,34 +902,16 @@ async function editUser(user) {
         <input id="edit-unit" class="swal2-input" value="${currentUnit}" placeholder="例如：5B病房 (留空則為未指定)" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;">
       </div>
     `,
-    showCancelButton: true,
-    confirmButtonColor: '#3498db',
-    cancelButtonColor: '#7f8c8d',
-    confirmButtonText: '儲存修改',
-    cancelButtonText: '取消',
-    preConfirm: () => {
-      return {
-        role: document.getElementById('edit-role').value,
-        unit: document.getElementById('edit-unit').value.trim()
-      }
-    }
+    showCancelButton: true, confirmButtonColor: '#3498db', cancelButtonColor: '#7f8c8d', confirmButtonText: '儲存修改', cancelButtonText: '取消',
+    preConfirm: () => { return { role: document.getElementById('edit-role').value, unit: document.getElementById('edit-unit').value.trim() } }
   });
 
   if (formValues) {
     Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
     const finalUnit = formValues.unit ? formValues.unit : '未指定單位';
-    const { error } = await supabase.rpc('update_user_admin', { 
-      target_user_id: user.id,
-      new_role: formValues.role,
-      new_unit: finalUnit
-    });
-
-    if (error) {
-      Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error');
-    } else {
-      Toast.fire({ icon: 'success', title: '資料修改成功' });
-      await loadUsers();
-    }
+    const { error } = await supabase.rpc('update_user_admin', { target_user_id: user.id, new_role: formValues.role, new_unit: finalUnit });
+    if (error) { Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error'); } 
+    else { Toast.fire({ icon: 'success', title: '資料修改成功' }); await loadUsers(); }
   }
 }
 
@@ -907,9 +951,7 @@ async function handleFileUpload(event) {
           const role = ROLE_MAP[roleText]
           const unit = row['實習單位']?.toString().trim() || ''
           if (!role) { results.fail++; return; }
-          const { error } = await supabase.functions.invoke('create-user', {
-            body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role, unit }
-          })
+          const { error } = await supabase.functions.invoke('create-user', { body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role, unit } })
           error ? results.fail++ : results.success++
         }))
       }
@@ -1016,7 +1058,7 @@ async function handleLogout() { await supabase.auth.signOut() }
 .opt-label.is-correct-preview { border-color: #2ecc71; background: #f4fdf8; }
 .opt-text { font-size: 15px; color: #34495e; line-height: 1.4; flex: 1; }
 
-/* 測驗成績標籤 (與 FeedbackForm 一致的樣式) */
+/* 測驗成績標籤 */
 .score-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; align-items: center; border: 1px solid #dcdde1; border-radius: 6px; overflow: hidden; font-weight: bold; background: white;}
 .score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50; }
