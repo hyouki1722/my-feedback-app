@@ -523,7 +523,6 @@ async function loadReportsList(userId, role) {
   }
 
   if (reportList.value.length > 0) {
-    // 🌟 修正：確保重整時不要強制洗掉目前已選取的草稿
     const exists = reportList.value.some(r => r.id === selectedReportId.value)
     if (!exists) {
       let autoSelect = reportList.value[0]
@@ -567,14 +566,19 @@ function getRoleName(role) {
   return map[role] || role
 }
 
-// 🌟 修正：儲存草稿時新增錯誤捕捉與選單綁定機制
+// 🌟 修正：儲存草稿加入嚴謹防呆與錯誤捕捉
 async function saveDraft() {
+  if (!report.value.training_category) {
+    return Swal.fire('提示', '儲存草稿前，請先在上方選擇「訓練類別」！', 'warning')
+  }
+
   isSaving.value = true
+  
   const payload = { 
     student_id: profile.value.id, 
-    training_category: report.value.training_category || '', 
-    training_date: report.value.training_date, 
-    training_end_date: report.value.training_end_date, 
+    training_category: report.value.training_category, 
+    training_date: report.value.training_date || new Date().toISOString().split('T')[0], 
+    training_end_date: report.value.training_end_date || new Date().toISOString().split('T')[0], 
     content: report.value.content || '', 
     reflection: report.value.reflection || '', 
     status: 'draft', 
@@ -591,17 +595,17 @@ async function saveDraft() {
     dbError = error
     if (data && data.length > 0) {
       report.value.id = data[0].id
-      selectedReportId.value = data[0].id // 綁定新產生的 ID
+      selectedReportId.value = data[0].id // 綁定新草稿
     }
   }
-  
+
   isSaving.value = false 
   
-  if (dbError) {
-    Swal.fire('儲存失敗', dbError.message, 'error')
-  } else {
+  if (dbError) { 
+    Swal.fire('儲存失敗', '資料庫回傳錯誤：' + dbError.message + '<br>請確認是否所有必填欄位都已正確填寫。', 'error') 
+  } else { 
     Toast.fire({ icon: 'success', title: '草稿已確實儲存' })
-    await loadReportsList(profile.value.id, profile.value.role)
+    await loadReportsList(profile.value.id, profile.value.role) 
   }
 }
 
