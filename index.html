@@ -7,16 +7,39 @@
     <link rel="icon" type="image/jpeg" href="/Internship_Learning_System.jpg" />
     <link rel="apple-touch-icon" href="/Internship_Learning_System.jpg" />
     
-    <!-- 確保在手機裝置上能完美呈現且比例正確 (已移除 user-scalable=no 友善無障礙閱讀) -->
+    <!-- 確保在手機裝置上能完美呈現且比例正確 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- 網站標題 -->
     <title>實習生學習系統</title>
+
+    <!-- 🚀 自動跳脫 LINE 內部瀏覽器腳本 -->
+    <script>
+      (function() {
+        // 取得使用者的瀏覽器 User-Agent 資訊
+        var ua = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // 偵測是否包含 "Line" 關鍵字 (代表在 LINE 內建瀏覽器中)
+        if (ua.indexOf("Line") > -1) {
+          var currentUrl = window.location.href;
+          
+          // 確保網址還沒有加上跳脫參數，避免陷入無限重新整理的迴圈
+          if (currentUrl.indexOf('openExternalBrowser=1') === -1) {
+            // 判斷原本的網址是否已經有參數 (?)，來決定要加 & 還是 ?
+            var separator = currentUrl.indexOf('?') > -1 ? '&' : '?';
+            
+            // 強制將網址加上 openExternalBrowser=1 並重新導向
+            // LINE 偵測到這個參數後，就會立刻呼叫手機系統的外部瀏覽器
+            window.location.replace(currentUrl + separator + 'openExternalBrowser=1');
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
     
-    <!-- 🟢 已確實將進入點修正為 TypeScript 專案的 main.ts -->
+    <!-- 進入點 -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
