@@ -149,11 +149,27 @@
               </select>
             </div>
             <div class="form-row">
-              <div class="form-group"><label>實習/訓練開始日期：</label><input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required /></div>
-              <div class="form-group"><label>實習/訓練結束日期：</label><input type="date" v-model="report.training_end_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required /></div>
+              <div class="form-group">
+                <label>實習/訓練開始日期：</label>
+                <input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required />
+              </div>
+              <div class="form-group">
+                <label>實習/訓練結束日期：</label>
+                <input type="date" v-model="report.training_end_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required />
+              </div>
             </div>
-            <div class="form-group"><label>學習內容重點摘要：</label><textarea v-model="report.content" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea></div>
-            <div class="form-group"><label>自我反思與心得：</label><textarea v-model="report.reflection" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input" required></textarea></div>
+            
+            <!-- 🌟 列印完美優化：畫面用 textarea，列印用自動延伸的 div -->
+            <div class="form-group">
+              <label>學習內容重點摘要：</label>
+              <textarea v-model="report.content" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
+              <div class="print-text-box">{{ report.content || '無' }}</div>
+            </div>
+            <div class="form-group">
+              <label>自我反思與心得：</label>
+              <textarea v-model="report.reflection" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
+              <div class="print-text-box">{{ report.reflection || '無' }}</div>
+            </div>
             
             <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
               <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
@@ -164,7 +180,8 @@
           <div class="card section-card" v-if="report.status !== 'draft'">
             <h3>👩‍⚕️ 臨床指導老師回饋</h3>
             <div class="form-group">
-              <textarea v-model="report.teacher_feedback" rows="5" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input"></textarea>
+              <textarea v-model="report.teacher_feedback" rows="5" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input hide-on-print"></textarea>
+              <div class="print-text-box">{{ report.teacher_feedback || '無' }}</div>
             </div>
             <div class="action-row no-print" v-if="isTeacher && report.status === 'pending_teacher'">
               <button @click="returnToStudent" class="btn danger-btn" :disabled="isSaving">退回修改</button>
@@ -175,7 +192,8 @@
           <div class="card section-card" v-if="report.status === 'pending_supervisor' || report.status === 'closed'">
             <h3>🏥 單位主管總評</h3>
             <div class="form-group">
-              <textarea v-model="report.supervisor_feedback" rows="5" placeholder="請給予具體之臨床專業講評與期勉..." :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input"></textarea>
+              <textarea v-model="report.supervisor_feedback" rows="5" placeholder="請給予具體之臨床專業講評與期勉..." :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input hide-on-print"></textarea>
+              <div class="print-text-box">{{ report.supervisor_feedback || '無' }}</div>
             </div>
             <div class="action-row no-print" v-if="isSupervisor && report.status === 'pending_supervisor'">
               <button @click="returnToTeacher" class="btn danger-btn" :disabled="isSaving">退回給老師</button>
@@ -183,27 +201,34 @@
             </div>
           </div>
 
-          <!-- 🏆 電子簽章顯示區域 -->
+          <!-- 🏆 電子簽章與時間顯示區域 -->
           <div class="demo-signatures" v-if="report.id">
             <div class="sign-box">
               <span class="sign-title">學員簽章</span>
-              <img v-if="report.student_signature" :src="report.student_signature" class="signature-img" />
+              <div v-if="report.student_signature" class="sign-content">
+                <img :src="report.student_signature" class="signature-img" />
+                <!-- 🌟 格式化並顯示簽章時間 -->
+                <div class="sign-timestamp">{{ formatDateTime(report.student_sign_date) }}</div>
+              </div>
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 學員專屬修改按鈕 -->
               <button v-if="report.student_signature && isStudent && report.status !== 'closed'" @click="updateSignature('student')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">老師簽章</span>
-              <img v-if="report.teacher_signature" :src="report.teacher_signature" class="signature-img" />
+              <div v-if="report.teacher_signature" class="sign-content">
+                <img :src="report.teacher_signature" class="signature-img" />
+                <div class="sign-timestamp">{{ formatDateTime(report.teacher_sign_date) }}</div>
+              </div>
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 老師專屬修改按鈕 -->
               <button v-if="report.teacher_signature && isTeacher && report.status !== 'closed'" @click="updateSignature('teacher')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
             <div class="sign-box">
               <span class="sign-title">主管簽章</span>
-              <img v-if="report.supervisor_signature" :src="report.supervisor_signature" class="signature-img" />
+              <div v-if="report.supervisor_signature" class="sign-content">
+                <img :src="report.supervisor_signature" class="signature-img" />
+                <div class="sign-timestamp">{{ formatDateTime(report.supervisor_sign_date) }}</div>
+              </div>
               <span v-else class="unsigned-text">(尚未簽署)</span>
-              <!-- 主管專屬修改按鈕 -->
               <button v-if="report.supervisor_signature && isSupervisor && report.status !== 'closed'" @click="updateSignature('supervisor')" class="btn secondary-btn small-btn no-print" style="margin-top: 8px;">✏️ 修改</button>
             </div>
           </div>
@@ -240,7 +265,6 @@
             <button @click="clearCanvas" class="btn secondary-btn small-btn clear-btn">重新簽名</button>
           </div>
           <div v-show="signatureMode === 'upload'" class="upload-container">
-            <!-- 限制僅能上傳圖片 -->
             <input type="file" @change="handleSignatureUpload" accept="image/jpeg, image/png, image/webp" class="form-input" />
             <div v-if="uploadedSignature" class="preview-img-box">
               <img :src="uploadedSignature" class="signature-preview" />
@@ -249,7 +273,7 @@
           </div>
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
-            <button @click="confirmSignature" class="btn primary-btn">✅ 確認簽章並送出</button>
+            <button @click="confirmSignature" class="btn primary-btn">✅ 確認簽章並儲存</button>
           </div>
         </div>
       </div>
@@ -294,7 +318,6 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
-import { formatDate } from '../utils/format'
 import { Toast } from '../utils/toast'
 import { checkAndEnforcePasswordChange } from '../utils/auth'
 
@@ -306,18 +329,15 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-// 頁籤記憶機制
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
-// 測驗任務
 const pendingExams = ref([])
 const myExamRecords = ref([])
 const examTaking = ref(null)
 const examQuestions = ref([])
 const studentAnswers = ref({})
 
-// 報告與成績
 const reportList = ref([])
 const selectedReportId = ref('')
 const currentReportMeta = ref({})
@@ -328,7 +348,8 @@ const feedbackFormRef = ref(null)
 const report = ref({
   id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0],
   content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft',
-  student_signature: null, teacher_signature: null, supervisor_signature: null
+  student_signature: null, teacher_signature: null, supervisor_signature: null,
+  student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null
 })
 
 watch(report, (newVal) => {
@@ -343,12 +364,25 @@ const uploadedSignature = ref(null)
 let isDrawing = false
 let ctx = null
 let hasDrawn = false
-
 const signatureUpdateTarget = ref(null)
 
 watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget], ([show, mode, action, target]) => {
   sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action, target }))
 })
+
+// 🌟 格式化時間：支援舊簽章防呆顯示
+function formatDateTime(isoString) {
+  if (!isoString) return '(無時間紀錄)'
+  const d = new Date(isoString)
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// 通用日期格式化 (無時間)
+function formatDate(isoString) {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+}
 
 function restoreDraftState() {
   if (!isStudent.value) return 
@@ -469,12 +503,10 @@ function clearCanvas() {
   hasDrawn = false 
 }
 
-// 🌟 強化版自動壓縮功能與嚴格錯誤捕捉
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
 
-  // 1. 確保上傳的是圖片檔案
   if (!file.type.startsWith('image/')) {
     Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳 JPG 或 PNG 圖檔。', 'error')
     e.target.value = ''
@@ -508,7 +540,6 @@ function handleSignatureUpload(e) {
           
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
           
-          // 2. 壓縮後長度防呆檢查 (避免資料庫 Payload 過大)
           if (compressedDataUrl.length > 800000) {
             Swal.fire('處理失敗', '圖片過於複雜，壓縮後仍超過系統限制，請嘗試裁切圖片。', 'error')
             e.target.value = ''
@@ -521,19 +552,14 @@ function handleSignatureUpload(e) {
           Swal.fire('圖片渲染失敗', '您的裝置在處理圖片時發生錯誤：' + err.message, 'error')
         }
       }
-      img.onerror = () => {
-        Swal.fire('讀取失敗', '無法解析該圖片檔案，檔案可能已損壞。', 'error')
-      }
+      img.onerror = () => { Swal.fire('讀取失敗', '無法解析該圖片檔案，檔案可能已損壞。', 'error') }
       img.src = event.target.result
     }
-    reader.onerror = () => {
-      Swal.fire('讀取失敗', '無法讀取您手機中的檔案權限，請確認是否允許瀏覽器存取相簿。', 'error')
-    }
+    reader.onerror = () => { Swal.fire('讀取失敗', '無法讀取您手機中的檔案權限，請確認是否允許瀏覽器存取相簿。', 'error') }
     reader.readAsDataURL(file)
   } catch (err) {
     Swal.fire('系統錯誤', '上傳模組發生未知的錯誤：' + err.message, 'error')
   } finally {
-    // 無論成功或失敗，都清除 input value，確保下次選同一張照片仍可觸發
     e.target.value = ''
   }
 }
@@ -562,7 +588,11 @@ function confirmSignature() {
 
 async function executeSignatureUpdate(role, base64) {
   const field = role + '_signature'
+  const dateField = role + '_sign_date'
+  const nowISO = new Date().toISOString()
+  
   report.value[field] = base64
+  report.value[dateField] = nowISO
   signatureUpdateTarget.value = null 
 
   if (!report.value.id) return 
@@ -570,13 +600,14 @@ async function executeSignatureUpdate(role, base64) {
   Swal.fire({ title: '更新簽章中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const { error } = await supabase.from('feedback_reports').update({ 
     [field]: base64,
-    updated_at: new Date().toISOString()
+    [dateField]: nowISO,
+    updated_at: nowISO
   }).eq('id', report.value.id)
 
   if (error) {
     Swal.fire('錯誤', '簽章更新失敗: ' + error.message, 'error')
   } else {
-    Toast.fire({ icon: 'success', title: '簽章已成功更新' })
+    Toast.fire({ icon: 'success', title: '簽章與時間已成功更新' })
     await loadReportsList(profile.value.id, profile.value.role)
   }
 }
@@ -706,7 +737,7 @@ async function selectReport() {
 
 function createNewDraft() {
   selectedReportId.value = ''
-  report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null }
+  report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null, student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null }
   currentReportMeta.value = {}; studentExamRecords.value = []
   Toast.fire({ icon: 'info', title: '已準備好新表單，請填寫內容' })
   nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
@@ -747,12 +778,14 @@ async function saveDraft() {
 
 async function executeStudentSubmit() {
   isSaving.value = true
+  const nowISO = new Date().toISOString()
   const payload = { 
     student_id: profile.value.id, training_category: report.value.training_category, 
     training_date: report.value.training_date, training_end_date: report.value.training_end_date,
     content: report.value.content, reflection: report.value.reflection,
-    status: 'pending_teacher', updated_at: new Date().toISOString(),
-    student_signature: report.value.student_signature 
+    status: 'pending_teacher', updated_at: nowISO,
+    student_signature: report.value.student_signature,
+    student_sign_date: nowISO
   }
   let dbError = null
   if (report.value.id) {
@@ -770,9 +803,11 @@ async function executeStudentSubmit() {
 
 async function executeTeacherSubmit() {
   isSaving.value = true
+  const nowISO = new Date().toISOString()
   await supabase.from('feedback_reports').update({ 
     teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', 
-    updated_at: new Date().toISOString(), teacher_signature: report.value.teacher_signature 
+    updated_at: nowISO, teacher_signature: report.value.teacher_signature,
+    teacher_sign_date: nowISO
   }).eq('id', report.value.id)
   isSaving.value = false
   Swal.fire({ icon: 'success', title: '已移交單位主管' })
@@ -781,9 +816,11 @@ async function executeTeacherSubmit() {
 
 async function executeSupervisorSubmit() {
   isSaving.value = true
+  const nowISO = new Date().toISOString()
   const { error } = await supabase.from('feedback_reports').update({ 
     supervisor_feedback: report.value.supervisor_feedback, status: 'closed', 
-    updated_at: new Date().toISOString(), supervisor_signature: report.value.supervisor_signature 
+    updated_at: nowISO, supervisor_signature: report.value.supervisor_signature,
+    supervisor_sign_date: nowISO
   }).eq('id', report.value.id)
   isSaving.value = false
   if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) }
@@ -791,17 +828,17 @@ async function executeSupervisorSubmit() {
 
 async function returnToStudent() {
   const { isConfirmed } = await Swal.fire({ title: '退回學員？', showCancelButton: true })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'draft', student_signature: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'draft', student_signature: null, student_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function returnToTeacher() {
   const { isConfirmed } = await Swal.fire({ title: '退回給老師？', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_teacher', teacher_signature: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_teacher', teacher_signature: null, teacher_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 async function unlockReport() {
   const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_supervisor', supervisor_signature: null }).eq('id', report.value.id); Toast.fire({ icon: 'success', title: '已解除鎖定' }); await loadReportsList(profile.value.id, profile.value.role) }
+  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_supervisor', supervisor_signature: null, supervisor_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'success', title: '已解除鎖定' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 function exportToPDF() { window.print() }
@@ -870,6 +907,9 @@ async function handleLogout() {
   border: 1px solid #cbd5e1 !important;
 }
 
+/* 🌟 一般螢幕模式下隱藏列印專屬區塊 */
+.print-text-box { display: none; }
+
 .action-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .action-row.center { justify-content: center; }
 
@@ -911,7 +951,9 @@ async function handleLogout() {
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 30%; }
 .sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
+.sign-content { display: flex; flex-direction: column; align-items: center; }
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
+.sign-timestamp { font-size: 12px; color: #7f8c8d; margin-top: 5px; font-weight: bold; text-align: center; }
 .unsigned-text { color: #7f8c8d !important; font-style: italic; margin-top: 10px; font-weight: bold; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
@@ -933,13 +975,32 @@ async function handleLogout() {
 .preview-img-box { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
 .signature-preview { max-height: 100px; max-width: 100%; object-fit: contain; }
 
+/* 🌟 🖨️ 列印專屬終極修復版：將 textarea 徹底隱藏，讓純文字區塊全數展開 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
-  .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; margin-bottom: 15px; }
-  .form-input { border: none; padding: 0; background: transparent !important; color: black !important; -webkit-text-fill-color: black !important; }
-  .score-tag { border: 1px solid #000; }
-  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000; }
+  
+  /* 徹底消滅所有 textarea 的捲軸限制 */
+  textarea.form-input { display: none !important; }
+  
+  /* 強制展開我們設計好的純文字備用區塊 */
+  .print-text-box { 
+    display: block !important; 
+    white-space: pre-wrap !important; 
+    word-break: break-word !important; 
+    color: #000 !important; 
+    font-size: 15px !important;
+    line-height: 1.6 !important;
+    padding: 5px 0 !important;
+    border: none !important;
+    min-height: auto !important;
+  }
+  
+  .print-border-none { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; }
+  
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; margin-bottom: 20px; padding: 15px !important; }
+  .score-tag { border: 1px solid #000 !important; }
+  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000 !important; }
   .score-tag .score-val { color: #000 !important; background: transparent !important; }
 }
 
