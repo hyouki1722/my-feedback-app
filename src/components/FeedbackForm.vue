@@ -240,7 +240,7 @@
             <div v-if="uploadedSignature" class="preview-img-box">
               <img :src="uploadedSignature" class="signature-preview" />
             </div>
-            <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">請上傳您的印章或簽名圖檔 (建議為白底或去背 PNG)</p>
+            <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">系統將自動調整您的圖片大小，即使使用手機原相機拍攝也能順利上傳！</p>
           </div>
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
@@ -286,7 +286,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import { formatDate } from '../utils/format'
@@ -301,7 +301,11 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-const activeModule = ref('feedback')
+// 🌟 新增頁籤記憶機制，防止手機重整時跳回測驗介面
+const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
+watch(activeModule, (newVal) => {
+  sessionStorage.setItem('activeModule', newVal)
+})
 
 // 測驗任務
 const pendingExams = ref([])
@@ -338,7 +342,7 @@ function closeReviewModal() {
   reviewingRecord.value = null
 }
 
-// === ✍️ 電子簽章面板邏輯 (🌟 核心坐標映射與變形修正) ===
+// === ✍️ 電子簽章面板邏輯 ===
 const showSignatureModal = ref(false)
 const signatureMode = ref('draw') 
 const pendingAction = ref(null) 
@@ -366,7 +370,6 @@ function initiateAction(actionRole) {
 
   nextTick(() => {
     if (canvasRef.value) {
-      // 🟢 核心修正：將畫布內部解析度與外部 CSS 顯示尺寸同步，避免畫筆座標偏移與壓縮
       const rect = canvasRef.value.getBoundingClientRect()
       canvasRef.value.width = rect.width
       canvasRef.value.height = rect.height
@@ -383,19 +386,13 @@ function initiateAction(actionRole) {
 
 function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
 
-// 🟢 座標轉換計算，確保滑鼠精準對應
 function getMousePos(e) {
   const rect = canvasRef.value.getBoundingClientRect()
   const clientX = e.clientX || (e.touches && e.touches[0].clientX)
   const clientY = e.clientY || (e.touches && e.touches[0].clientY)
-  
   const scaleX = canvasRef.value.width / rect.width
   const scaleY = canvasRef.value.height / rect.height
-  
-  return {
-    x: (clientX - rect.left) * scaleX,
-    y: (clientY - rect.top) * scaleY
-  }
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
 }
 
 function startDraw(e) { 
@@ -423,16 +420,47 @@ function clearCanvas() {
   hasDrawn = false 
 }
 
+// 🌟 全新圖片自動壓縮功能
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
-  const MAX_SIZE = 500 * 1024 
-  if (file.size > MAX_SIZE) {
-    Swal.fire('檔案過大', '請上傳 500KB 以內的印章圖檔，建議先壓縮或裁切後再上傳。', 'warning')
-    e.target.value = ''; return
-  }
+
+  Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+
   const reader = new FileReader()
-  reader.onload = (e) => { uploadedSignature.value = e.target.result }
+  reader.onload = (event) => {
+    const img = new Image()
+    img.onload = () => {
+      // 建立畫布來壓縮圖片
+      const canvas = document.createElement('canvas')
+      let width = img.width
+      let height = img.height
+      const MAX_DIMENSION = 600 // 限制最大寬或高為 600px
+
+      if (width > height && width > MAX_DIMENSION) {
+        height *= MAX_DIMENSION / width
+        width = MAX_DIMENSION
+      } else if (height > MAX_DIMENSION) {
+        width *= MAX_DIMENSION / height
+        height = MAX_DIMENSION
+      }
+
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      
+      // 若原圖有透明背景，填入白色底色，確保存成 JPEG 時不會變黑
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, width, height)
+      ctx.drawImage(img, 0, 0, width, height)
+
+      // 壓縮為 JPEG，品質設定為 0.7，這樣可以將幾 MB 的照片壓縮到幾十 KB
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
+      uploadedSignature.value = compressedDataUrl
+      Swal.close()
+    }
+    img.src = event.target.result
+  }
   reader.readAsDataURL(file)
 }
 
@@ -466,7 +494,14 @@ onMounted(async () => {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
-    if (userProfile.role === 'student') { activeModule.value = 'exams'; await loadMyExams() }
+    
+    if (userProfile.role === 'student') { 
+      // 確保第一次登入時還是顯示測驗
+      if (!sessionStorage.getItem('activeModule')) {
+        activeModule.value = 'exams'
+      }
+      await loadMyExams() 
+    }
     await loadCategories(); await loadReportsList(user.id, userProfile.role)
   }
 })
