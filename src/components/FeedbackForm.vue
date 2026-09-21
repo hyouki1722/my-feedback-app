@@ -228,6 +228,7 @@
             <button :class="{ active: signatureMode === 'upload' }" @click="signatureMode = 'upload'">上傳印章/圖片</button>
           </div>
           <div v-show="signatureMode === 'draw'" class="canvas-container">
+            <!-- 加入了防呆與觸控事件修正 -->
             <canvas ref="canvasRef" class="signature-canvas"
               @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
               @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
@@ -299,7 +300,7 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-// 🌟 頁籤記憶機制
+// 頁籤記憶機制
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
@@ -324,7 +325,7 @@ const report = ref({
   student_signature: null, teacher_signature: null, supervisor_signature: null
 })
 
-// === 🌟 毫秒級自動暫存：對抗手機圖片庫導致的強制重整 ===
+// 自動暫存
 watch(report, (newVal) => {
   if (isStudent.value) sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
 }, { deep: true })
@@ -343,7 +344,7 @@ watch([showSignatureModal, signatureMode, pendingAction], ([show, mode, action])
 })
 
 function restoreDraftState() {
-  if (!isStudent.value) return // 僅針對學員進行還原，防止老師互相覆蓋
+  if (!isStudent.value) return 
   const savedDraft = sessionStorage.getItem('temp_feedback_draft')
   if (savedDraft) {
     try {
@@ -375,6 +376,7 @@ const reviewingRecord = ref(null)
 function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
 function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
 
+// === ✍️ 電子簽章邏輯 (🌟 修正畫布無法繪圖的 Bug) ===
 function initiateAction(actionRole) {
   if (actionRole === 'student') {
     if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
@@ -391,32 +393,45 @@ function initiateAction(actionRole) {
   uploadedSignature.value = null
   hasDrawn = false
 
-  nextTick(() => { initCanvas() })
+  // 🌟 關鍵修正：延遲 350ms 等待 Modal 動畫展開完成，確保能抓到正確寬高，否則畫布解析度會是 0x0
+  setTimeout(() => { initCanvas() }, 350)
 }
 
 function initCanvas() {
   if (canvasRef.value) {
     const rect = canvasRef.value.getBoundingClientRect()
-    canvasRef.value.width = rect.width
-    canvasRef.value.height = rect.height
+    // 防呆：如果抓到的寬度過小（代表可能動畫異常），給予預設合理寬高
+    const finalWidth = rect.width > 50 ? rect.width : 400
+    const finalHeight = rect.height > 50 ? rect.height : 200
+
+    canvasRef.value.width = finalWidth
+    canvasRef.value.height = finalHeight
     ctx = canvasRef.value.getContext('2d')
-    ctx.lineWidth = 3
+    ctx.lineWidth = 4  // 稍微加粗讓筆跡更清晰
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#000000' // 強制筆跡為純黑
+    ctx.strokeStyle = '#000000'
     clearCanvas()
   }
 }
 
 function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
 
+// 🌟 關鍵修正：確保觸控事件抓取座標正確
 function getMousePos(e) {
   const rect = canvasRef.value.getBoundingClientRect()
-  const clientX = e.clientX || (e.touches && e.touches[0].clientX)
-  const clientY = e.clientY || (e.touches && e.touches[0].clientY)
-  const scaleX = canvasRef.value.width / rect.width
-  const scaleY = canvasRef.value.height / rect.height
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
+  const isTouch = e.type && e.type.startsWith('touch')
+  const clientX = isTouch ? e.touches[0].clientX : e.clientX
+  const clientY = isTouch ? e.touches[0].clientY : e.clientY
+  
+  // 避免分母為 0 導致座標計算成 NaN
+  const scaleX = rect.width ? canvasRef.value.width / rect.width : 1
+  const scaleY = rect.height ? canvasRef.value.height / rect.height : 1
+  
+  return { 
+    x: (clientX - rect.left) * scaleX, 
+    y: (clientY - rect.top) * scaleY 
+  }
 }
 
 function startDraw(e) { 
@@ -435,10 +450,9 @@ function draw(e) {
 
 function stopDraw() { isDrawing = false; ctx.closePath() }
 
-// 🌟 徹底防護機制一：每次重新開始寫字前，先為畫布鋪上純白背景，破除深色模式去背干擾
 function clearCanvas() { 
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height)
   hasDrawn = false 
 }
 
@@ -459,7 +473,6 @@ function handleSignatureUpload(e) {
       canvas.width = width; canvas.height = height
       const ctx = canvas.getContext('2d')
       
-      // 同樣為圖片上傳鋪上白底，防止 PNG 去背圖在深色模式下隱形
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, width, height)
       ctx.drawImage(img, 0, 0, width, height)
@@ -559,25 +572,19 @@ async function loadCategories() {
   if (!error && data) dynamicCategories.value = data
 }
 
-// 🌟 安全優化：加入防錯機制，避免配對表無資料時卡死畫面
 async function loadReportsList(userId, role) {
   const { data: profs } = await supabase.from('profiles').select('id, name')
-  const safeProfs = profs || []
-  const profilesMap = {}; safeProfs.forEach(p => profilesMap[p.id] = p.name)
-
+  const profilesMap = {}; profs.forEach(p => profilesMap[p.id] = p.name)
   const { data: assigns } = await supabase.from('assignments').select('*')
-  const safeAssigns = assigns || []
-  const assignsMap = {}; safeAssigns.forEach(a => assignsMap[a.student_id] = a)
+  const assignsMap = {}; assigns.forEach(a => assignsMap[a.student_id] = a)
 
   let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
-  
-  if (role === 'student') {
-    query = query.eq('student_id', userId)
-  } else if (role === 'teacher') {
-    const myStudentIds = safeAssigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
+  if (role === 'student') query = query.eq('student_id', userId)
+  else if (role === 'teacher') {
+    const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   } else if (role === 'supervisor') {
-    const myStudentIds = safeAssigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
+    const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   }
 
@@ -724,8 +731,22 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 基本共用樣式 */
-.app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
+/* 🌟 強制封鎖手機深色模式自動反轉灰階文字的行為 */
+.app-wrapper { 
+  background-color: #f0f2f5; 
+  min-height: 100vh; 
+  width: 100vw; 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  padding: 30px 20px; 
+  box-sizing: border-box; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  color-scheme: light only; /* 破解手機 Dark Mode */
+}
+
 .form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .header-section h2 { margin: 0; color: #2c3e50; font-weight: 900;}
@@ -752,6 +773,9 @@ async function handleLogout() {
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
 .card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
+/* 🌟 修正文字顯示不清楚：強化對比度 */
+.desc { color: #34495e !important; font-size: 14px; margin-bottom: 0; line-height: 1.6; font-weight: bold; }
+
 /* 表單樣式 */
 .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-row .form-group { flex: 1; margin-bottom: 0; }
@@ -760,13 +784,13 @@ async function handleLogout() {
 .form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
 
-/* 🌟 徹底防護機制二：高對比強制渲染，防範深色模式吃掉老師的畫面 */
+/* 🌟 防範手機原生瀏覽器把 disabled 的欄位字體變淺 */
 .form-input:disabled { 
   background-color: #f0f4f8 !important; 
   color: #1a252f !important; 
   cursor: not-allowed; 
   opacity: 1 !important; 
-  -webkit-text-fill-color: #1a252f !important; /* 破解 iOS / Android 原生灰階弱化 */
+  -webkit-text-fill-color: #1a252f !important;
   border: 1px solid #cbd5e1 !important;
 }
 
@@ -815,20 +839,10 @@ async function handleLogout() {
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 30%; }
 .sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
+.signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
 
-/* 🌟 徹底防護機制三：強制為產出的簽名加上白底小圖卡框，杜絕黑圖災難 */
-.signature-img { 
-  max-height: 80px; 
-  max-width: 100%; 
-  object-fit: contain; 
-  background-color: #ffffff; 
-  border-radius: 6px; 
-  padding: 5px; 
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-  border: 1px solid #ecf0f1;
-}
-
-.unsigned-text { color: #bdc3c7; font-style: italic; margin-top: 10px; }
+/* 🌟 修正未簽署文字的對比度 */
+.unsigned-text { color: #7f8c8d !important; font-style: italic; margin-top: 10px; font-weight: bold; }
 
 /* ✍️ Modal 共用樣式 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
