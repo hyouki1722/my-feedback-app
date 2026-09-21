@@ -299,7 +299,7 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-// 🌟 頁籤記憶機制，防止手機重整時跳回測驗介面
+// 🌟 頁籤記憶機制
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
@@ -326,7 +326,7 @@ const report = ref({
 
 // === 🌟 毫秒級自動暫存：對抗手機圖片庫導致的強制重整 ===
 watch(report, (newVal) => {
-  sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
+  if (isStudent.value) sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
 }, { deep: true })
 
 const showSignatureModal = ref(false)
@@ -338,13 +338,12 @@ let isDrawing = false
 let ctx = null
 let hasDrawn = false
 
-// 同步將彈窗狀態暫存，方便崩潰回來時還原
 watch([showSignatureModal, signatureMode, pendingAction], ([show, mode, action]) => {
   sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action }))
 })
 
-// 🌟 還原系統保護狀態
 function restoreDraftState() {
+  if (!isStudent.value) return // 僅針對學員進行還原，防止老師互相覆蓋
   const savedDraft = sessionStorage.getItem('temp_feedback_draft')
   if (savedDraft) {
     try {
@@ -371,13 +370,11 @@ function restoreDraftState() {
   }
 }
 
-// === 🌟 檢視解答 Modal ===
 const isReviewModalOpen = ref(false)
 const reviewingRecord = ref(null)
 function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
 function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
 
-// === ✍️ 電子簽章邏輯 ===
 function initiateAction(actionRole) {
   if (actionRole === 'student') {
     if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
@@ -406,7 +403,7 @@ function initCanvas() {
     ctx.lineWidth = 3
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#2c3e50'
+    ctx.strokeStyle = '#000000' // 強制筆跡為純黑
     clearCanvas()
   }
 }
@@ -437,9 +434,14 @@ function draw(e) {
 }
 
 function stopDraw() { isDrawing = false; ctx.closePath() }
-function clearCanvas() { ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
 
-// 自動壓縮功能
+// 🌟 徹底防護機制一：每次重新開始寫字前，先為畫布鋪上純白背景，破除深色模式去背干擾
+function clearCanvas() { 
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height);
+  hasDrawn = false 
+}
+
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
@@ -456,7 +458,9 @@ function handleSignatureUpload(e) {
       else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION }
       canvas.width = width; canvas.height = height
       const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#FFFFFF'
+      
+      // 同樣為圖片上傳鋪上白底，防止 PNG 去背圖在深色模式下隱形
+      ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, width, height)
       ctx.drawImage(img, 0, 0, width, height)
       const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
@@ -497,6 +501,7 @@ onMounted(async () => {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
+    
     if (userProfile.role === 'student') { 
       if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'
       await loadMyExams() 
@@ -504,7 +509,6 @@ onMounted(async () => {
     await loadCategories(); 
     await loadReportsList(user.id, userProfile.role)
     
-    // 初始化結束後，立刻觸發斷線狀態還原
     restoreDraftState()
   }
 })
@@ -555,19 +559,25 @@ async function loadCategories() {
   if (!error && data) dynamicCategories.value = data
 }
 
+// 🌟 安全優化：加入防錯機制，避免配對表無資料時卡死畫面
 async function loadReportsList(userId, role) {
   const { data: profs } = await supabase.from('profiles').select('id, name')
-  const profilesMap = {}; profs.forEach(p => profilesMap[p.id] = p.name)
+  const safeProfs = profs || []
+  const profilesMap = {}; safeProfs.forEach(p => profilesMap[p.id] = p.name)
+
   const { data: assigns } = await supabase.from('assignments').select('*')
-  const assignsMap = {}; assigns.forEach(a => assignsMap[a.student_id] = a)
+  const safeAssigns = assigns || []
+  const assignsMap = {}; safeAssigns.forEach(a => assignsMap[a.student_id] = a)
 
   let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
-  if (role === 'student') query = query.eq('student_id', userId)
-  else if (role === 'teacher') {
-    const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
+  
+  if (role === 'student') {
+    query = query.eq('student_id', userId)
+  } else if (role === 'teacher') {
+    const myStudentIds = safeAssigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   } else if (role === 'supervisor') {
-    const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
+    const myStudentIds = safeAssigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
     query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
   }
 
@@ -589,7 +599,7 @@ async function loadReportsList(userId, role) {
     }
     await selectReport()
   } else {
-    createNewDraft()
+    if (isStudent.value) createNewDraft()
   }
 }
 
@@ -602,7 +612,7 @@ async function selectReport() {
     const { data: records } = await supabase.from('exam_records').select('*, exams(title)').eq('student_id', found.student_id).order('completed_at', { ascending: false })
     studentExamRecords.value = records || []
   } else {
-    createNewDraft()
+    if (isStudent.value) createNewDraft()
   }
 }
 
@@ -610,6 +620,8 @@ function createNewDraft() {
   selectedReportId.value = ''
   report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null }
   currentReportMeta.value = {}; studentExamRecords.value = []
+  Toast.fire({ icon: 'info', title: '已準備好新表單，請填寫內容' })
+  nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
 }
 
 function getStatusText(status) {
@@ -664,7 +676,7 @@ async function executeStudentSubmit() {
     if (data && data.length > 0) selectedReportId.value = data[0].id
   }
   isSaving.value = false
-  if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); await loadReportsList(profile.value.id, profile.value.role) } 
+  if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); sessionStorage.removeItem('temp_feedback_draft'); await loadReportsList(profile.value.id, profile.value.role) } 
   else Swal.fire('錯誤', dbError.message, 'error')
 }
 
@@ -745,9 +757,18 @@ async function handleLogout() {
 .form-row .form-group { flex: 1; margin-bottom: 0; }
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
-.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; }
+.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
-.form-input:disabled { background-color: #f8f9fa; color: #7f8c8d; cursor: not-allowed; }
+
+/* 🌟 徹底防護機制二：高對比強制渲染，防範深色模式吃掉老師的畫面 */
+.form-input:disabled { 
+  background-color: #f0f4f8 !important; 
+  color: #1a252f !important; 
+  cursor: not-allowed; 
+  opacity: 1 !important; 
+  -webkit-text-fill-color: #1a252f !important; /* 破解 iOS / Android 原生灰階弱化 */
+  border: 1px solid #cbd5e1 !important;
+}
 
 .action-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .action-row.center { justify-content: center; }
@@ -784,7 +805,7 @@ async function handleLogout() {
 .opt-label:hover { border-color: #3498db; background: #f0f8ff; }
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
 
-/* 🌟 正確與錯誤標示 */
+/* 正確與錯誤標示 */
 .is-correct-preview { border-color: #2ecc71 !important; background: #f4fdf8 !important; }
 .correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 .is-wrong-preview { border-color: #e74c3c !important; background: #fdf2f2 !important; }
@@ -794,7 +815,19 @@ async function handleLogout() {
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 30%; }
 .sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
-.signature-img { max-height: 80px; max-width: 100%; object-fit: contain; }
+
+/* 🌟 徹底防護機制三：強制為產出的簽名加上白底小圖卡框，杜絕黑圖災難 */
+.signature-img { 
+  max-height: 80px; 
+  max-width: 100%; 
+  object-fit: contain; 
+  background-color: #ffffff; 
+  border-radius: 6px; 
+  padding: 5px; 
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+  border: 1px solid #ecf0f1;
+}
+
 .unsigned-text { color: #bdc3c7; font-style: italic; margin-top: 10px; }
 
 /* ✍️ Modal 共用樣式 */
@@ -822,7 +855,7 @@ async function handleLogout() {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
   .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; margin-bottom: 15px; }
-  .form-input { border: none; padding: 0; background: transparent !important; color: black !important; }
+  .form-input { border: none; padding: 0; background: transparent !important; color: black !important; -webkit-text-fill-color: black !important; }
   .score-tag { border: 1px solid #000; }
   .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000; }
   .score-tag .score-val { color: #000 !important; background: transparent !important; }
