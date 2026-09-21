@@ -86,7 +86,6 @@
           </div>
         </div>
 
-        <!-- 🌟 新增：已派發測驗之解答統一管理面板 -->
         <div class="admin-card" style="margin-top: 20px;">
           <h3>🔓 已派發測驗之解答管理</h3>
           <p class="desc">為防範提早交卷的學員洩漏答案，您可以在確認所有學員皆完成測驗後，在此處「一鍵公開」正確解答。</p>
@@ -348,6 +347,7 @@
                       <option v-for="supervisor in supervisors" :key="supervisor.id" :value="supervisor.id">{{ supervisor.name }}</option>
                     </select>
                   </td>
+                  <!-- 🌟 更新後的儲存按鈕 -->
                   <td><button @click="saveAssignment(student.id)" class="btn primary-btn small-btn">儲存</button></td>
                 </tr>
               </tbody>
@@ -429,7 +429,7 @@
           </div>
           <div class="demo-signatures">
             <div class="sign-box">學員簽章：<span>(系統已認證)</span></div>
-            <div class="sign-box">老師簽章：<span>(系统已認證)</span></div>
+            <div class="sign-box">老師簽章：<span>(系統已認證)</span></div>
             <div class="sign-box">主管簽章：<span>(系統已認證)</span></div>
           </div>
         </div>
@@ -552,7 +552,6 @@ async function submitDispatch() {
   }
 }
 
-// === 🌟 新增：已派發測驗之解答管理計算屬性與開關 ===
 const dispatchStats = computed(() => {
   const stats = {}
   dispatchRecords.value.forEach(r => {
@@ -963,14 +962,31 @@ async function handleFileUpload(event) {
   reader.readAsArrayBuffer(file)
 }
 
+// 🌟 核心修正：加入錯誤捕捉，確保管理員儲存失敗時能收到通知
 async function saveAssignment(studentId) {
   const data = assignmentData.value[studentId]
-  if (!data.teacher_id || !data.supervisor_id) return Swal.fire({ icon: 'warning', title: '提示', text: '請選擇指導老師與單位主管' })
-  await supabase.from('assignments').upsert({ student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id }, { onConflict: 'student_id' })
-  Toast.fire({ icon: 'success', title: '配對已儲存' })
+  if (!data.teacher_id || !data.supervisor_id) {
+    return Swal.fire({ icon: 'warning', title: '提示', text: '請選擇指導老師與單位主管' })
+  }
+  
+  Swal.fire({ title: '儲存配對中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+
+  const { error } = await supabase.from('assignments').upsert(
+    { student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id }, 
+    { onConflict: 'student_id' }
+  )
+  
+  if (error) {
+    Swal.fire('配對失敗', `資料庫錯誤: ${error.message}<br><br>💡 這通常是因為 assignments 表格的 student_id 尚未設定為 Unique (唯一鍵)！請至 Supabase 後台修正。`, 'error')
+  } else {
+    Swal.fire('成功', '配對已成功儲存！', 'success')
+  }
 }
 
-async function handleLogout() { await supabase.auth.signOut() }
+async function handleLogout() { 
+  sessionStorage.clear()
+  await supabase.auth.signOut() 
+}
 </script>
 
 <style scoped>
