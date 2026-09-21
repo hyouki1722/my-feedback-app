@@ -42,7 +42,6 @@
             </div>
           </div>
 
-          <!-- 🌟 移除暫離，僅保留交卷 -->
           <div class="action-row center" style="margin-top: 30px;">
             <button @click="submitExam" class="btn primary-btn" :disabled="isSaving" style="width: 100%; max-width: 300px; padding: 15px; font-size: 18px;">交卷並計算成績</button>
           </div>
@@ -92,7 +91,6 @@
                   <td>{{ formatDate(record.completed_at) }}</td>
                   <td style="text-align: center;"><span class="score-badge" :class="getScoreColor(record.score)">{{ record.score }} 分</span></td>
                   <td style="text-align: center;">
-                    <!-- 🌟 檢查動態掛載的 is_answers_revealed 標記 -->
                     <button v-if="record.is_answers_revealed" @click="openReviewModal(record)" class="btn primary-btn small-btn">🔍 檢視</button>
                     <span v-else style="color: #95a5a6; font-size: 13px; font-weight: bold;">(待統一公開)</span>
                   </td>
@@ -272,7 +270,6 @@
                          'is-correct-preview': opt === q.correct_answer,
                          'is-wrong-preview': opt === q.student_answer && q.student_answer !== q.correct_answer
                        }">
-                  <!-- 加上屬性讓它無法被更動，純顯示用 -->
                   <input type="radio" disabled class="custom-radio" :checked="opt === q.student_answer">
                   <span class="opt-text">{{ opt }}</span>
                   <span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">✅ 正確解答</span>
@@ -441,7 +438,6 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', handleVisib
 
 async function loadMyExams() {
   if (!isStudent.value) return
-  // 抓取所有派發紀錄 (以確認各考卷的解答是否已被管理員公開)
   const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).order('created_at', { ascending: false })
   
   pendingExams.value = dispatches.filter(d => !d.is_completed)
@@ -449,7 +445,6 @@ async function loadMyExams() {
 
   const { data: records } = await supabase.from('exam_records').select('*, exams(title, type)').eq('student_id', profile.value.id).order('completed_at', { ascending: false })
 
-  // 🌟 將 dispatch 中的最新 show_answers 狀態動態合併給成績紀錄
   myExamRecords.value = records.map(r => {
     const dispatchInfo = completedDispatches.find(d => d.exam_id === r.exam_id)
     return {
@@ -483,12 +478,11 @@ async function submitExam() {
 
   if (error || data?.error) return Swal.fire('錯誤', error?.message || data?.error, 'error')
 
-  // 🌟 交卷時統一給予待公開的提示訊息
-  Swal.fire({ 
-    icon: 'success', 
-    title: '測驗完成！', 
-    html: `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>` 
-  })
+  const resultHtml = data.show_answers 
+    ? `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 您可以在下方列表點擊「檢視」來查閱正確答案。</span>`
+    : `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>`;
+
+  Swal.fire({ icon: 'success', title: '測驗完成！', html: resultHtml })
   
   examTaking.value = null; studentAnswers.value = {}; await loadMyExams() 
 }
@@ -529,11 +523,17 @@ async function loadReportsList(userId, role) {
   }
 
   if (reportList.value.length > 0) {
-    let autoSelect = reportList.value[0]
-    if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
-    if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]
-    selectedReportId.value = autoSelect.id
+    // 🌟 修正：確保重整時不要強制洗掉目前已選取的草稿
+    const exists = reportList.value.some(r => r.id === selectedReportId.value)
+    if (!exists) {
+      let autoSelect = reportList.value[0]
+      if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
+      if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]
+      selectedReportId.value = autoSelect.id
+    }
     await selectReport()
+  } else {
+    createNewDraft()
   }
 }
 
@@ -545,7 +545,9 @@ async function selectReport() {
     currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
     const { data: records } = await supabase.from('exam_records').select('*, exams(title)').eq('student_id', found.student_id).order('completed_at', { ascending: false })
     studentExamRecords.value = records || []
-  } else createNewDraft()
+  } else {
+    createNewDraft()
+  }
 }
 
 function createNewDraft() {
@@ -565,12 +567,42 @@ function getRoleName(role) {
   return map[role] || role
 }
 
+// 🌟 修正：儲存草稿時新增錯誤捕捉與選單綁定機制
 async function saveDraft() {
   isSaving.value = true
-  const payload = { student_id: profile.value.id, training_category: report.value.training_category, training_date: report.value.training_date, training_end_date: report.value.training_end_date, content: report.value.content, reflection: report.value.reflection, status: 'draft', updated_at: new Date().toISOString() }
-  if (report.value.id) await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
-  else { const { data } = await supabase.from('feedback_reports').insert([payload]).select(); if (data) report.value.id = data[0].id }
-  Toast.fire({ icon: 'success', title: '草稿已儲存' }); await loadReportsList(profile.value.id, profile.value.role); isSaving.value = false 
+  const payload = { 
+    student_id: profile.value.id, 
+    training_category: report.value.training_category || '', 
+    training_date: report.value.training_date, 
+    training_end_date: report.value.training_end_date, 
+    content: report.value.content || '', 
+    reflection: report.value.reflection || '', 
+    status: 'draft', 
+    updated_at: new Date().toISOString() 
+  }
+  
+  let dbError = null
+
+  if (report.value.id) { 
+    const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
+    dbError = error
+  } else { 
+    const { data, error } = await supabase.from('feedback_reports').insert([payload]).select()
+    dbError = error
+    if (data && data.length > 0) {
+      report.value.id = data[0].id
+      selectedReportId.value = data[0].id // 綁定新產生的 ID
+    }
+  }
+  
+  isSaving.value = false 
+  
+  if (dbError) {
+    Swal.fire('儲存失敗', dbError.message, 'error')
+  } else {
+    Toast.fire({ icon: 'success', title: '草稿已確實儲存' })
+    await loadReportsList(profile.value.id, profile.value.role)
+  }
 }
 
 async function executeStudentSubmit() {
@@ -582,13 +614,20 @@ async function executeStudentSubmit() {
     status: 'pending_teacher', updated_at: new Date().toISOString(),
     student_signature: report.value.student_signature 
   }
-  let error;
-  if (report.value.id) ({ error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id))
-  else ({ error } = await supabase.from('feedback_reports').insert([payload]))
+  
+  let dbError = null
+  if (report.value.id) {
+    const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
+    dbError = error
+  } else {
+    const { data, error } = await supabase.from('feedback_reports').insert([payload]).select()
+    dbError = error
+    if (data && data.length > 0) selectedReportId.value = data[0].id
+  }
 
   isSaving.value = false
-  if (!error) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); await loadReportsList(profile.value.id, profile.value.role) } 
-  else Swal.fire('錯誤', error.message, 'error')
+  if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); await loadReportsList(profile.value.id, profile.value.role) } 
+  else Swal.fire('錯誤', dbError.message, 'error')
 }
 
 async function executeTeacherSubmit() {
