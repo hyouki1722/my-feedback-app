@@ -18,7 +18,6 @@
       <!-- 模組 A：線上測驗任務 (僅學員可見)               -->
       <!-- ========================================== -->
       <div v-if="activeModule === 'exams' && isStudent" class="module-content">
-        <!-- 正在測驗中的畫面 -->
         <div v-if="examTaking" class="card exam-card">
           <div class="exam-header">
             <h3>{{ examTaking.exams?.title }}</h3>
@@ -47,7 +46,6 @@
           </div>
         </div>
 
-        <!-- 任務列表畫面 -->
         <div v-else>
           <div class="card section-card">
             <h3>🔥 待辦測驗任務</h3>
@@ -240,7 +238,7 @@
             <div v-if="uploadedSignature" class="preview-img-box">
               <img :src="uploadedSignature" class="signature-preview" />
             </div>
-            <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">系統將自動調整您的圖片大小，即使使用手機原相機拍攝也能順利上傳！</p>
+            <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">系統將自動調整您的圖片大小，無論從圖片庫或相機皆可順利上傳！</p>
           </div>
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
@@ -301,11 +299,9 @@ const isTeacher = computed(() => profile.value?.role === 'teacher')
 const isSupervisor = computed(() => profile.value?.role === 'supervisor')
 const isAdmin = computed(() => profile.value?.role === 'admin')
 
-// 🌟 新增頁籤記憶機制，防止手機重整時跳回測驗介面
+// 🌟 頁籤記憶機制，防止手機重整時跳回測驗介面
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
-watch(activeModule, (newVal) => {
-  sessionStorage.setItem('activeModule', newVal)
-})
+watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
 // 測驗任務
 const pendingExams = ref([])
@@ -328,21 +324,11 @@ const report = ref({
   student_signature: null, teacher_signature: null, supervisor_signature: null
 })
 
-// === 🌟 檢視解答 Modal 邏輯 ===
-const isReviewModalOpen = ref(false)
-const reviewingRecord = ref(null)
+// === 🌟 毫秒級自動暫存：對抗手機圖片庫導致的強制重整 ===
+watch(report, (newVal) => {
+  sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
+}, { deep: true })
 
-function openReviewModal(record) {
-  reviewingRecord.value = record
-  isReviewModalOpen.value = true
-}
-
-function closeReviewModal() {
-  isReviewModalOpen.value = false
-  reviewingRecord.value = null
-}
-
-// === ✍️ 電子簽章面板邏輯 ===
 const showSignatureModal = ref(false)
 const signatureMode = ref('draw') 
 const pendingAction = ref(null) 
@@ -352,6 +338,46 @@ let isDrawing = false
 let ctx = null
 let hasDrawn = false
 
+// 同步將彈窗狀態暫存，方便崩潰回來時還原
+watch([showSignatureModal, signatureMode, pendingAction], ([show, mode, action]) => {
+  sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action }))
+})
+
+// 🌟 還原系統保護狀態
+function restoreDraftState() {
+  const savedDraft = sessionStorage.getItem('temp_feedback_draft')
+  if (savedDraft) {
+    try {
+      const parsed = JSON.parse(savedDraft)
+      if (parsed && Object.keys(parsed).length > 0) {
+        report.value = parsed
+        selectedReportId.value = parsed.id || ''
+      }
+    } catch (e) {}
+  }
+
+  const savedModal = sessionStorage.getItem('temp_modal_state')
+  if (savedModal) {
+    try {
+      const parsedModal = JSON.parse(savedModal)
+      if (parsedModal.show) {
+        showSignatureModal.value = parsedModal.show
+        signatureMode.value = parsedModal.mode
+        pendingAction.value = parsedModal.action
+        if (parsedModal.mode === 'draw') nextTick(() => { initCanvas() })
+        Toast.fire({ icon: 'info', title: '已自動為您恢復剛剛的填寫進度與簽章畫面' })
+      }
+    } catch (e) {}
+  }
+}
+
+// === 🌟 檢視解答 Modal ===
+const isReviewModalOpen = ref(false)
+const reviewingRecord = ref(null)
+function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
+function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
+
+// === ✍️ 電子簽章邏輯 ===
 function initiateAction(actionRole) {
   if (actionRole === 'student') {
     if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
@@ -368,20 +394,21 @@ function initiateAction(actionRole) {
   uploadedSignature.value = null
   hasDrawn = false
 
-  nextTick(() => {
-    if (canvasRef.value) {
-      const rect = canvasRef.value.getBoundingClientRect()
-      canvasRef.value.width = rect.width
-      canvasRef.value.height = rect.height
+  nextTick(() => { initCanvas() })
+}
 
-      ctx = canvasRef.value.getContext('2d')
-      ctx.lineWidth = 3
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      ctx.strokeStyle = '#2c3e50'
-      clearCanvas()
-    }
-  })
+function initCanvas() {
+  if (canvasRef.value) {
+    const rect = canvasRef.value.getBoundingClientRect()
+    canvasRef.value.width = rect.width
+    canvasRef.value.height = rect.height
+    ctx = canvasRef.value.getContext('2d')
+    ctx.lineWidth = 3
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = '#2c3e50'
+    clearCanvas()
+  }
 }
 
 function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null }
@@ -396,8 +423,7 @@ function getMousePos(e) {
 }
 
 function startDraw(e) { 
-  isDrawing = true
-  hasDrawn = true
+  isDrawing = true; hasDrawn = true
   ctx.beginPath()
   const pos = getMousePos(e)
   ctx.moveTo(pos.x, pos.y)
@@ -410,51 +436,29 @@ function draw(e) {
   ctx.stroke()
 }
 
-function stopDraw() { 
-  isDrawing = false
-  ctx.closePath()
-}
+function stopDraw() { isDrawing = false; ctx.closePath() }
+function clearCanvas() { ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
 
-function clearCanvas() { 
-  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  hasDrawn = false 
-}
-
-// 🌟 全新圖片自動壓縮功能
+// 自動壓縮功能
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
 
   Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-
   const reader = new FileReader()
   reader.onload = (event) => {
     const img = new Image()
     img.onload = () => {
-      // 建立畫布來壓縮圖片
       const canvas = document.createElement('canvas')
-      let width = img.width
-      let height = img.height
-      const MAX_DIMENSION = 600 // 限制最大寬或高為 600px
-
-      if (width > height && width > MAX_DIMENSION) {
-        height *= MAX_DIMENSION / width
-        width = MAX_DIMENSION
-      } else if (height > MAX_DIMENSION) {
-        width *= MAX_DIMENSION / height
-        height = MAX_DIMENSION
-      }
-
-      canvas.width = width
-      canvas.height = height
+      let width = img.width; let height = img.height
+      const MAX_DIMENSION = 600 
+      if (width > height && width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION } 
+      else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION }
+      canvas.width = width; canvas.height = height
       const ctx = canvas.getContext('2d')
-      
-      // 若原圖有透明背景，填入白色底色，確保存成 JPEG 時不會變黑
       ctx.fillStyle = '#FFFFFF'
       ctx.fillRect(0, 0, width, height)
       ctx.drawImage(img, 0, 0, width, height)
-
-      // 壓縮為 JPEG，品質設定為 0.7，這樣可以將幾 MB 的照片壓縮到幾十 KB
       const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
       uploadedSignature.value = compressedDataUrl
       Swal.close()
@@ -479,7 +483,6 @@ function confirmSignature() {
   else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
 }
 
-// 🚨 測驗防弊監聽器
 function handleVisibilityChange() {
   if (document.hidden && examTaking.value) {
     Swal.fire({ icon: 'error', title: '違規警告：畫面已切換', text: '系統偵測到您在測驗期間離開或切換了瀏覽器視窗。為維護測驗公平性，本次作答已被強制終止並清空！請重新進行測驗。', confirmButtonColor: '#e74c3c' })
@@ -494,15 +497,15 @@ onMounted(async () => {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
-    
     if (userProfile.role === 'student') { 
-      // 確保第一次登入時還是顯示測驗
-      if (!sessionStorage.getItem('activeModule')) {
-        activeModule.value = 'exams'
-      }
+      if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'
       await loadMyExams() 
     }
-    await loadCategories(); await loadReportsList(user.id, userProfile.role)
+    await loadCategories(); 
+    await loadReportsList(user.id, userProfile.role)
+    
+    // 初始化結束後，立刻觸發斷線狀態還原
+    restoreDraftState()
   }
 })
 
@@ -511,18 +514,12 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', handleVisib
 async function loadMyExams() {
   if (!isStudent.value) return
   const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).order('created_at', { ascending: false })
-  
   pendingExams.value = dispatches.filter(d => !d.is_completed)
   const completedDispatches = dispatches.filter(d => d.is_completed)
-
   const { data: records } = await supabase.from('exam_records').select('*, exams(title, type)').eq('student_id', profile.value.id).order('completed_at', { ascending: false })
-
   myExamRecords.value = records.map(r => {
     const dispatchInfo = completedDispatches.find(d => d.exam_id === r.exam_id)
-    return {
-      ...r,
-      is_answers_revealed: dispatchInfo ? dispatchInfo.show_answers : false
-    }
+    return { ...r, is_answers_revealed: dispatchInfo ? dispatchInfo.show_answers : false }
   })
 }
 
@@ -536,26 +533,14 @@ async function startExam(task) {
 async function submitExam() {
   const answeredCount = Object.keys(studentAnswers.value).length
   const totalCount = examQuestions.value.length
-  
   if (answeredCount < totalCount) return Swal.fire('提示', `您還有 ${totalCount - answeredCount} 題尚未作答，請檢查！`, 'warning')
-  
   const { isConfirmed } = await Swal.fire({ title: '確定要交卷嗎？', icon: 'question', showCancelButton: true })
   if (!isConfirmed) return
-
   Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-
-  const { data, error } = await supabase.functions.invoke('submit-exam', {
-    body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value }
-  })
-
+  const { data, error } = await supabase.functions.invoke('submit-exam', { body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value } })
   if (error || data?.error) return Swal.fire('錯誤', error?.message || data?.error, 'error')
-
-  const resultHtml = data.show_answers 
-    ? `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 您可以在下方列表點擊「檢視」來查閱正確答案。</span>`
-    : `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>`;
-
+  const resultHtml = data.show_answers ? `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 您可以在下方列表點擊「檢視」來查閱正確答案。</span>` : `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>`;
   Swal.fire({ icon: 'success', title: '測驗完成！', html: resultHtml })
-  
   examTaking.value = null; studentAnswers.value = {}; await loadMyExams() 
 }
 
@@ -625,8 +610,6 @@ function createNewDraft() {
   selectedReportId.value = ''
   report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null }
   currentReportMeta.value = {}; studentExamRecords.value = []
-  Toast.fire({ icon: 'info', title: '已準備好新表單，請填寫內容' })
-  nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
 }
 
 function getStatusText(status) {
@@ -722,7 +705,10 @@ async function unlockReport() {
 }
 
 function exportToPDF() { window.print() }
-async function handleLogout() { await supabase.auth.signOut() }
+async function handleLogout() { 
+  sessionStorage.clear()
+  await supabase.auth.signOut() 
+}
 </script>
 
 <style scoped>
