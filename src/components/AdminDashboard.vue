@@ -256,9 +256,9 @@
             <div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。臨床護理技術需要時間與經驗的累積，能主動察覺自身的不足並提出改進策略，是極佳的專業成長態度。期許未來在實際面對病患時，除了技術的持續精進外，也能發揮同理心與良好的溝通技巧。核定通過本次臨床評核。</div>
           </div>
           <div class="demo-signatures">
-            <div class="sign-box">學員簽章：<br><span style="font-weight:normal; font-size:13px;">(系統已認證)</span></div>
-            <div class="sign-box">老師簽章：<br><span style="font-weight:normal; font-size:13px;">(系統已認證)</span></div>
-            <div class="sign-box">主管簽章：<br><span style="font-weight:normal; font-size:13px;">(系統已認證)</span></div>
+            <div class="sign-box">學員簽章：<br><span>(系統已認證)</span></div>
+            <div class="sign-box">老師簽章：<br><span>(系統已認證)</span></div>
+            <div class="sign-box">主管簽章：<br><span>(系統已認證)</span></div>
           </div>
         </div>
       </div>
@@ -395,7 +395,7 @@ async function loadAssignments() { const { data } = await supabase.from('assignm
 async function createUser() { isCreating.value = true; try { const { data, error } = await supabase.functions.invoke('create-user', { body: newUser.value }); if (error || (data && data.error)) throw new Error(error?.message || data?.error); Swal.fire({ icon: 'success', title: '建立成功', timer: 1500, showConfirmButton: false }); newUser.value = { email: '', password: '', name: '', role: 'student', unit: '' }; await loadUsers() } catch (err) { Swal.fire({ icon: 'error', title: '建立失敗', text: err.message }) } finally { isCreating.value = false } }
 async function editUser(user) {
   const currentUnit = (user.unit === '未指定單位' || !user.unit) ? '' : user.unit;
-  const { value: formValues } = await Swal.fire({ title: '✏️ 修改人員資料', html: `<div style="text-align: left; margin-top: 10px;"><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;">身分角色：</label><select id="edit-role" class="swal2-select" style="width: 100%; max-width: 100%; margin: 0 0 15px 0; font-size: 15px; padding: 8px;"><option value="student" ${user.role === 'student' ? 'selected' : ''}>受訓學員</option><option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>指導老師</option><option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>單位主管</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系統管理員</option></select><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px;">實習單位：</label><input id="edit-unit" class="swal2-input" value="${currentUnit}" placeholder="例如：5B病房 (留空則為未指定)" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box;"></div>`, showCancelButton: true, confirmButtonColor: '#3498db', cancelButtonColor: '#7f8c8d', confirmButtonText: '儲存修改', cancelButtonText: '取消', preConfirm: () => { return { role: document.getElementById('edit-role').value, unit: document.getElementById('edit-unit').value.trim() } } });
+  const { value: formValues } = await Swal.fire({ title: '✏️ 修改人員資料', html: `<div style="text-align: left; margin-top: 10px;"><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; color:#2c3e50;">身分角色：</label><select id="edit-role" class="swal2-select" style="width: 100%; max-width: 100%; margin: 0 0 15px 0; font-size: 15px; padding: 8px; color:#000;"><option value="student" ${user.role === 'student' ? 'selected' : ''}>受訓學員</option><option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>指導老師</option><option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>單位主管</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系統管理員</option></select><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; color:#2c3e50;">實習單位：</label><input id="edit-unit" class="swal2-input" value="${currentUnit}" placeholder="例如：5B病房 (留空則為未指定)" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box; color:#000;"></div>`, showCancelButton: true, confirmButtonColor: '#3498db', cancelButtonColor: '#7f8c8d', confirmButtonText: '儲存修改', cancelButtonText: '取消', preConfirm: () => { return { role: document.getElementById('edit-role').value, unit: document.getElementById('edit-unit').value.trim() } } });
   if (formValues) { Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const finalUnit = formValues.unit ? formValues.unit : '未指定單位'; const { error } = await supabase.rpc('update_user_admin', { target_user_id: user.id, new_role: formValues.role, new_unit: finalUnit }); if (error) { Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error'); } else { Toast.fire({ icon: 'success', title: '資料修改成功' }); await loadUsers(); } }
 }
 
@@ -413,31 +413,47 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
-/* ============================================================ */
-/* 🛡️ 終極深色模式防護盾 (Anti-Dark Mode Shield)                  */
-/* ============================================================ */
+/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
-  background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; 
-  top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; 
-  flex-direction: column; align-items: center; 
+  background-color: #f0f2f5; 
+  min-height: 100vh; 
+  width: 100vw; 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  padding: 30px 20px; 
+  box-sizing: border-box; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  color-scheme: light only; 
 }
 
-/* 強制所有通用文字鎖定深色 */
+/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
-.app-wrapper p, .app-wrapper label, .app-wrapper th, .app-wrapper td,
-.app-wrapper li, .app-wrapper .q-title, .app-wrapper .opt-text, 
-.app-wrapper .sign-title, .app-wrapper .user-info, .app-wrapper .exam-name {
+.app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
+.app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
+.app-wrapper .opt-text, .app-wrapper .sign-title, .app-wrapper .user-info, 
+.app-wrapper .exam-name {
   color: #1a252f !important;
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 次要文字加深鎖定 */
-.desc, .empty-state, .unsigned-text, .sign-timestamp {
+/* 🌟 次要文字加深鎖定 */
+.desc, .empty-state, .sign-timestamp {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
+}
+
+/* 🌟 修正簽章底下的說明文字顏色與對比度 */
+.unsigned-text, .demo-signatures span {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+  font-size: 13px !important;
+  font-style: italic !important;
 }
 
 /* 輸入框絕對鎖定 */
@@ -460,8 +476,21 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 白字元素特例 */
-.btn { -webkit-text-fill-color: initial !important; }
+/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
+.btn { 
+  color: #ffffff !important; 
+  -webkit-text-fill-color: #ffffff !important; 
+}
+/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
+.tabs button:not(.active), .filter-tabs button:not(.active), .page-btn {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+}
+.tabs button.active {
+  color: #3498db !important;
+  -webkit-text-fill-color: #3498db !important;
+}
+
 .role-badge, .status-badge, .score-badge, .correct-badge, .wrong-badge, .score-val {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -473,16 +502,16 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; overflow-x: auto; white-space: nowrap; }
-.tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
-.tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
+.tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
+.tabs button.active { border-bottom: 2px solid #3498db; }
 .admin-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 25px; }
 .admin-card h3 { margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 .card-header-flex.align-center { align-items: center; border-bottom: none; padding-bottom: 0; }
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
 .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.filter-tabs button { padding: 6px 14px; border: 1px solid #bdc3c7; background: white; border-radius: 20px; font-size: 13px; font-weight: bold; color: #7f8c8d; cursor: pointer; transition: 0.2s; }
-.filter-tabs button.active { background: #34495e; color: white; border-color: #34495e; }
+.filter-tabs button { padding: 6px 14px; border: 1px solid #bdc3c7; background: white; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.filter-tabs button.active { background: #34495e; border-color: #34495e; color: #fff !important; -webkit-text-fill-color: #fff !important; }
 
 .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-group { flex: 1; margin-bottom: 15px; }
@@ -533,12 +562,12 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .demo-section { margin-bottom: 20px; }
 .demo-text-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; }
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
+.sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center;}
 
-/* 🌟 成績標籤排版 */
 .score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
 .score-tag .exam-name { font-weight: bold; font-size: 15px; }
-.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; }
+.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
 @media screen and (max-width: 768px) {
@@ -548,9 +577,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   .import-actions { flex-direction: column; width: 100%; } .demo-info-grid { grid-template-columns: 1fr; }
 }
 
-/* ============================================================ */
-/* 🖨️ PDF 列印專屬優化                                           */
-/* ============================================================ */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }

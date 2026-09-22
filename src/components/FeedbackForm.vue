@@ -206,7 +206,6 @@
       </div>
     </div>
 
-    <!-- ✍️ 簽章 Modal -->
     <div v-if="showSignatureModal" class="modal-overlay" @click.self="closeSignatureModal">
       <div class="modal-content signature-modal">
         <div class="modal-header">
@@ -235,7 +234,6 @@
       </div>
     </div>
 
-    <!-- 💡 檢視解答 Modal -->
     <div v-if="isReviewModalOpen" class="modal-overlay" @click.self="closeReviewModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
@@ -372,35 +370,51 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
-/* ============================================================ */
-/* 🛡️ 終極深色模式防護盾 (Anti-Dark Mode Shield)                  */
-/* ============================================================ */
+/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
-  background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; 
-  top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; 
-  flex-direction: column; align-items: center; 
+  background-color: #f0f2f5; 
+  min-height: 100vh; 
+  width: 100vw; 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  padding: 30px 20px; 
+  box-sizing: border-box; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  color-scheme: light only; 
 }
 
-/* 強制所有通用文字鎖定深色 */
+/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
-.app-wrapper p, .app-wrapper label, .app-wrapper th, .app-wrapper td,
-.app-wrapper .q-title, .app-wrapper .opt-text, .app-wrapper .sign-title,
-.app-wrapper .user-info, .app-wrapper .exam-name {
+.app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
+.app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
+.app-wrapper .opt-text, .app-wrapper .sign-title, .app-wrapper .user-info, 
+.app-wrapper .exam-name {
   color: #1a252f !important;
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 次要文字加深鎖定 */
-.desc, .empty-state, .unsigned-text, .sign-timestamp {
+/* 🌟 次要文字加深鎖定 */
+.desc, .empty-state, .sign-timestamp {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
 }
 
+/* 🌟 修正簽章底下的說明文字顏色與對比度 */
+.unsigned-text, .demo-signatures span {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+  font-size: 13px !important;
+  font-style: italic !important;
+}
+
 /* 輸入框絕對鎖定 */
-.form-input, .print-text-box {
+.form-input, .print-text-box, .demo-text-box {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
   background-color: #ffffff !important;
@@ -419,8 +433,21 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 白字元素特例 */
-.btn { -webkit-text-fill-color: initial !important; }
+/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
+.btn { 
+  color: #ffffff !important; 
+  -webkit-text-fill-color: #ffffff !important; 
+}
+/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
+.module-tabs button:not(.active), .signature-tabs button:not(.active) {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+}
+.module-tabs button.active, .signature-tabs button.active {
+  color: #3498db !important;
+  -webkit-text-fill-color: #3498db !important;
+}
+
 .role-badge, .status-badge, .score-badge, .correct-badge, .wrong-badge, .score-val {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -432,35 +459,45 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .module-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; }
-.module-tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
-.module-tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
+.module-tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
+.module-tabs button.active { border-bottom: 2px solid #3498db; }
+.module-content { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
 .selector-header { display: flex; justify-content: space-between; align-items: center; }
-.status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #ecf0f1; padding: 15px 20px; border-radius: 8px;}
+.empty-state { text-align: center; padding: 40px !important; }
+.status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; font-size: 15px; background: #ecf0f1; padding: 15px 20px; border-radius: 8px;}
+.meta-info p { margin: 0 0 5px 0; }
+.meta-info p:last-child { margin: 0; }
+.status-badge { padding: 5px 12px; border-radius: 20px; margin-left: 10px; font-size: 14px; }
 .status-badge.draft { background: #95a5a6; } .status-badge.pending_teacher { background: #f39c12; } .status-badge.pending_supervisor { background: #e67e22; } .status-badge.closed { background: #2ecc71; }
+
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
 .card h3 { margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
 .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
 .form-group { flex: 1; margin-bottom: 15px; }
-.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; resize: vertical; min-height: 45px; }
+.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
+
 .show-on-print { display: none; }
+
 .action-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .action-row.center { justify-content: center; }
 
-.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
-.primary-btn { background: #3498db; color: white; } .secondary-btn { background: #95a5a6; color: white; } .success-btn { background: #2ecc71; color: white; } .danger-btn { background: #e74c3c; color: white; } .dark-btn { background: #2c3e50; color: white; }
+.primary-btn { background: #3498db; } .secondary-btn { background: #95a5a6; } .success-btn { background: #2ecc71; } .danger-btn { background: #e74c3c; } .dark-btn { background: #2c3e50; }
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); } .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-.score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; color: white; display: inline-block; min-width: 50px; }
-.score-high { background-color: #2ecc71 !important; } .score-pass { background-color: #f39c12 !important; } .score-fail { background-color: #e74c3c !important; }
+.score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; display: inline-block; min-width: 50px; }
+.score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
 /* 🌟 成績標籤列表排版 */
 .score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
 .score-tag .exam-name { font-weight: bold; font-size: 15px; }
-.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; }
+.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
 
 .exam-card { border-top: 5px solid #3498db; }
 .exam-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px; }
@@ -473,9 +510,9 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
 
 .is-correct-preview { border-color: #2ecc71 !important; background: #f4fdf8 !important; }
-.correct-badge { background: #2ecc71; color: white; font-size: 12px; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.correct-badge { background: #2ecc71; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 .is-wrong-preview { border-color: #e74c3c !important; background: #fdf2f2 !important; }
-.wrong-badge { background: #e74c3c; color: white; font-size: 12px; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.wrong-badge { background: #e74c3c; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 30%; }
@@ -484,14 +521,13 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-.modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; }
+.modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.2s; overflow: hidden; display: flex; flex-direction: column; }
 .signature-modal { width: 100%; max-width: 500px; } .review-modal { width: 100%; max-width: 850px; max-height: 90vh; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; background: #f8f9fa;}
 .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d; }
 .modal-body { padding: 25px; overflow-y: auto; }
 .signature-tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-.signature-tabs button { flex: 1; padding: 10px; border: 1px solid #dcdde1; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #7f8c8d; }
-.signature-tabs button.active { background: #3498db; color: white; border-color: #3498db; }
+.signature-tabs button { flex: 1; padding: 10px; border: 1px solid #dcdde1; background: #f8f9fa; cursor: pointer; font-weight: bold; transition: 0.2s; }
 .canvas-container { position: relative; border: 2px dashed #bdc3c7; border-radius: 8px; background: #fdfdfd; overflow: hidden; }
 .signature-canvas { width: 100%; height: 200px; touch-action: none; cursor: crosshair; }
 .clear-btn { position: absolute; top: 10px; right: 10px; opacity: 0.8; }
