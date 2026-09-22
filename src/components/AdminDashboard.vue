@@ -103,9 +103,13 @@
                 <tr v-for="stat in dispatchStats" :key="stat.exam_id">
                   <td><strong>{{ stat.title }}</strong></td>
                   <td style="text-align: center; font-weight: bold;">
-                    <span :style="{ color: stat.completed === stat.total ? '#2ecc71' : '#e67e22' }">
-                      {{ stat.completed }} / {{ stat.total }}
-                    </span>
+                    <!-- 🌟 加入進度與未交名單查看按鈕 -->
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                      <span :style="{ color: stat.completed === stat.total ? '#2ecc71' : '#e67e22' }">
+                        {{ stat.completed }} / {{ stat.total }}
+                      </span>
+                      <button v-if="stat.completed < stat.total" @click="showPendingStudents(stat)" class="btn secondary-btn small-btn" style="padding: 4px 8px; font-size: 12px;">🔍 查看未交名單</button>
+                    </div>
                   </td>
                   <td style="text-align: center;">
                     <span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span>
@@ -347,7 +351,6 @@
                       <option v-for="supervisor in supervisors" :key="supervisor.id" :value="supervisor.id">{{ supervisor.name }}</option>
                     </select>
                   </td>
-                  <!-- 🌟 更新後的儲存按鈕 -->
                   <td><button @click="saveAssignment(student.id)" class="btn primary-btn small-btn">儲存</button></td>
                 </tr>
               </tbody>
@@ -552,6 +555,7 @@ async function submitDispatch() {
   }
 }
 
+// 🌟 計算派發狀態，並收集尚未完成的學員名單
 const dispatchStats = computed(() => {
   const stats = {}
   dispatchRecords.value.forEach(r => {
@@ -562,15 +566,36 @@ const dispatchStats = computed(() => {
         title: exam ? exam.title : '未知測驗',
         total: 0,
         completed: 0,
-        show_answers: r.show_answers 
+        show_answers: r.show_answers,
+        pending_names: []
       }
     }
     stats[r.exam_id].total++
-    if (r.is_completed) stats[r.exam_id].completed++
+    if (r.is_completed) {
+      stats[r.exam_id].completed++
+    } else {
+      const student = users.value.find(u => u.id === r.student_id)
+      if (student) stats[r.exam_id].pending_names.push(student.name)
+    }
     if (r.show_answers) stats[r.exam_id].show_answers = true
   })
   return Object.values(stats)
 })
+
+// 🌟 彈出未完成學員名單
+function showPendingStudents(stat) {
+  if (stat.pending_names.length === 0) {
+    Swal.fire('提示', '所有學員皆已完成測驗！', 'success')
+    return
+  }
+  const namesHtml = stat.pending_names.map(name => `<span style="display:inline-block; margin: 5px; padding: 5px 10px; background:#ecf0f1; border-radius:4px; font-weight:bold; color: #2c3e50;">${name}</span>`).join('')
+  Swal.fire({
+    title: `尚未交卷名單 (${stat.pending_names.length} 人)`,
+    html: `<div style="text-align: left; margin-top: 15px;">${namesHtml}</div>`,
+    icon: 'info',
+    confirmButtonText: '關閉'
+  })
+}
 
 async function toggleAnswersVisibility(examId, currentStatus) {
   const newStatus = !currentStatus
@@ -962,25 +987,18 @@ async function handleFileUpload(event) {
   reader.readAsArrayBuffer(file)
 }
 
-// 🌟 核心修正：加入錯誤捕捉，確保管理員儲存失敗時能收到通知
 async function saveAssignment(studentId) {
   const data = assignmentData.value[studentId]
   if (!data.teacher_id || !data.supervisor_id) {
     return Swal.fire({ icon: 'warning', title: '提示', text: '請選擇指導老師與單位主管' })
   }
-  
   Swal.fire({ title: '儲存配對中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-
   const { error } = await supabase.from('assignments').upsert(
     { student_id: studentId, teacher_id: data.teacher_id, supervisor_id: data.supervisor_id }, 
     { onConflict: 'student_id' }
   )
-  
-  if (error) {
-    Swal.fire('配對失敗', `資料庫錯誤: ${error.message}<br><br>💡 這通常是因為 assignments 表格的 student_id 尚未設定為 Unique (唯一鍵)！請至 Supabase 後台修正。`, 'error')
-  } else {
-    Swal.fire('成功', '配對已成功儲存！', 'success')
-  }
+  if (error) Swal.fire('配對失敗', `資料庫錯誤: ${error.message}`, 'error')
+  else Swal.fire('成功', '配對已成功儲存！', 'success')
 }
 
 async function handleLogout() { 
@@ -990,62 +1008,76 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-/* 基礎 UI 與排版 */
-.app-wrapper { background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
-.admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
+.app-wrapper { 
+  background-color: #f0f2f5; 
+  min-height: 100vh; 
+  width: 100vw; 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  padding: 30px 20px; 
+  box-sizing: border-box; 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  color-scheme: light only; 
+}
+
+.form-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .admin-header h2 { margin: 0; color: #2c3e50; font-weight: 900;}
+
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; overflow-x: auto; white-space: nowrap; }
 .tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
 .tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
 .tabs button:hover:not(.active) { color: #2c3e50; }
+
 .admin-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 25px; }
 .admin-card h3 { margin-top: 0; color: #34495e; margin-bottom: 10px; font-weight: 900;}
 .desc { color: #7f8c8d; font-size: 14px; margin-bottom: 0; line-height: 1.5; }
 .card-header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
 .card-header-flex.align-center { align-items: center; border-bottom: none; padding-bottom: 0; }
-.card-header-text { display: flex; flex-direction: column; gap: 5px; }
+
 .import-actions { display: flex; gap: 15px; align-items: center; flex-shrink: 0; }
 .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .filter-tabs button { padding: 6px 14px; border: 1px solid #bdc3c7; background: white; border-radius: 20px; font-size: 13px; font-weight: bold; color: #7f8c8d; cursor: pointer; transition: 0.2s; }
 .filter-tabs button.active { background: #34495e; color: white; border-color: #34495e; }
-.filter-tabs button:hover:not(.active) { background: #ecf0f1; }
-.create-form { margin-top: 20px; }
-.create-form .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
-.form-group { flex: 1; }
+
+.form-row { display: flex; gap: 15px; margin-bottom: 15px; }
+.form-group { flex: 1; margin-bottom: 15px; }
 .form-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
 .form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; transition: 0.2s; font-family: inherit; }
 .form-input:focus { outline: none; border-color: #3498db; }
-.batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; animation: fadeIn 0.3s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+.batch-action-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 12px 18px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; color: #d63031; font-weight: bold; }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
+
 .table-responsive { overflow-x: auto; margin-top: 15px; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-.data-table th, .data-table td { padding: 14px; border-bottom: 1px solid #ecf0f1; text-align: left; color: #2c3e50; transition: background 0.2s; }
+.data-table th, .data-table td { padding: 14px; border-bottom: 1px solid #ecf0f1; text-align: left; color: #2c3e50; }
 .data-table th { background: #f8f9fa; font-weight: bold; }
 .data-table tbody tr:hover { background: #f9fbfc; }
-.data-table tbody tr.selected-row { background: #fdf2f2; }
 .empty-state { text-align: center; color: #95a5a6; padding: 30px !important; }
+
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; color: white; display: inline-block; }
 .role-badge.student { background: #3498db; }
 .role-badge.teacher { background: #9b59b6; }
 .role-badge.supervisor { background: #e67e22; }
 .role-badge.admin { background: #34495e; }
-.pairing-select { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 6px; font-family: inherit; }
+
 .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; text-align: center; white-space: nowrap; font-family: inherit; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
 .primary-btn { background: #3498db; color: white; }
+.secondary-btn { background: #95a5a6; color: white; }
 .success-btn { background: #2ecc71; color: white; display: inline-flex; align-items: center; justify-content: center; }
 .danger-btn { background: #e74c3c; color: white; }
 .dark-btn { background: #2c3e50; color: white; }
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
-.btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+.btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+
 .pagination-controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; }
 .page-btn { padding: 6px 12px; border: 1px solid #bdc3c7; background: white; border-radius: 4px; cursor: pointer; color: #2c3e50; font-weight: bold; transition: 0.2s; }
-.page-btn:hover:not(:disabled) { background: #ecf0f1; border-color: #95a5a6; }
 
-/* 編輯區塊樣式 */
-.preview-card { border: 2px solid #3498db; box-shadow: 0 0 15px rgba(52, 152, 219, 0.2); }
 .shuffle-options { display: flex; gap: 20px; margin: 15px 0 25px 0; background: #f0f8ff; padding: 12px; border-radius: 6px; border: 1px solid #bce0fd; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #2980b9; cursor: pointer; font-size: 14px; }
 .preview-questions-list { display: flex; flex-direction: column; gap: 15px; }
@@ -1054,67 +1086,32 @@ async function handleLogout() {
 .q-num { font-weight: 900; color: #3498db; font-size: 18px; width: 35px; }
 .q-text-input { font-weight: bold; font-size: 16px; border-color: #bdc3c7; }
 .q-options { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.q-options li { display: flex; align-items: center; gap: 10px; background: white; padding: 8px; border-radius: 6px; border: 1px solid #eee; transition: 0.2s; }
+.q-options li { display: flex; align-items: center; gap: 10px; background: white; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
 .q-options li.is-correct { border-color: #2ecc71; background: #f4fdf8; }
 .custom-radio { width: 18px; height: 18px; cursor: pointer; accent-color: #2ecc71; }
-.opt-text-input { padding: 8px 12px; font-size: 14px; }
 .correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
-/* 💡 Modal 預覽視窗樣式 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-.modal-content { background: white; width: 100%; max-width: 850px; max-height: 90vh; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.3s ease-out; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; }
+.modal-content { background: white; width: 100%; max-width: 850px; max-height: 90vh; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; background: #f8f9fa;}
 .modal-header h3 { margin: 0; color: #2c3e50; font-size: 20px; font-weight: 900; }
-.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d; padding: 0; line-height: 1; transition: 0.2s; }
-.close-btn:hover { color: #e74c3c; }
-.modal-body { padding: 25px; overflow-y: auto; background: #f4f7f6; border-radius: 0 0 8px 8px; }
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d; }
+.modal-body { padding: 25px; overflow-y: auto; }
 .exam-warning { background: #e8f4fd; color: #2980b9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 14px; border: 1px solid #bce0fd; }
-.q-title { font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 15px; line-height: 1.5; }
-.opt-label { display: flex; align-items: flex-start; gap: 10px; padding: 12px 15px; background: white; border-radius: 6px; border: 1px solid #dcdde1; width: 100%; box-sizing: border-box; }
-.opt-label.is-correct-preview { border-color: #2ecc71; background: #f4fdf8; }
-.opt-text { font-size: 15px; color: #34495e; line-height: 1.4; flex: 1; }
 
-/* 測驗成績標籤 */
-.score-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.score-tag { display: flex; align-items: center; border: 1px solid #dcdde1; border-radius: 6px; overflow: hidden; font-weight: bold; background: white;}
-.score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50; }
-.score-tag .score-val { padding: 8px 12px; color: white; }
-.score-high { background-color: #2ecc71; }
-
-/* PDF 演示專用 */
 .demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
-.demo-info-grid p { margin: 0; font-size: 15px; color: #2c3e50; }
 .demo-section { margin-bottom: 20px; }
-.demo-section h4 { margin: 0 0 10px 0; color: #34495e; font-size: 16px; font-weight: bold; }
 .demo-text-box { background: white; border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; color: #2c3e50; min-height: 80px; }
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
 .sign-box { font-weight: bold; color: #2c3e50; font-size: 15px; }
-.sign-box span { font-weight: normal; color: #7f8c8d; font-style: italic; margin-left: 10px; }
-
-@media print {
-  .app-wrapper { background: white; padding: 0; }
-  .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
-  .printable-demo { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-  .demo-text-box { border: 1px solid #000; break-inside: avoid; }
-  .demo-info-grid { background: transparent; border: 1px solid #000; }
-  .score-tag { border: 1px solid #000; }
-  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000; }
-  .score-tag .score-val { color: #000 !important; background: transparent !important; }
-}
 
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; }
   .admin-header button { width: 100%; }
   .tabs { flex-direction: column; border-bottom: none; }
   .tabs button { border-radius: 6px; border-bottom: none; margin-bottom: 5px; }
-  .tabs button.active { background: #ecf0f1; border-bottom: none; }
   .card-header-flex { flex-direction: column; align-items: stretch; gap: 15px; }
   .import-actions { flex-direction: column; width: 100%; }
-  .import-actions .btn, .import-actions label { width: 100%; box-sizing: border-box; }
-  .create-form .form-row { flex-direction: column; gap: 10px; }
-  .filter-tabs { justify-content: flex-start; }
-  .batch-action-bar { flex-direction: column; gap: 10px; text-align: center; }
   .demo-info-grid { grid-template-columns: 1fr; }
-  .shuffle-options { flex-direction: column; gap: 10px; }
 }
 </style>
