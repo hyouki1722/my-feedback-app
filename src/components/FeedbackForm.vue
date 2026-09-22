@@ -14,9 +14,6 @@
         <button :class="{ active: activeModule === 'feedback' }" @click="activeModule = 'feedback'">📘 實習心得填寫</button>
       </div>
 
-      <!-- ========================================== -->
-      <!-- 模組 A：線上測驗任務 (僅學員可見)               -->
-      <!-- ========================================== -->
       <div v-if="activeModule === 'exams' && isStudent" class="module-content">
         <div v-if="examTaking" class="card exam-card">
           <div class="exam-header">
@@ -26,9 +23,8 @@
           <div class="exam-warning">
             ⚠️ <strong>測驗規定與防弊注意：</strong><br>
             1. 作答完畢送出後即無法修改，請確認所有題目皆已填答。<br>
-            2. <span style="color: #d63031;"><strong>【嚴禁切換視窗】</strong></span>若系統偵測到您離開或切換瀏覽器分頁，測驗將被強制終止並清空進度！
+            2. <strong>【嚴禁切換視窗】</strong>若系統偵測到您離開或切換瀏覽器分頁，測驗將被強制終止並清空進度！
           </div>
-
           <div class="question-list">
             <div v-for="(q, index) in examQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
@@ -40,7 +36,6 @@
               </div>
             </div>
           </div>
-
           <div class="action-row center" style="margin-top: 30px;">
             <button @click="submitExam" class="btn primary-btn" :disabled="isSaving" style="width: 100%; max-width: 300px; padding: 15px; font-size: 18px;">交卷並計算成績</button>
           </div>
@@ -50,39 +45,22 @@
           <div class="card section-card">
             <h3>🔥 待辦測驗任務</h3>
             <table class="data-table">
-              <thead>
-                <tr>
-                  <th>測驗卷名稱</th>
-                  <th>類型</th>
-                  <th>派發時間</th>
-                  <th style="width: 100px; text-align: center;">操作</th>
-                </tr>
-              </thead>
+              <thead><tr><th>測驗卷名稱</th><th>類型</th><th>派發時間</th><th style="text-align: center;">操作</th></tr></thead>
               <tbody>
                 <tr v-for="task in pendingExams" :key="task.id">
                   <td><strong>{{ task.exams?.title }}</strong></td>
                   <td><span class="role-badge" :class="task.exams?.type === 'pre_test' ? 'student' : 'teacher'">{{ task.exams?.type === 'pre_test' ? '課前測驗' : '課後測驗' }}</span></td>
                   <td>{{ formatDate(task.created_at) }}</td>
-                  <td style="text-align: center;">
-                    <button @click="startExam(task)" class="btn success-btn small-btn">開始測驗</button>
-                  </td>
+                  <td style="text-align: center;"><button @click="startExam(task)" class="btn success-btn small-btn">開始測驗</button></td>
                 </tr>
-                <tr v-if="pendingExams.length === 0"><td colspan="4" class="empty-state">太棒了！目前沒有待辦的測驗任務。</td></tr>
+                <tr v-if="pendingExams.length === 0"><td colspan="4" class="empty-state">目前沒有待辦的測驗任務。</td></tr>
               </tbody>
             </table>
           </div>
-
           <div class="card section-card" style="margin-top: 20px;">
             <h3>✅ 已完成測驗紀錄</h3>
             <table class="data-table">
-              <thead>
-                <tr>
-                  <th>測驗卷名稱</th>
-                  <th>完成時間</th>
-                  <th style="width: 100px; text-align: center;">得分</th>
-                  <th style="width: 120px; text-align: center;">解答與解析</th>
-                </tr>
-              </thead>
+              <thead><tr><th>測驗卷名稱</th><th>完成時間</th><th style="text-align: center;">得分</th><th style="text-align: center;">解答與解析</th></tr></thead>
               <tbody>
                 <tr v-for="record in myExamRecords" :key="record.id">
                   <td><strong>{{ record.exams?.title }}</strong></td>
@@ -90,7 +68,7 @@
                   <td style="text-align: center;"><span class="score-badge" :class="getScoreColor(record.score)">{{ record.score }} 分</span></td>
                   <td style="text-align: center;">
                     <button v-if="record.is_answers_revealed" @click="openReviewModal(record)" class="btn primary-btn small-btn">🔍 檢視</button>
-                    <span v-else style="color: #95a5a6; font-size: 13px; font-weight: bold;">(待統一公開)</span>
+                    <span v-else class="unsigned-text" style="font-size: 13px;">(待統一公開)</span>
                   </td>
                 </tr>
                 <tr v-if="myExamRecords.length === 0"><td colspan="4" class="empty-state">尚無測驗紀錄</td></tr>
@@ -100,9 +78,6 @@
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- 模組 B：實習心得填寫與審核                     -->
-      <!-- ========================================== -->
       <div v-show="activeModule === 'feedback' || !isStudent" class="module-content">
         <div class="card section-card no-print">
           <div class="selector-header">
@@ -131,7 +106,6 @@
           <div v-if="studentExamRecords.length > 0" class="card section-card result-card">
             <h3>📊 測驗成績紀錄</h3>
             <p class="desc no-print">匯出 PDF 存查時，系統會自動將此成績列表附在報告中。</p>
-            <!-- 🌟 全新成績標籤排版 -->
             <div class="score-tags">
               <div v-for="record in studentExamRecords" :key="record.id" class="score-tag">
                 <span class="exam-name">{{ record.exams?.title }}</span>
@@ -150,16 +124,9 @@
               </select>
             </div>
             <div class="form-row">
-              <div class="form-group">
-                <label>實習/訓練開始日期：</label>
-                <input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required />
-              </div>
-              <div class="form-group">
-                <label>實習/訓練結束日期：</label>
-                <input type="date" v-model="report.training_end_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required />
-              </div>
+              <div class="form-group"><label>實習/訓練開始日期：</label><input type="date" v-model="report.training_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required /></div>
+              <div class="form-group"><label>實習/訓練結束日期：</label><input type="date" v-model="report.training_end_date" :disabled="!isStudent || report.status !== 'draft'" class="form-input print-border-none" required /></div>
             </div>
-            
             <div class="form-group">
               <label>學習內容重點摘要：</label>
               <textarea v-model="report.content" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
@@ -170,7 +137,6 @@
               <textarea v-model="report.reflection" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
               <div class="show-on-print print-text-box">{{ report.reflection || '無' }}</div>
             </div>
-            
             <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
               <button @click="saveDraft" class="btn secondary-btn" :disabled="isSaving">儲存草稿</button>
               <button @click="initiateAction('student')" class="btn primary-btn" :disabled="isSaving">✍️ 簽章並送出審核</button>
@@ -236,15 +202,11 @@
             <button v-if="isSupervisor || isAdmin" @click="unlockReport" class="btn danger-btn">解鎖並退回重編</button>
           </div>
         </div>
-
-        <div v-else class="card section-card empty-state">
-          <p v-if="isStudent">請點擊上方「建立新心得」開始填寫。</p>
-          <p v-else>目前未選擇任何報告，請由上方選單挑選您管轄的學員紀錄。</p>
-        </div>
+        <div v-else class="card section-card empty-state"><p v-if="isStudent">請點擊上方「建立新心得」開始填寫。</p><p v-else>目前未選擇任何報告，請由上方選單挑選。</p></div>
       </div>
     </div>
 
-    <!-- ✍️ 電子簽章與印章上傳 Modal -->
+    <!-- ✍️ 簽章 Modal -->
     <div v-if="showSignatureModal" class="modal-overlay" @click.self="closeSignatureModal">
       <div class="modal-content signature-modal">
         <div class="modal-header">
@@ -257,17 +219,13 @@
             <button :class="{ active: signatureMode === 'upload' }" @click="signatureMode = 'upload'">上傳印章/圖片</button>
           </div>
           <div v-show="signatureMode === 'draw'" class="canvas-container">
-            <canvas ref="canvasRef" class="signature-canvas"
-              @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw"
-              @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
+            <canvas ref="canvasRef" class="signature-canvas" @mousedown="startDraw" @mousemove="draw" @mouseup="stopDraw" @mouseleave="stopDraw" @touchstart.prevent="startDraw" @touchmove.prevent="draw" @touchend.prevent="stopDraw"></canvas>
             <button @click="clearCanvas" class="btn secondary-btn small-btn clear-btn">重新簽名</button>
           </div>
           <div v-show="signatureMode === 'upload'" class="upload-container">
             <input type="file" @change="handleSignatureUpload" accept="image/jpeg, image/png, image/webp" class="form-input" />
-            <div v-if="uploadedSignature" class="preview-img-box">
-              <img :src="uploadedSignature" class="signature-preview" />
-            </div>
-            <p v-else style="color: #7f8c8d; font-size: 14px; margin-top: 10px;">系統將自動調整您的圖片大小，無論從圖片庫或相機皆可順利上傳！</p>
+            <div v-if="uploadedSignature" class="preview-img-box"><img :src="uploadedSignature" class="signature-preview" /></div>
+            <p v-else class="desc" style="margin-top: 10px;">系統將自動調整您的圖片大小，皆可順利上傳！</p>
           </div>
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
@@ -277,7 +235,7 @@
       </div>
     </div>
 
-    <!-- 💡 學員檢視解答彈窗 Modal -->
+    <!-- 💡 檢視解答 Modal -->
     <div v-if="isReviewModalOpen" class="modal-overlay" @click.self="closeReviewModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
@@ -285,18 +243,14 @@
           <button @click="closeReviewModal" class="close-btn">✖</button>
         </div>
         <div class="modal-body">
-          <div class="exam-warning" style="background: #e8f4fd; border-color: #bce0fd; color: #2980b9;">
+          <div class="exam-warning" style="background: #e8f4fd; border-color: #bce0fd;">
             您的最終得分為：<strong style="font-size: 18px;">{{ reviewingRecord?.score }} 分</strong>
           </div>
           <div class="question-list">
             <div v-for="(q, index) in reviewingRecord?.answers?.grading" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
               <div class="q-options">
-                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label"
-                       :class="{
-                         'is-correct-preview': opt === q.correct_answer,
-                         'is-wrong-preview': opt === q.student_answer && q.student_answer !== q.correct_answer
-                       }">
+                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" :class="{'is-correct-preview': opt === q.correct_answer, 'is-wrong-preview': opt === q.student_answer && q.student_answer !== q.correct_answer}">
                   <input type="radio" disabled class="custom-radio" :checked="opt === q.student_answer">
                   <span class="opt-text">{{ opt }}</span>
                   <span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">✅ 正確解答</span>
@@ -308,7 +262,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -319,574 +272,225 @@ import Swal from 'sweetalert2'
 import { Toast } from '../utils/toast'
 import { checkAndEnforcePasswordChange } from '../utils/auth'
 
-const profile = ref(null)
-const isSaving = ref(false)
-
-const isStudent = computed(() => profile.value?.role === 'student')
-const isTeacher = computed(() => profile.value?.role === 'teacher')
-const isSupervisor = computed(() => profile.value?.role === 'supervisor')
-const isAdmin = computed(() => profile.value?.role === 'admin')
-
+const profile = ref(null); const isSaving = ref(false)
+const isStudent = computed(() => profile.value?.role === 'student'); const isTeacher = computed(() => profile.value?.role === 'teacher')
+const isSupervisor = computed(() => profile.value?.role === 'supervisor'); const isAdmin = computed(() => profile.value?.role === 'admin')
 const activeModule = ref(sessionStorage.getItem('activeModule') || 'feedback')
 watch(activeModule, (newVal) => { sessionStorage.setItem('activeModule', newVal) })
 
-const pendingExams = ref([])
-const myExamRecords = ref([])
-const examTaking = ref(null)
-const examQuestions = ref([])
-const studentAnswers = ref({})
-
-const reportList = ref([])
-const selectedReportId = ref('')
-const currentReportMeta = ref({})
-const dynamicCategories = ref([])
-const studentExamRecords = ref([])
-const feedbackFormRef = ref(null) 
+const pendingExams = ref([]); const myExamRecords = ref([]); const examTaking = ref(null); const examQuestions = ref([]); const studentAnswers = ref({})
+const reportList = ref([]); const selectedReportId = ref(''); const currentReportMeta = ref({}); const dynamicCategories = ref([]); const studentExamRecords = ref([]); const feedbackFormRef = ref(null) 
 
 const report = ref({
   id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0],
   content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft',
-  student_signature: null, teacher_signature: null, supervisor_signature: null,
-  student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null
+  student_signature: null, teacher_signature: null, supervisor_signature: null, student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null
 })
+watch(report, (newVal) => { if (isStudent.value) sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal)) }, { deep: true })
 
-watch(report, (newVal) => {
-  if (isStudent.value) sessionStorage.setItem('temp_feedback_draft', JSON.stringify(newVal))
-}, { deep: true })
+const showSignatureModal = ref(false); const signatureMode = ref('draw'); const pendingAction = ref(null); const canvasRef = ref(null); const uploadedSignature = ref(null)
+let isDrawing = false; let ctx = null; let hasDrawn = false; const signatureUpdateTarget = ref(null)
+watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget], ([show, mode, action, target]) => { sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action, target })) })
 
-const showSignatureModal = ref(false)
-const signatureMode = ref('draw') 
-const pendingAction = ref(null) 
-const canvasRef = ref(null)
-const uploadedSignature = ref(null)
-let isDrawing = false
-let ctx = null
-let hasDrawn = false
-const signatureUpdateTarget = ref(null)
-
-watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget], ([show, mode, action, target]) => {
-  sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action, target }))
-})
-
-function formatDateTime(isoString) {
-  if (!isoString) return '(無時間紀錄)'
-  const d = new Date(isoString)
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-function formatDate(isoString) {
-  if (!isoString) return ''
-  const d = new Date(isoString)
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
-}
+function formatDateTime(isoString) { if (!isoString) return '(無時間紀錄)'; const d = new Date(isoString); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+function formatDate(isoString) { if (!isoString) return ''; const d = new Date(isoString); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` }
 
 function restoreDraftState() {
   if (!isStudent.value) return 
   const savedDraft = sessionStorage.getItem('temp_feedback_draft')
-  if (savedDraft) {
-    try {
-      const parsed = JSON.parse(savedDraft)
-      if (parsed && Object.keys(parsed).length > 0) {
-        report.value = parsed
-        selectedReportId.value = parsed.id || ''
-      }
-    } catch (e) {}
-  }
-
+  if (savedDraft) { try { const parsed = JSON.parse(savedDraft); if (parsed && Object.keys(parsed).length > 0) { report.value = parsed; selectedReportId.value = parsed.id || '' } } catch (e) {} }
   const savedModal = sessionStorage.getItem('temp_modal_state')
-  if (savedModal) {
-    try {
-      const parsedModal = JSON.parse(savedModal)
-      if (parsedModal.show) {
-        showSignatureModal.value = parsedModal.show
-        signatureMode.value = parsedModal.mode
-        pendingAction.value = parsedModal.action
-        signatureUpdateTarget.value = parsedModal.target || null
-        if (parsedModal.mode === 'draw') nextTick(() => { initCanvas() })
-        Toast.fire({ icon: 'info', title: '已自動為您恢復剛剛的填寫進度與簽章畫面' })
-      }
-    } catch (e) {}
-  }
+  if (savedModal) { try { const parsedModal = JSON.parse(savedModal); if (parsedModal.show) { showSignatureModal.value = parsedModal.show; signatureMode.value = parsedModal.mode; pendingAction.value = parsedModal.action; signatureUpdateTarget.value = parsedModal.target || null; if (parsedModal.mode === 'draw') nextTick(() => { initCanvas() }); Toast.fire({ icon: 'info', title: '已自動為您恢復填寫進度與簽章畫面' }) } } catch (e) {} }
 }
 
-const isReviewModalOpen = ref(false)
-const reviewingRecord = ref(null)
-function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
-function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
+const isReviewModalOpen = ref(false); const reviewingRecord = ref(null)
+function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }; function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
 
-function updateSignature(role) {
-  signatureUpdateTarget.value = role
-  showSignatureModal.value = true
-  signatureMode.value = 'draw'
-  uploadedSignature.value = null
-  hasDrawn = false
-  setTimeout(() => { initCanvas() }, 350)
-}
-
+function updateSignature(role) { signatureUpdateTarget.value = role; showSignatureModal.value = true; signatureMode.value = 'draw'; uploadedSignature.value = null; hasDrawn = false; setTimeout(() => { initCanvas() }, 350) }
 function initiateAction(actionRole) {
-  if (actionRole === 'student') {
-    if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning')
-    if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning')
-  } else if (actionRole === 'teacher') {
-    if (!report.value.teacher_feedback) return Swal.fire('提示', '請填寫指導回饋', 'warning')
-  } else if (actionRole === 'supervisor') {
-    if (!report.value.supervisor_feedback) return Swal.fire('提示', '請填寫主管總評', 'warning')
-  }
-
-  pendingAction.value = actionRole
-  signatureUpdateTarget.value = null 
-  showSignatureModal.value = true
-  signatureMode.value = 'draw'
-  uploadedSignature.value = null
-  hasDrawn = false
-  setTimeout(() => { initCanvas() }, 350)
+  if (actionRole === 'student') { if (!report.value.training_category || !report.value.content || !report.value.reflection) return Swal.fire('提示', '請完整填寫訓練類別、內容與反思', 'warning'); if (new Date(report.value.training_date) > new Date(report.value.training_end_date)) return Swal.fire('提示', '「結束日期」不能早於「開始日期」', 'warning') } 
+  else if (actionRole === 'teacher') { if (!report.value.teacher_feedback) return Swal.fire('提示', '請填寫指導回饋', 'warning') } 
+  else if (actionRole === 'supervisor') { if (!report.value.supervisor_feedback) return Swal.fire('提示', '請填寫主管總評', 'warning') }
+  pendingAction.value = actionRole; signatureUpdateTarget.value = null; showSignatureModal.value = true; signatureMode.value = 'draw'; uploadedSignature.value = null; hasDrawn = false; setTimeout(() => { initCanvas() }, 350)
 }
-
-function initCanvas() {
-  if (canvasRef.value) {
-    const rect = canvasRef.value.getBoundingClientRect()
-    const finalWidth = rect.width > 50 ? rect.width : 400
-    const finalHeight = rect.height > 50 ? rect.height : 200
-    canvasRef.value.width = finalWidth
-    canvasRef.value.height = finalHeight
-    ctx = canvasRef.value.getContext('2d')
-    ctx.lineWidth = 4  
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#000000'
-    clearCanvas()
-  }
-}
-
+function initCanvas() { if (canvasRef.value) { const rect = canvasRef.value.getBoundingClientRect(); canvasRef.value.width = rect.width > 50 ? rect.width : 400; canvasRef.value.height = rect.height > 50 ? rect.height : 200; ctx = canvasRef.value.getContext('2d'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#000000'; clearCanvas() } }
 function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null; signatureUpdateTarget.value = null }
-
-function getMousePos(e) {
-  const rect = canvasRef.value.getBoundingClientRect()
-  const isTouch = e.type && e.type.startsWith('touch')
-  const clientX = isTouch ? e.touches[0].clientX : e.clientX
-  const clientY = isTouch ? e.touches[0].clientY : e.clientY
-  const scaleX = rect.width ? canvasRef.value.width / rect.width : 1
-  const scaleY = rect.height ? canvasRef.value.height / rect.height : 1
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
-}
-
+function getMousePos(e) { const rect = canvasRef.value.getBoundingClientRect(); const isTouch = e.type && e.type.startsWith('touch'); const clientX = isTouch ? e.touches[0].clientX : e.clientX; const clientY = isTouch ? e.touches[0].clientY : e.clientY; const scaleX = rect.width ? canvasRef.value.width / rect.width : 1; const scaleY = rect.height ? canvasRef.value.height / rect.height : 1; return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY } }
 function startDraw(e) { isDrawing = true; hasDrawn = true; ctx.beginPath(); const pos = getMousePos(e); ctx.moveTo(pos.x, pos.y) }
 function draw(e) { if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke() }
 function stopDraw() { isDrawing = false; ctx.closePath() }
 function clearCanvas() { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
 
 function handleSignatureUpload(e) {
-  const file = e.target.files[0]
-  if (!file) return
-  if (!file.type.startsWith('image/')) { Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳 JPG 或 PNG 圖檔。', 'error'); e.target.value = ''; return }
-  Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-
-  try {
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        try {
-          const canvas = document.createElement('canvas')
-          let width = img.width; let height = img.height
-          const MAX_DIMENSION = 600 
-          if (width > height && width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION } 
-          else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION }
-          canvas.width = width; canvas.height = height
-          const ctx = canvas.getContext('2d')
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(img, 0, 0, width, height)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
-          if (compressedDataUrl.length > 800000) { Swal.fire('處理失敗', '圖片過於複雜，壓縮後仍超過系統限制，請嘗試裁切圖片。', 'error'); e.target.value = ''; return }
-          uploadedSignature.value = compressedDataUrl; Swal.close()
-        } catch (err) { Swal.fire('圖片渲染失敗', '您的裝置在處理圖片時發生錯誤：' + err.message, 'error') }
-      }
-      img.onerror = () => { Swal.fire('讀取失敗', '無法解析該圖片檔案，檔案可能已損壞。', 'error') }
-      img.src = event.target.result
-    }
-    reader.onerror = () => { Swal.fire('讀取失敗', '無法讀取您手機中的檔案權限，請確認是否允許瀏覽器存取相簿。', 'error') }
-    reader.readAsDataURL(file)
-  } catch (err) { Swal.fire('系統錯誤', '上傳模組發生未知的錯誤：' + err.message, 'error') } 
-  finally { e.target.value = '' }
+  const file = e.target.files[0]; if (!file) return; if (!file.type.startsWith('image/')) { Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳圖檔。', 'error'); e.target.value = ''; return }
+  Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); try { const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { try { const canvas = document.createElement('canvas'); let width = img.width; let height = img.height; const MAX_DIMENSION = 600; if (width > height && width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION } else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(img, 0, 0, width, height); const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7); if (compressedDataUrl.length > 800000) { Swal.fire('處理失敗', '圖片過於複雜，請嘗試裁切。', 'error'); e.target.value = ''; return } uploadedSignature.value = compressedDataUrl; Swal.close() } catch (err) { Swal.fire('渲染失敗', err.message, 'error') } }; img.onerror = () => { Swal.fire('讀取失敗', '檔案可能已損壞', 'error') }; img.src = event.target.result }; reader.onerror = () => { Swal.fire('讀取失敗', '無法讀取檔案權限', 'error') }; reader.readAsDataURL(file) } catch (err) { Swal.fire('錯誤', err.message, 'error') } finally { e.target.value = '' }
 }
 
 function confirmSignature() {
-  let base64Signature = null
-  if (signatureMode.value === 'draw') {
-    if (!hasDrawn) return Swal.fire('提示', '請在方框內手寫簽名，或切換至上傳印章。', 'warning')
-    base64Signature = canvasRef.value.toDataURL('image/png')
-  } else {
-    if (!uploadedSignature.value) return Swal.fire('提示', '請上傳您的印章或簽名圖檔。', 'warning')
-    base64Signature = uploadedSignature.value
-  }
-  showSignatureModal.value = false
-
-  if (signatureUpdateTarget.value) { executeSignatureUpdate(signatureUpdateTarget.value, base64Signature) } 
-  else if (pendingAction.value === 'student') { report.value.student_signature = base64Signature; executeStudentSubmit() } 
-  else if (pendingAction.value === 'teacher') { report.value.teacher_signature = base64Signature; executeTeacherSubmit() } 
-  else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
+  let base64Signature = null; if (signatureMode.value === 'draw') { if (!hasDrawn) return Swal.fire('提示', '請手寫簽名或上傳', 'warning'); base64Signature = canvasRef.value.toDataURL('image/png') } else { if (!uploadedSignature.value) return Swal.fire('提示', '請上傳圖檔', 'warning'); base64Signature = uploadedSignature.value }
+  showSignatureModal.value = false; if (signatureUpdateTarget.value) { executeSignatureUpdate(signatureUpdateTarget.value, base64Signature) } else if (pendingAction.value === 'student') { report.value.student_signature = base64Signature; executeStudentSubmit() } else if (pendingAction.value === 'teacher') { report.value.teacher_signature = base64Signature; executeTeacherSubmit() } else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
 }
 
 async function executeSignatureUpdate(role, base64) {
-  const field = role + '_signature'
-  const dateField = role + '_sign_date'
-  const nowISO = new Date().toISOString()
-  report.value[field] = base64; report.value[dateField] = nowISO; signatureUpdateTarget.value = null 
-
-  if (!report.value.id) return 
-  Swal.fire({ title: '更新簽章中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const { error } = await supabase.from('feedback_reports').update({ [field]: base64, [dateField]: nowISO, updated_at: nowISO }).eq('id', report.value.id)
-  if (error) { Swal.fire('錯誤', '簽章更新失敗: ' + error.message, 'error') } 
-  else { Toast.fire({ icon: 'success', title: '簽章與時間已成功更新' }); await loadReportsList(profile.value.id, profile.value.role) }
+  const field = role + '_signature'; const dateField = role + '_sign_date'; const nowISO = new Date().toISOString(); report.value[field] = base64; report.value[dateField] = nowISO; signatureUpdateTarget.value = null; if (!report.value.id) return; Swal.fire({ title: '更新簽章中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { error } = await supabase.from('feedback_reports').update({ [field]: base64, [dateField]: nowISO, updated_at: nowISO }).eq('id', report.value.id); if (error) { Swal.fire('錯誤', error.message, 'error') } else { Toast.fire({ icon: 'success', title: '簽章已更新' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
-function handleVisibilityChange() {
-  if (document.hidden && examTaking.value) {
-    Swal.fire({ icon: 'error', title: '違規警告：畫面已切換', text: '系統偵測到您在測驗期間離開或切換了瀏覽器視窗。為維護測驗公平性，本次作答已被強制終止並清空！請重新進行測驗。', confirmButtonColor: '#e74c3c' })
-    examTaking.value = null; studentAnswers.value = {}
-  }
-}
-
-onMounted(async () => {
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    await checkAndEnforcePasswordChange(user.id)
-    const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    profile.value = userProfile
-    if (userProfile.role === 'student') { if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'; await loadMyExams() }
-    await loadCategories(); await loadReportsList(user.id, userProfile.role)
-    restoreDraftState()
-  }
-})
-
+function handleVisibilityChange() { if (document.hidden && examTaking.value) { Swal.fire({ icon: 'error', title: '違規警告', text: '偵測到您離開視窗，測驗已終止！', confirmButtonColor: '#e74c3c' }); examTaking.value = null; studentAnswers.value = {} } }
+onMounted(async () => { document.addEventListener('visibilitychange', handleVisibilityChange); const { data: { user } } = await supabase.auth.getUser(); if (user) { await checkAndEnforcePasswordChange(user.id); const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single(); profile.value = userProfile; if (userProfile.role === 'student') { if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'; await loadMyExams() } await loadCategories(); await loadReportsList(user.id, userProfile.role); restoreDraftState() } })
 onUnmounted(() => { document.removeEventListener('visibilitychange', handleVisibilityChange) })
 
-async function loadMyExams() {
-  if (!isStudent.value) return
-  const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).order('created_at', { ascending: false })
-  pendingExams.value = dispatches.filter(d => !d.is_completed)
-  const completedDispatches = dispatches.filter(d => d.is_completed)
-  const { data: records } = await supabase.from('exam_records').select('*, exams(title, type)').eq('student_id', profile.value.id).order('completed_at', { ascending: false })
-  myExamRecords.value = records.map(r => {
-    const dispatchInfo = completedDispatches.find(d => d.exam_id === r.exam_id)
-    return { ...r, is_answers_revealed: dispatchInfo ? dispatchInfo.show_answers : false }
-  })
-}
+async function loadMyExams() { if (!isStudent.value) return; const { data: dispatches } = await supabase.from('exam_dispatch').select('*, exams(title, type)').eq('student_id', profile.value.id).order('created_at', { ascending: false }); pendingExams.value = dispatches.filter(d => !d.is_completed); const completedDispatches = dispatches.filter(d => d.is_completed); const { data: records } = await supabase.from('exam_records').select('*, exams(title, type)').eq('student_id', profile.value.id).order('completed_at', { ascending: false }); myExamRecords.value = records.map(r => { const dispatchInfo = completedDispatches.find(d => d.exam_id === r.exam_id); return { ...r, is_answers_revealed: dispatchInfo ? dispatchInfo.show_answers : false } }) }
+async function startExam(task) { Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data: qData, error } = await supabase.from('questions').select('id, question_text, options').eq('exam_id', task.exam_id); if (error || !qData) return Swal.fire('錯誤', '題目載入失敗', 'error'); examQuestions.value = qData; examTaking.value = task; studentAnswers.value = {}; Swal.close() }
+async function submitExam() { const answeredCount = Object.keys(studentAnswers.value).length; const totalCount = examQuestions.value.length; if (answeredCount < totalCount) return Swal.fire('提示', `還有 ${totalCount - answeredCount} 題未作答`, 'warning'); const { isConfirmed } = await Swal.fire({ title: '確定交卷？', icon: 'question', showCancelButton: true }); if (!isConfirmed) return; Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data, error } = await supabase.functions.invoke('submit-exam', { body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value } }); if (error || data?.error) return Swal.fire('錯誤', error?.message || data?.error, 'error'); const resultHtml = data.show_answers ? `您的得分：<strong style="font-size:24px; color:${data.score >= 60 ? '#2ecc71' : '#e74c3c'}">${data.score} 分</strong><br>可在下方列表點擊檢視答案。` : `您的得分：<strong style="font-size:24px; color:${data.score >= 60 ? '#2ecc71' : '#e74c3c'}">${data.score} 分</strong><br>答案將由管理員統一公開。`; Swal.fire({ icon: 'success', title: '測驗完成！', html: resultHtml }); examTaking.value = null; studentAnswers.value = {}; await loadMyExams() }
 
-async function startExam(task) {
-  Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const { data: qData, error } = await supabase.from('questions').select('id, question_text, options').eq('exam_id', task.exam_id)
-  if (error || !qData) return Swal.fire('錯誤', '題目載入失敗', 'error')
-  examQuestions.value = qData; examTaking.value = task; studentAnswers.value = {}; Swal.close()
-}
-
-async function submitExam() {
-  const answeredCount = Object.keys(studentAnswers.value).length
-  const totalCount = examQuestions.value.length
-  if (answeredCount < totalCount) return Swal.fire('提示', `您還有 ${totalCount - answeredCount} 題尚未作答，請檢查！`, 'warning')
-  const { isConfirmed } = await Swal.fire({ title: '確定要交卷嗎？', icon: 'question', showCancelButton: true })
-  if (!isConfirmed) return
-  Swal.fire({ title: '批改中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const { data, error } = await supabase.functions.invoke('submit-exam', { body: { dispatchId: examTaking.value.id, examId: examTaking.value.exam_id, answers: studentAnswers.value } })
-  if (error || data?.error) return Swal.fire('錯誤', error?.message || data?.error, 'error')
-  const resultHtml = data.show_answers ? `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 您可以在下方列表點擊「檢視」來查閱正確答案。</span>` : `您的得分為：<strong style="font-size: 24px; color: ${data.score >= 60 ? '#2ecc71' : '#e74c3c'};">${data.score} 分</strong><br><br><span style="font-size: 14px; color: #7f8c8d;">※ 正確解答與解析將由管理員於測驗結束後統一公開。</span>`;
-  Swal.fire({ icon: 'success', title: '測驗完成！', html: resultHtml })
-  examTaking.value = null; studentAnswers.value = {}; await loadMyExams() 
-}
-
-function getScoreColor(score) {
-  if (score >= 80) return 'score-high'
-  if (score >= 60) return 'score-pass'
-  return 'score-fail'
-}
-
-async function loadCategories() {
-  const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true })
-  if (!error && data) dynamicCategories.value = data
-}
+function getScoreColor(score) { return score >= 80 ? 'score-high' : score >= 60 ? 'score-pass' : 'score-fail' }
+async function loadCategories() { const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true }); if (!error && data) dynamicCategories.value = data }
 
 async function loadReportsList(userId, role) {
-  const { data: profs } = await supabase.from('profiles').select('id, name')
-  const profilesMap = {}; profs.forEach(p => profilesMap[p.id] = p.name)
-  const { data: assigns } = await supabase.from('assignments').select('*')
-  const assignsMap = {}; assigns.forEach(a => assignsMap[a.student_id] = a)
-
-  let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false })
-  if (role === 'student') query = query.eq('student_id', userId)
-  else if (role === 'teacher') {
-    const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id)
-    query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
-  } else if (role === 'supervisor') {
-    const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id)
-    query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy')
-  }
-
-  const { data: reports } = await query
-  if (reports) {
-    reportList.value = reports.map(r => {
-      const assign = assignsMap[r.student_id] || {}
-      return { ...r, studentName: profilesMap[r.student_id] || '未知學員', teacherName: profilesMap[assign.teacher_id] || '尚未指派', supervisorName: profilesMap[assign.supervisor_id] || '尚未指派' }
-    })
-  }
-
-  if (reportList.value.length > 0) {
-    const exists = reportList.value.some(r => r.id === selectedReportId.value)
-    if (!exists) {
-      let autoSelect = reportList.value[0]
-      if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]
-      if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]
-      selectedReportId.value = autoSelect.id
-    }
-    await selectReport()
-  } else {
-    if (isStudent.value) createNewDraft()
-  }
+  const { data: profs } = await supabase.from('profiles').select('id, name'); const profilesMap = {}; profs.forEach(p => profilesMap[p.id] = p.name)
+  const { data: assigns } = await supabase.from('assignments').select('*'); const assignsMap = {}; assigns.forEach(a => assignsMap[a.student_id] = a)
+  let query = supabase.from('feedback_reports').select('*').order('updated_at', { ascending: false }); if (role === 'student') query = query.eq('student_id', userId); else if (role === 'teacher') { const myStudentIds = assigns.filter(a => a.teacher_id === userId).map(a => a.student_id); query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy') } else if (role === 'supervisor') { const myStudentIds = assigns.filter(a => a.supervisor_id === userId).map(a => a.student_id); query = myStudentIds.length ? query.in('student_id', myStudentIds) : query.eq('id', 'dummy') }
+  const { data: reports } = await query; if (reports) { reportList.value = reports.map(r => { const assign = assignsMap[r.student_id] || {}; return { ...r, studentName: profilesMap[r.student_id] || '未知學員', teacherName: profilesMap[assign.teacher_id] || '尚未指派', supervisorName: profilesMap[assign.supervisor_id] || '尚未指派' } }) }
+  if (reportList.value.length > 0) { const exists = reportList.value.some(r => r.id === selectedReportId.value); if (!exists) { let autoSelect = reportList.value[0]; if (role === 'teacher') autoSelect = reportList.value.find(r => r.status === 'pending_teacher') || reportList.value[0]; if (role === 'supervisor') autoSelect = reportList.value.find(r => r.status === 'pending_supervisor') || reportList.value[0]; selectedReportId.value = autoSelect.id } await selectReport() } else { if (isStudent.value) createNewDraft() }
 }
+async function selectReport() { const found = reportList.value.find(r => r.id === selectedReportId.value); if (found) { report.value = { ...found }; if (!report.value.training_end_date) report.value.training_end_date = report.value.training_date; currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }; const { data: records } = await supabase.from('exam_records').select('*, exams(title)').eq('student_id', found.student_id).order('completed_at', { ascending: false }); studentExamRecords.value = records || [] } else { if (isStudent.value) createNewDraft() } }
+function createNewDraft() { selectedReportId.value = ''; report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null, student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null }; currentReportMeta.value = {}; studentExamRecords.value = []; Toast.fire({ icon: 'info', title: '已準備好新表單' }); nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) }) }
+function getStatusText(status) { const map = { 'draft': '📝 草稿', 'pending_teacher': '⏳ 待老師', 'pending_supervisor': '⏳ 待主管', 'closed': '✅ 已結案' }; return map[status] || status }
+function getRoleName(role) { const map = { student: '學員', teacher: '老師', supervisor: '主管', admin: '管理員' }; return map[role] || role }
 
-async function selectReport() {
-  const found = reportList.value.find(r => r.id === selectedReportId.value)
-  if (found) {
-    report.value = { ...found }
-    if (!report.value.training_end_date) report.value.training_end_date = report.value.training_date
-    currentReportMeta.value = { studentName: found.studentName, teacherName: found.teacherName }
-    const { data: records } = await supabase.from('exam_records').select('*, exams(title)').eq('student_id', found.student_id).order('completed_at', { ascending: false })
-    studentExamRecords.value = records || []
-  } else {
-    if (isStudent.value) createNewDraft()
-  }
-}
+async function saveDraft() { if (!report.value.training_category) return Swal.fire('提示', '請先選擇訓練類別！', 'warning'); isSaving.value = true; const payload = { student_id: profile.value.id, training_category: report.value.training_category, training_date: report.value.training_date || new Date().toISOString().split('T')[0], training_end_date: report.value.training_end_date || new Date().toISOString().split('T')[0], content: report.value.content || '', reflection: report.value.reflection || '', status: 'draft', updated_at: new Date().toISOString() }; let dbError = null; if (report.value.id) { const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id); dbError = error } else { const { data, error } = await supabase.from('feedback_reports').insert([payload]).select(); dbError = error; if (data && data.length > 0) { report.value.id = data[0].id; selectedReportId.value = data[0].id } } isSaving.value = false; if (dbError) { Swal.fire('儲存失敗', dbError.message, 'error') } else { Toast.fire({ icon: 'success', title: '草稿已儲存' }); await loadReportsList(profile.value.id, profile.value.role) } }
+async function executeStudentSubmit() { isSaving.value = true; const nowISO = new Date().toISOString(); const payload = { student_id: profile.value.id, training_category: report.value.training_category, training_date: report.value.training_date, training_end_date: report.value.training_end_date, content: report.value.content, reflection: report.value.reflection, status: 'pending_teacher', updated_at: nowISO, student_signature: report.value.student_signature, student_sign_date: nowISO }; let dbError = null; if (report.value.id) { const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id); dbError = error } else { const { data, error } = await supabase.from('feedback_reports').insert([payload]).select(); dbError = error; if (data && data.length > 0) selectedReportId.value = data[0].id } isSaving.value = false; if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給老師' }); sessionStorage.removeItem('temp_feedback_draft'); await loadReportsList(profile.value.id, profile.value.role) } else Swal.fire('錯誤', dbError.message, 'error') }
+async function executeTeacherSubmit() { isSaving.value = true; const nowISO = new Date().toISOString(); await supabase.from('feedback_reports').update({ teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', updated_at: nowISO, teacher_signature: report.value.teacher_signature, teacher_sign_date: nowISO }).eq('id', report.value.id); isSaving.value = false; Swal.fire({ icon: 'success', title: '已移交單位主管' }); await loadReportsList(profile.value.id, profile.value.role) }
+async function executeSupervisorSubmit() { isSaving.value = true; const nowISO = new Date().toISOString(); const { error } = await supabase.from('feedback_reports').update({ supervisor_feedback: report.value.supervisor_feedback, status: 'closed', updated_at: nowISO, supervisor_signature: report.value.supervisor_signature, supervisor_sign_date: nowISO }).eq('id', report.value.id); isSaving.value = false; if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) } }
 
-function createNewDraft() {
-  selectedReportId.value = ''
-  report.value = { id: null, training_category: '', training_date: new Date().toISOString().split('T')[0], training_end_date: new Date().toISOString().split('T')[0], content: '', reflection: '', teacher_feedback: '', supervisor_feedback: '', status: 'draft', student_signature: null, teacher_signature: null, supervisor_signature: null, student_sign_date: null, teacher_sign_date: null, supervisor_sign_date: null }
-  currentReportMeta.value = {}; studentExamRecords.value = []
-  Toast.fire({ icon: 'info', title: '已準備好新表單，請填寫內容' })
-  nextTick(() => { if (feedbackFormRef.value) feedbackFormRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
-}
-
-function getStatusText(status) {
-  const map = { 'draft': '📝 草稿', 'pending_teacher': '⏳ 待老師', 'pending_supervisor': '⏳ 待主管', 'closed': '✅ 已結案' }
-  return map[status] || status
-}
-function getRoleName(role) {
-  const map = { student: '學員', teacher: '老師', supervisor: '主管', admin: '管理員' }
-  return map[role] || role
-}
-
-async function saveDraft() {
-  if (!report.value.training_category) { return Swal.fire('提示', '儲存草稿前，請先在上方選擇「訓練類別」！', 'warning') }
-  isSaving.value = true
-  const payload = { 
-    student_id: profile.value.id, training_category: report.value.training_category, 
-    training_date: report.value.training_date || new Date().toISOString().split('T')[0], 
-    training_end_date: report.value.training_end_date || new Date().toISOString().split('T')[0], 
-    content: report.value.content || '', reflection: report.value.reflection || '', 
-    status: 'draft', updated_at: new Date().toISOString() 
-  }
-  let dbError = null
-  if (report.value.id) { 
-    const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
-    dbError = error
-  } else { 
-    const { data, error } = await supabase.from('feedback_reports').insert([payload]).select()
-    dbError = error
-    if (data && data.length > 0) { report.value.id = data[0].id; selectedReportId.value = data[0].id }
-  }
-  isSaving.value = false 
-  if (dbError) { Swal.fire('儲存失敗', '資料庫回傳錯誤：' + dbError.message, 'error') } 
-  else { Toast.fire({ icon: 'success', title: '草稿已確實儲存' }); await loadReportsList(profile.value.id, profile.value.role) }
-}
-
-async function executeStudentSubmit() {
-  isSaving.value = true
-  const nowISO = new Date().toISOString()
-  const payload = { 
-    student_id: profile.value.id, training_category: report.value.training_category, 
-    training_date: report.value.training_date, training_end_date: report.value.training_end_date,
-    content: report.value.content, reflection: report.value.reflection,
-    status: 'pending_teacher', updated_at: nowISO,
-    student_signature: report.value.student_signature,
-    student_sign_date: nowISO
-  }
-  let dbError = null
-  if (report.value.id) {
-    const { error } = await supabase.from('feedback_reports').update(payload).eq('id', report.value.id)
-    dbError = error
-  } else {
-    const { data, error } = await supabase.from('feedback_reports').insert([payload]).select()
-    dbError = error
-    if (data && data.length > 0) selectedReportId.value = data[0].id
-  }
-  isSaving.value = false
-  if (!dbError) { Swal.fire({ icon: 'success', title: '已送出給指導老師' }); sessionStorage.removeItem('temp_feedback_draft'); await loadReportsList(profile.value.id, profile.value.role) } 
-  else Swal.fire('錯誤', dbError.message, 'error')
-}
-
-async function executeTeacherSubmit() {
-  isSaving.value = true
-  const nowISO = new Date().toISOString()
-  await supabase.from('feedback_reports').update({ 
-    teacher_feedback: report.value.teacher_feedback, status: 'pending_supervisor', 
-    updated_at: nowISO, teacher_signature: report.value.teacher_signature,
-    teacher_sign_date: nowISO
-  }).eq('id', report.value.id)
-  isSaving.value = false
-  Swal.fire({ icon: 'success', title: '已移交單位主管' })
-  await loadReportsList(profile.value.id, profile.value.role)
-}
-
-async function executeSupervisorSubmit() {
-  isSaving.value = true
-  const nowISO = new Date().toISOString()
-  const { error } = await supabase.from('feedback_reports').update({ 
-    supervisor_feedback: report.value.supervisor_feedback, status: 'closed', 
-    updated_at: nowISO, supervisor_signature: report.value.supervisor_signature,
-    supervisor_sign_date: nowISO
-  }).eq('id', report.value.id)
-  isSaving.value = false
-  if (!error) { Swal.fire({ icon: 'success', title: '結案成功' }); await loadReportsList(profile.value.id, profile.value.role) }
-}
-
-async function returnToStudent() {
-  const { isConfirmed } = await Swal.fire({ title: '退回學員？', showCancelButton: true })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'draft', student_signature: null, student_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
-}
-
-async function returnToTeacher() {
-  const { isConfirmed } = await Swal.fire({ title: '退回給老師？', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_teacher', teacher_signature: null, teacher_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) }
-}
-
-async function unlockReport() {
-  const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' })
-  if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_supervisor', supervisor_signature: null, supervisor_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'success', title: '已解除鎖定' }); await loadReportsList(profile.value.id, profile.value.role) }
-}
+async function returnToStudent() { const { isConfirmed } = await Swal.fire({ title: '退回學員？', showCancelButton: true }); if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'draft', student_signature: null, student_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) } }
+async function returnToTeacher() { const { isConfirmed } = await Swal.fire({ title: '退回給老師？', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_teacher', teacher_signature: null, teacher_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'info', title: '已退回' }); await loadReportsList(profile.value.id, profile.value.role) } }
+async function unlockReport() { const { isConfirmed } = await Swal.fire({ title: '解除鎖定？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (isConfirmed) { await supabase.from('feedback_reports').update({ status: 'pending_supervisor', supervisor_signature: null, supervisor_sign_date: null }).eq('id', report.value.id); Toast.fire({ icon: 'success', title: '已解除' }); await loadReportsList(profile.value.id, profile.value.role) } }
 
 function exportToPDF() { window.print() }
-async function handleLogout() { 
-  sessionStorage.clear()
-  await supabase.auth.signOut() 
-}
+async function handleLogout() { sessionStorage.clear(); await supabase.auth.signOut() }
 </script>
 
 <style scoped>
+/* ============================================================ */
+/* 🛡️ 終極深色模式防護盾 (Anti-Dark Mode Shield)                  */
+/* ============================================================ */
+* { color-scheme: light only !important; }
+
 .app-wrapper { 
-  background-color: #f0f2f5; 
-  min-height: 100vh; 
-  width: 100vw; 
-  position: absolute; 
-  top: 0; 
-  left: 0; 
-  padding: 30px 20px; 
-  box-sizing: border-box; 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  color-scheme: light only; 
+  background-color: #f0f2f5; min-height: 100vh; width: 100vw; position: absolute; 
+  top: 0; left: 0; padding: 30px 20px; box-sizing: border-box; display: flex; 
+  flex-direction: column; align-items: center; 
 }
 
+/* 強制所有通用文字鎖定深色 */
+.app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
+.app-wrapper p, .app-wrapper label, .app-wrapper th, .app-wrapper td,
+.app-wrapper .q-title, .app-wrapper .opt-text, .app-wrapper .sign-title,
+.app-wrapper .user-info, .app-wrapper .exam-name {
+  color: #1a252f !important;
+  -webkit-text-fill-color: #1a252f !important;
+}
+
+/* 次要文字加深鎖定 */
+.desc, .empty-state, .unsigned-text, .sign-timestamp {
+  color: #34495e !important;
+  -webkit-text-fill-color: #34495e !important;
+  font-weight: bold !important;
+}
+
+/* 輸入框絕對鎖定 */
+.form-input, .print-text-box {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+}
+.form-input:disabled {
+  color: #1a252f !important;
+  -webkit-text-fill-color: #1a252f !important;
+  background-color: #f0f4f8 !important;
+  border: 1px solid #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+/* 警告色特例 */
+.exam-warning, .exam-warning strong {
+  color: #856404 !important;
+  -webkit-text-fill-color: #856404 !important;
+}
+
+/* 白字元素特例 */
+.btn { -webkit-text-fill-color: initial !important; }
+.role-badge, .status-badge, .score-badge, .correct-badge, .wrong-badge, .score-val {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ============================================================ */
+/* 一般排版與元件樣式                                            */
+/* ============================================================ */
 .form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
-.header-section h2 { margin: 0; color: #2c3e50; font-weight: 900;}
-.user-info { font-weight: bold; color: #34495e; margin-right: 15px; }
-
 .module-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; }
 .module-tabs button { padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: bold; color: #7f8c8d; cursor: pointer; border-radius: 6px 6px 0 0; transition: 0.2s; margin-bottom: -2px; border-bottom: 2px solid transparent; }
 .module-tabs button.active { color: #3498db; border-bottom: 2px solid #3498db; }
-.module-content { animation: fadeIn 0.3s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
 .selector-header { display: flex; justify-content: space-between; align-items: center; }
-.empty-state { text-align: center; color: #7f8c8d; padding: 40px !important; font-weight: bold; }
-.status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-weight: bold; color: #2c3e50; font-size: 15px; background: #ecf0f1; padding: 15px 20px; border-radius: 8px;}
-.meta-info p { margin: 0 0 5px 0; }
-.meta-info p:last-child { margin: 0; }
-.status-badge { padding: 5px 12px; border-radius: 20px; margin-left: 10px; color: white; font-size: 14px; }
-.status-badge.draft { background: #95a5a6; }
-.status-badge.pending_teacher { background: #f39c12; }
-.status-badge.pending_supervisor { background: #e67e22; }
-.status-badge.closed { background: #2ecc71; }
-
+.status-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #ecf0f1; padding: 15px 20px; border-radius: 8px;}
+.status-badge.draft { background: #95a5a6; } .status-badge.pending_teacher { background: #f39c12; } .status-badge.pending_supervisor { background: #e67e22; } .status-badge.closed { background: #2ecc71; }
 .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; margin-bottom: 20px; }
-.card h3 { margin-top: 0; color: #34495e; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
-
-.desc { color: #34495e !important; font-size: 14px; margin-bottom: 0; line-height: 1.6; font-weight: bold; }
+.card h3 { margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 15px; }
 
 .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
-.form-row .form-group { flex: 1; margin-bottom: 0; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #2c3e50; }
-.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; font-family: inherit; resize: vertical; min-height: 45px; }
+.form-group { flex: 1; margin-bottom: 15px; }
+.form-input { width: 100%; padding: 12px; border: 1px solid #dcdde1; border-radius: 6px; box-sizing: border-box; font-size: 15px; resize: vertical; min-height: 45px; }
 .form-input:focus { outline: none; border-color: #3498db; }
-
-.form-input:disabled { 
-  background-color: #f0f4f8 !important; 
-  color: #1a252f !important; 
-  cursor: not-allowed; 
-  opacity: 1 !important; 
-  -webkit-text-fill-color: #1a252f !important;
-  border: 1px solid #cbd5e1 !important;
-}
-
 .show-on-print { display: none; }
-
 .action-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .action-row.center { justify-content: center; }
 
-.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
 .small-btn { padding: 8px 14px; font-size: 13px; }
-.primary-btn { background: #3498db; color: white; }
-.secondary-btn { background: #95a5a6; color: white; }
-.success-btn { background: #2ecc71; color: white; }
-.danger-btn { background: #e74c3c; color: white; }
-.dark-btn { background: #2c3e50; color: white; }
-.btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
-.btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+.primary-btn { background: #3498db; color: white; } .secondary-btn { background: #95a5a6; color: white; } .success-btn { background: #2ecc71; color: white; } .danger-btn { background: #e74c3c; color: white; } .dark-btn { background: #2c3e50; color: white; }
+.btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); } .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-/* 🌟 全新成績標籤設計，解決深色模式與列印模糊/太擠的問題 */
+.score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; color: white; display: inline-block; min-width: 50px; }
+.score-high { background-color: #2ecc71 !important; } .score-pass { background-color: #f39c12 !important; } .score-fail { background-color: #e74c3c !important; }
+
+/* 🌟 成績標籤列表排版 */
 .score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
-.score-tag .exam-name { color: #2c3e50 !important; font-weight: bold; font-size: 15px; -webkit-text-fill-color: #2c3e50 !important; }
-.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
-
-.score-high { color: #27ae60 !important; border-color: #27ae60 !important; background: #eafaf1 !important; -webkit-text-fill-color: #27ae60 !important; }
-.score-pass { color: #d35400 !important; border-color: #f39c12 !important; background: #fdf4e5 !important; -webkit-text-fill-color: #d35400 !important; }
-.score-fail { color: #c0392b !important; border-color: #e74c3c !important; background: #fdedec !important; -webkit-text-fill-color: #c0392b !important; }
+.score-tag .exam-name { font-weight: bold; font-size: 15px; }
+.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; }
 
 .exam-card { border-top: 5px solid #3498db; }
 .exam-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px; }
-.exam-warning { background: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #ffeeba; line-height: 1.6; }
+.exam-warning { background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; border: 1px solid #ffeeba; line-height: 1.6; }
 .question-item { background: #f8f9fa; padding: 18px; border-radius: 8px; border: 1px solid #e1e4e8; margin-bottom: 20px;}
-.q-title { font-size: 16px; color: #2c3e50; margin-bottom: 15px; line-height: 1.5; }
+.q-title { font-size: 16px; margin-bottom: 15px; line-height: 1.5; }
 .q-options { display: flex; flex-direction: column; gap: 10px; }
 .opt-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; padding: 10px 15px; background: white; border-radius: 6px; border: 1px solid #dcdde1; transition: 0.2s; }
 .opt-label:hover { border-color: #3498db; background: #f0f8ff; }
 .custom-radio { margin-top: 4px; width: 16px; height: 16px; accent-color: #3498db; }
 
 .is-correct-preview { border-color: #2ecc71 !important; background: #f4fdf8 !important; }
-.correct-badge { background: #2ecc71; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.correct-badge { background: #2ecc71; color: white; font-size: 12px; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 .is-wrong-preview { border-color: #e74c3c !important; background: #fdf2f2 !important; }
-.wrong-badge { background: #e74c3c; color: white; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.wrong-badge { background: #e74c3c; color: white; font-size: 12px; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 25px; }
 .sign-box { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 30%; }
-.sign-title { font-weight: bold; color: #2c3e50; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
+.sign-title { font-weight: bold; font-size: 16px; border-bottom: 2px solid #bdc3c7; padding-bottom: 5px; width: 100%; text-align: center; }
 .sign-content { display: flex; flex-direction: column; align-items: center; }
 .signature-img { max-height: 80px; max-width: 100%; object-fit: contain; background-color: #ffffff; border-radius: 6px; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border: 1px solid #ecf0f1; }
-.sign-timestamp { font-size: 12px; color: #7f8c8d; margin-top: 5px; font-weight: bold; text-align: center; }
-.unsigned-text { color: #7f8c8d !important; font-style: italic; margin-top: 10px; font-weight: bold; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-.modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.2s; overflow: hidden; display: flex; flex-direction: column; }
-.signature-modal { width: 100%; max-width: 500px; }
-.review-modal { width: 100%; max-width: 850px; max-height: 90vh; }
+.modal-content { background: white; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column; }
+.signature-modal { width: 100%; max-width: 500px; } .review-modal { width: 100%; max-width: 850px; max-height: 90vh; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #e1e4e8; background: #f8f9fa;}
-.modal-header h3 { margin: 0; color: #2c3e50; font-size: 18px; font-weight: 900; }
 .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #7f8c8d; }
 .modal-body { padding: 25px; overflow-y: auto; }
-
 .signature-tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-.signature-tabs button { flex: 1; padding: 10px; border: 1px solid #dcdde1; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #7f8c8d; transition: 0.2s; }
+.signature-tabs button { flex: 1; padding: 10px; border: 1px solid #dcdde1; background: #f8f9fa; cursor: pointer; font-weight: bold; color: #7f8c8d; }
 .signature-tabs button.active { background: #3498db; color: white; border-color: #3498db; }
 .canvas-container { position: relative; border: 2px dashed #bdc3c7; border-radius: 8px; background: #fdfdfd; overflow: hidden; }
 .signature-canvas { width: 100%; height: 200px; touch-action: none; cursor: crosshair; }
@@ -895,42 +499,32 @@ async function handleLogout() {
 .preview-img-box { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
 .signature-preview { max-height: 100px; max-width: 100%; object-fit: contain; }
 
+@media screen and (max-width: 600px) {
+  .header-section { flex-direction: column; gap: 12px; text-align: center; }
+  .action-row { flex-direction: column; } .action-row button { width: 100%; margin-bottom: 5px; }
+  .form-row { flex-direction: column; gap: 15px; margin-bottom: 15px; }
+  .demo-signatures { flex-direction: column; gap: 20px; } .sign-box { width: 100%; }
+}
+
+/* ============================================================ */
+/* 🖨️ PDF 列印專屬優化                                           */
+/* ============================================================ */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
-  
   .hide-on-print { display: none !important; }
   
   .show-on-print { 
-    display: block !important; 
-    white-space: pre-wrap !important; 
-    word-break: break-word !important; 
-    color: #000 !important; 
-    font-size: 15px !important;
-    line-height: 1.6 !important;
-    padding: 5px 0 !important;
-    border: none !important;
-    min-height: auto !important;
-    -webkit-text-fill-color: #000 !important;
+    display: block !important; white-space: pre-wrap !important; word-break: break-word !important; 
+    font-size: 15px !important; line-height: 1.6 !important; padding: 5px 0 !important; border: none !important;
   }
-
-  .print-border-none { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; -webkit-text-fill-color: #000 !important; }
   
+  .print-border-none { border: none !important; background: transparent !important; padding: 0 !important; }
   .card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; margin-bottom: 20px; padding: 15px !important; }
-
-  /* 🌟 列印專用成績標籤：化繁為簡，清晰俐落 */
+  
   .score-tags { display: block; margin-top: 10px; }
   .score-tag { display: flex !important; justify-content: space-between !important; border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
-  .score-tag .exam-name { color: #000 !important; -webkit-text-fill-color: #000 !important; background: transparent !important; border: none !important; padding: 0 !important; }
-  .score-tag .score-val { color: #000 !important; -webkit-text-fill-color: #000 !important; border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
-}
-
-@media screen and (max-width: 600px) {
-  .header-section { flex-direction: column; gap: 12px; text-align: center; }
-  .action-row { flex-direction: column; }
-  .action-row button { width: 100%; margin-bottom: 5px; }
-  .form-row { flex-direction: column; gap: 15px; margin-bottom: 15px; }
-  .demo-signatures { flex-direction: column; gap: 20px; }
-  .sign-box { width: 100%; }
+  .score-tag .exam-name { background: transparent !important; border: none !important; padding: 0 !important; }
+  .score-tag .score-val { border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
 }
 </style>
