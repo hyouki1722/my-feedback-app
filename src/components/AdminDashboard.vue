@@ -431,29 +431,28 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   color-scheme: light only; 
 }
 
-/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
+/* 🌟 重新精準鎖定，拔除對 button 以及特定標籤的干擾，確保原本白字按鈕維持白色 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
 .app-wrapper .opt-text, .app-wrapper .sign-title, .app-wrapper .user-info, 
-.app-wrapper .exam-name {
+.app-wrapper .exam-name, .app-wrapper .sign-box {
   color: #1a252f !important;
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 🌟 次要文字加深鎖定 */
-.desc, .empty-state, .sign-timestamp {
+/* 🌟 次要文字加深鎖定，涵蓋簽章下的防呆文字 */
+.desc, .empty-state, .sign-timestamp, .unsigned-text, .demo-signatures span {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
 }
 
-/* 🌟 修正簽章底下的說明文字顏色與對比度 */
 .unsigned-text, .demo-signatures span {
-  color: #7f8c8d !important;
-  -webkit-text-fill-color: #7f8c8d !important;
   font-size: 13px !important;
   font-style: italic !important;
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
 }
 
 /* 輸入框絕對鎖定 */
@@ -476,12 +475,11 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
+/* 🌟 確保所有主要按鈕與狀態標籤的字體維持白色，不受深色模式反轉干擾 */
 .btn { 
   color: #ffffff !important; 
   -webkit-text-fill-color: #ffffff !important; 
 }
-/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
 .tabs button:not(.active), .filter-tabs button:not(.active), .page-btn {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
