@@ -3,7 +3,7 @@
     <!-- ======================================================= -->
     <!-- 一般網頁管理介面                                           -->
     <!-- ======================================================= -->
-    <div class="admin-container no-print-if-active">
+    <div class="admin-container">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -20,7 +20,6 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
-      <!-- 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
           <h3>🎯 批次派發測驗卷</h3>
@@ -77,7 +76,6 @@
         </div>
       </div>
 
-      <!-- 題庫管理 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
@@ -138,7 +136,6 @@
         </div>
       </div>
 
-      <!-- 帳號管理 -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="admin-card">
           <div class="card-header-flex">
@@ -146,7 +143,6 @@
             <div class="import-actions"><button @click="downloadTemplate" class="btn dark-btn">下載範本格式</button><input type="file" ref="fileInput" @change="handleFileUpload" accept=".xlsx, .xls" style="display: none" id="excel-upload" /><label for="excel-upload" class="btn success-btn">上傳人事報表</label></div>
           </div>
         </div>
-
         <div class="admin-card">
           <h3>➕ 單筆建立使用者帳號</h3>
           <form @submit.prevent="createUser" class="create-form">
@@ -162,7 +158,6 @@
             <button type="submit" class="btn primary-btn" :disabled="isCreating">確認建立</button>
           </form>
         </div>
-
         <div class="admin-card">
           <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
@@ -223,11 +218,11 @@
         </div>
       </div>
 
-      <!-- 🌟 心得範本預覽：網頁上直接可見！ -->
+      <!-- 🌟 心得範本預覽：網頁上直接可見 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
-          <p class="desc">這是一份完整的學習心得測試範本。您可以在教學、系統交接或評鑑展示時，點擊下方按鈕直接預覽實際匯出的 PDF 排版效果。</p>
+          <p class="desc">這是一份完整的學習心得測試範本。點擊下方按鈕直接預覽實際匯出的 PDF 排版效果。</p>
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
         </div>
 
@@ -261,18 +256,16 @@
           </div>
         </div>
       </div>
-    </div> <!-- admin-container 結束 -->
+    </div> 
 
     <!-- ======================================================= -->
     <!-- 彈出視窗區域 (Modal)                                        -->
     <!-- ======================================================= -->
-
-    <!-- 測驗卷預覽彈出視窗 -->
-    <div v-if="isViewingModalOpen" class="modal-overlay no-print-if-active" @click.self="closeViewModal">
+    <div v-if="isViewingModalOpen" class="modal-overlay no-print" @click.self="closeViewModal">
       <div class="modal-content">
         <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
-          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。學員在實際作答時，<strong>「絕對不會」</strong>看到任何綠色的正確解答標示，請放心！</div>
+          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。</div>
           <div class="question-list">
             <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
@@ -292,7 +285,7 @@
     </div>
 
     <!-- 成績清單與設定視窗 -->
-    <div v-if="isScoreModalOpen" class="modal-overlay no-print-if-active" @click.self="closeScoreModal">
+    <div v-if="isScoreModalOpen" class="modal-overlay no-print" @click.self="closeScoreModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
           <h3>📊 成績清單：{{ scoreReportData.title }}</h3>
@@ -336,8 +329,7 @@
                   <td style="text-align: center;"><span class="score-badge-custom" :class="getScoreBadgeClass(record.score)">{{ record.score }} 分</span></td>
                   <td>{{ formatDateTime(record.completedAt) }}</td>
                 </tr>
-                <tr v-if="scoreReportData.records.length === 0">
-                  <td colspan="5" class="empty-state">尚無學員交卷，暫無成績資料。</td>
+                <tr v-if="scoreReportData.records.length === 0"><td colspan="5" class="empty-state">尚無學員交卷，暫無成績資料。</td>
                 </tr>
               </tbody>
             </table>
@@ -348,9 +340,9 @@
   </div>
 
   <!-- ======================================================= -->
-  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面                       -->
+  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 (網頁上永遠看不見)      -->
   <!-- ======================================================= -->
-  <div class="printable-scores" v-if="printMode === 'scores'">
+  <div class="print-only-scores" v-show="printMode === 'scores'">
     <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #000; letter-spacing: 4px;">
       {{ reportMeta.courseName || '未設定課程名稱' }}
     </h1>
@@ -427,13 +419,7 @@ const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
 
 const reportMeta = ref({
-  semester: '',
-  courseName: 'AI賦能高齡健康照護培訓專班',
-  teacherName: '',
-  department: '護理部',
-  className: '',
-  examName: '',
-  printDate: new Date().toISOString().split('T')[0]
+  semester: '', courseName: 'AI賦能高齡健康照護培訓專班', teacherName: '', department: '護理部', className: '', examName: '', printDate: new Date().toISOString().split('T')[0]
 })
 
 const isAllScoresSelected = computed(() => {
@@ -460,34 +446,25 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 修正列印機制：利用 CSS 控制顯示，不依賴延遲關閉
+// 🌟 精準且無延遲的列印觸發機制
 function printSelectedScores() {
   printMode.value = 'scores';
   const originalTitle = document.title;
   document.title = `課程成績單_${reportMeta.value.examName}`; 
 
-  nextTick(() => { 
+  setTimeout(() => { 
     window.print();
-  });
-
-  const restoreState = () => {
     document.title = originalTitle;
     printMode.value = '';
-    window.removeEventListener('afterprint', restoreState);
-  };
-  
-  window.addEventListener('afterprint', restoreState);
+  }, 500); 
 }
 
 function exportDemoToPDF() { 
   printMode.value = 'demo';
-  nextTick(() => { window.print() });
-  
-  const restoreState = () => {
+  setTimeout(() => { 
+    window.print();
     printMode.value = '';
-    window.removeEventListener('afterprint', restoreState);
-  };
-  window.addEventListener('afterprint', restoreState);
+  }, 500); 
 }
 
 function formatDateTime(isoString) {
@@ -535,6 +512,7 @@ async function openScoreModal(stat) {
   scoreReportData.value = { title: stat.title, records: mappedRecords }
   selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
   
+  // 自動預填表頭 Metadata
   reportMeta.value.examName = stat.title;
   reportMeta.value.teacherName = profile.value?.name || '';
   
@@ -662,7 +640,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
-/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
@@ -680,7 +657,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   color-scheme: light only; 
 }
 
-/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -690,14 +666,12 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 🌟 次要文字加深鎖定 */
 .desc, .empty-state, .sign-timestamp {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
 }
 
-/* 🌟 修正簽章底下的說明文字顏色與對比度 */
 .unsigned-text, .demo-signatures span {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
@@ -705,7 +679,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   font-style: italic !important;
 }
 
-/* 輸入框絕對鎖定 */
 .form-input, .print-text-box, .demo-text-box {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
@@ -719,18 +692,15 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   opacity: 1 !important;
 }
 
-/* 警告色特例 */
 .exam-warning, .exam-warning strong {
   color: #856404 !important;
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
 .btn { 
   color: #ffffff !important; 
   -webkit-text-fill-color: #ffffff !important; 
 }
-/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
 .tabs button:not(.active), .filter-tabs button:not(.active), .page-btn {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
@@ -745,9 +715,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* ============================================================ */
-/* 一般排版與元件樣式                                            */
-/* ============================================================ */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; overflow-x: auto; white-space: nowrap; }
@@ -826,8 +793,8 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
-/* 🌟 隱藏真實列印畫面 (平時不見) */
-.printable-scores, .printable-demo { display: none; }
+/* 🌟 平時隱藏列印區域 */
+.print-only-scores { display: none; }
 
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; } .admin-header button { width: 100%; }
@@ -837,49 +804,45 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 }
 
 /* ============================================================ */
-/* 🖨️ PDF 列印專屬優化：徹底獨立列印版型                          */
+/* 🖨️ PDF 列印專屬優化：純 CSS 控制，杜絕空白                      */
 /* ============================================================ */
 @media print {
   @page { margin: 15mm; size: A4 portrait; }
 
-  /* 隱藏預設管理畫面與彈窗 */
   .app-wrapper { background: white !important; padding: 0 !important; }
-  .modal-overlay { display: none !important; }
-  
-  /* 根據 printMode 判斷要顯示哪一個列印專區 */
-  .print-mode-demo .admin-container { display: block !important; }
-  .print-mode-demo .admin-header, .print-mode-demo .tabs, .print-mode-demo .no-print-if-active { display: none !important; }
-  .print-mode-demo .tab-content:not(:has(.printable-demo)) { display: none !important; }
-  
-  .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-  
+
+  /* 🌟 列印成績單時：隱藏主容器與遮罩，強制展開純成績單結構 */
   .print-mode-scores .admin-container { display: none !important; }
-  .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
+  .print-mode-scores .modal-overlay { display: none !important; }
+  .print-mode-scores .print-only-scores { display: block !important; width: 100% !important; }
+
+  /* 🌟 列印心得範本時：只隱藏多餘導覽，保留 admin-container 內的範本 */
+  .print-mode-demo .admin-header, 
+  .print-mode-demo .tabs, 
+  .print-mode-demo .no-print-if-active { display: none !important; }
   
-  /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
-  .printable-scores *, .printable-demo * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
-  .printable-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
-  .printable-scores h1, .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+  .print-mode-demo .admin-card { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+  .print-mode-demo .printable-demo { display: block !important; width: 100% !important; max-width: 100% !important; }
+
+  /* 🌟 強制設定所有列印文字為純黑，突破深色模式防護盾 */
+  .print-only-scores *, .printable-demo * { 
+    -webkit-text-fill-color: initial !important; 
+    color: #000 !important; 
+    font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; 
+  }
   
-  .print-doc-title { margin-top: 10px; margin-bottom: 30px; }
-  
+  .print-only-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
+
+  /* 成績單列印樣式 */
   .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
   .print-meta-table td { border: 1px solid #000 !important; padding: 8px 12px !important; font-size: 14pt !important; }
-  .print-meta-label { width: 120px; font-weight: bold; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-meta-value { width: calc(100% - 120px); }
-
-  .print-exam-name { font-size: 14pt !important; font-weight: bold; margin-bottom: 10px; }
-
-  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-  .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  .print-meta-table td strong { font-weight: bold; margin-right: 5px; }
   
-  .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; }
-
-  /* 心得範本舊的 demo-print 樣式保留 */
-  .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
-    color: #000000 !important; -webkit-text-fill-color: #000000 !important; 
-  }
+  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  
+  /* 範本列印樣式保留 */
   .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
   .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
   .score-tags { display: block; margin-top: 10px; }
