@@ -3,7 +3,7 @@
     <!-- ======================================================= -->
     <!-- 一般網頁管理介面                                           -->
     <!-- ======================================================= -->
-    <div class="admin-container">
+    <div class="admin-container no-print-if-active">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -76,10 +76,13 @@
         </div>
       </div>
 
+      <!-- ========================================== -->
+      <!-- 🌟 題庫管理區塊 (全新智慧解析引擎)              -->
+      <!-- ========================================== -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
-          <p class="desc">支援匯入標準格式之 .docx 測驗卷，系統將自動解析題目與答案。</p>
+          <p class="desc">支援匯入標準格式之 .docx 測驗卷，系統將自動解析題目、選項與答案。</p>
           <div style="margin-top: 15px;"><input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" /><label for="exam-upload" class="btn success-btn">上傳 .docx 測驗卷</label></div>
         </div>
 
@@ -136,6 +139,7 @@
         </div>
       </div>
 
+      <!-- 帳號管理 -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="admin-card">
           <div class="card-header-flex">
@@ -218,7 +222,6 @@
         </div>
       </div>
 
-      <!-- 🌟 心得範本預覽：網頁上直接可見 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -240,8 +243,8 @@
           <div class="demo-section">
             <h4>📊 測驗成績紀錄</h4>
             <div class="score-tags">
-              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課前)</span><span class="score-val score-high">90 分</span></div>
-              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課後)</span><span class="score-val score-high">100 分</span></div>
+              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課前)</span><span class="score-val score-high-badge" style="color:white !important;">90 分</span></div>
+              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課後)</span><span class="score-val score-high-badge" style="color:white !important;">100 分</span></div>
             </div>
           </div>
 
@@ -329,7 +332,8 @@
                   <td style="text-align: center;"><span class="score-badge-custom" :class="getScoreBadgeClass(record.score)">{{ record.score }} 分</span></td>
                   <td>{{ formatDateTime(record.completedAt) }}</td>
                 </tr>
-                <tr v-if="scoreReportData.records.length === 0"><td colspan="5" class="empty-state">尚無學員交卷，暫無成績資料。</td>
+                <tr v-if="scoreReportData.records.length === 0">
+                  <td colspan="5" class="empty-state">尚無學員交卷，暫無成績資料。</td>
                 </tr>
               </tbody>
             </table>
@@ -375,11 +379,11 @@
     <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 50px;">
       <thead>
         <tr>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 25%;">學員帳號：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">姓名：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">院系：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 15%;">班級：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">分數：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0 !important; color: #000; text-align: left; font-weight: bold; width: 25%;">學員帳號</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0 !important; color: #000; text-align: left; font-weight: bold; width: 20%;">姓名</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0 !important; color: #000; text-align: left; font-weight: bold; width: 20%;">院系</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0 !important; color: #000; text-align: left; font-weight: bold; width: 15%;">班級</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0 !important; color: #000; text-align: center; font-weight: bold; width: 20%;">分數</th>
         </tr>
       </thead>
       <tbody>
@@ -387,8 +391,8 @@
           <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentEmail }}</td>
           <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentName }}</td>
           <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.score }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className || '-' }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
         </tr>
       </tbody>
     </table>
@@ -426,17 +430,13 @@ const isAllScoresSelected = computed(() => {
   if (scoreReportData.value.records.length === 0) return false;
   return scoreReportData.value.records.every(r => selectedScoreRecords.value.includes(r.studentId))
 })
-
 const filteredScoreRecords = computed(() => {
   return scoreReportData.value.records.filter(r => selectedScoreRecords.value.includes(r.studentId));
 })
 
 function toggleAllScores() {
-  if (isAllScoresSelected.value) {
-    selectedScoreRecords.value = []
-  } else {
-    selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
-  }
+  if (isAllScoresSelected.value) selectedScoreRecords.value = []
+  else selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
 }
 
 function formatPrintDate(dateStr) {
@@ -446,7 +446,6 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 精準且無延遲的列印觸發機制
 function printSelectedScores() {
   printMode.value = 'scores';
   const originalTitle = document.title;
@@ -454,17 +453,28 @@ function printSelectedScores() {
 
   setTimeout(() => { 
     window.print();
+  }, 400); 
+
+  const restoreState = () => {
     document.title = originalTitle;
     printMode.value = '';
-  }, 500); 
+    window.removeEventListener('afterprint', restoreState);
+  };
+  
+  window.addEventListener('afterprint', restoreState);
+  setTimeout(restoreState, 4000); 
 }
 
 function exportDemoToPDF() { 
   printMode.value = 'demo';
-  setTimeout(() => { 
-    window.print();
+  setTimeout(() => { window.print() }, 300);
+  
+  const restoreState = () => {
     printMode.value = '';
-  }, 500); 
+    window.removeEventListener('afterprint', restoreState);
+  };
+  window.addEventListener('afterprint', restoreState);
+  setTimeout(restoreState, 4000);
 }
 
 function formatDateTime(isoString) {
@@ -512,7 +522,6 @@ async function openScoreModal(stat) {
   scoreReportData.value = { title: stat.title, records: mappedRecords }
   selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
   
-  // 自動預填表頭 Metadata
   reportMeta.value.examName = stat.title;
   reportMeta.value.teacherName = profile.value?.name || '';
   
@@ -531,7 +540,15 @@ async function editExam(exam) {
   const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); 
   if (error) return Swal.fire('錯誤', '題目載入失敗', 'error'); 
   editingExamId.value = exam.id; previewExamTitle.value = exam.title; previewExamType.value = exam.type; 
-  previewQuestions.value = data.map(q => ({ id: q.id, text: q.question_text, options: q.options, correct: q.correct_answer, explanation: q.explanation || '' })); 
+  
+  // 🌟 核心更新：確保載入考卷時，如果沒有 explanation 屬性，預設給予空字串，避免 undefined
+  previewQuestions.value = data.map(q => ({ 
+    id: q.id, 
+    text: q.question_text, 
+    options: q.options, 
+    correct: q.correct_answer, 
+    explanation: q.explanation || '' 
+  })); 
   Swal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) 
 }
 
@@ -540,22 +557,59 @@ async function handleExamUpload(event) {
   Swal.fire({ title: '解析中...', text: '正在讀取考卷內容', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const reader = new FileReader(); reader.onload = async (e) => {
     try {
-      const arrayBuffer = e.target.result; const result = await mammoth.extractRawText({ arrayBuffer }); const text = result.value; previewExamTitle.value = file.name.replace('.docx', ''); editingExamId.value = null; let answerSection = ''; let questionSection = text; const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答']; let foundIndex = -1
-      for (const kw of answerKeywords) { const idx = text.lastIndexOf(kw); if (idx !== -1 && idx > text.length / 3) { foundIndex = idx; break; } }
-      if (foundIndex === -1) throw new Error('找不到解答區塊。請確保文件後半部包含「標準解答」等關鍵字。'); answerSection = text.substring(foundIndex); questionSection = text.substring(0, foundIndex)
-      const answersMap = {}; const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]\s*\(*([A-D○×])\)*/g; let matchAns; let useStrict = false
-      while ((matchAns = strictAnsRegex.exec(answerSection)) !== null) { answersMap[parseInt(matchAns[1])] = matchAns[2]; useStrict = true }
-      if (!useStrict) { const pureAnswers = answerSection.match(/[○×ABCD]/g); if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans }) }
-      const questions = []; const qRegex = /(?:^|\n|】|）|\s)0*(\d+)\.\s+(.*?)(?=(?:^|\n|】|）|\s)0*\d+\.\s+|$)/gs; let matchQ
+      const arrayBuffer = e.target.result; const result = await mammoth.extractRawText({ arrayBuffer }); const text = result.value; previewExamTitle.value = file.name.replace('.docx', ''); editingExamId.value = null; 
+      
+      let questions = [];
+      const interleavedRegex = /(?:^|\n)\s*0*(\d+)[\s\.\t]+([A-D○×])[\s\.\t\n]+(.*?)(?=(?:^|\n)\s*0*\d+[\s\.\t]+[A-D○×][\s\.\t\n]+|$)/gs;
+      let matchInterleaved; const interleavedQuestions = [];
+      while ((matchInterleaved = interleavedRegex.exec(text)) !== null) {
+        interleavedQuestions.push({ num: parseInt(matchInterleaved[1]), ansKey: matchInterleaved[2], rawText: matchInterleaved[3] });
+      }
+
+      const classicQuestions = []; let answerSection = ''; let questionSection = text; const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答', '答案：', '答案:']; let foundIndex = -1;
+      for (const kw of answerKeywords) { const idx = text.lastIndexOf(kw); if (idx !== -1) { foundIndex = idx; break; } }
+      if (foundIndex !== -1) { answerSection = text.substring(foundIndex); questionSection = text.substring(0, foundIndex); }
+
+      const qRegex = /(?:^|\n)\s*(?:\()?0*(\d+)(?:\)|\.)?\s+(.*?)(?=(?:^|\n)\s*(?:\()?0*\d+(?:\)|\.)?\s+|$)/gs;
+      let matchQ;
       while ((matchQ = qRegex.exec(questionSection)) !== null) {
-        const qNum = parseInt(matchQ[1]); let rawText = matchQ[2].trim(); let options = [], questionText = '', correctText = '', explanation = ''; 
+        classicQuestions.push({ num: parseInt(matchQ[1]), rawText: matchQ[2] });
+      }
+
+      let chosenFormat = []; let answersMap = {};
+      if (interleavedQuestions.length >= classicQuestions.length && interleavedQuestions.length > 0) {
+        chosenFormat = interleavedQuestions;
+      } else if (classicQuestions.length > 0) {
+        chosenFormat = classicQuestions;
+        const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]?\s*\(*([A-D○×])\)*/g;
+        let matchAns; let useStrict = false;
+        while ((matchAns = strictAnsRegex.exec(answerSection)) !== null) { answersMap[parseInt(matchAns[1])] = matchAns[2]; useStrict = true; }
+        if (!useStrict) { const pureAnswers = answerSection.match(/[○×ABCD]/g); if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans }); }
+      }
+
+      if (chosenFormat.length === 0) throw new Error('無法自動識別題目格式。請確保題號帶有「1. 」格式，或使用「題號、答案、題目」的表格格式。');
+
+      questions = chosenFormat.map(item => {
+        let rawText = item.rawText.trim(); let options = [], questionText = '', correctText = '', explanation = '';
+        const ansKey = item.ansKey || answersMap[item.num] || 'A'; 
+        
+        // 🌟 解析「解析」關鍵字
         const expMatch = rawText.match(/(?:解析|詳解|說明)\s*[：:]\s*(.*)/is);
         if (expMatch) { explanation = expMatch[1].trim(); rawText = rawText.substring(0, expMatch.index).trim(); }
-        const ansKey = answersMap[qNum] || 'A'; const idxA = rawText.search(/\s*(?:\(A\)|A\.)\s*/)
-        if (idxA !== -1) { questionText = rawText.substring(0, idxA).trim(); const optsPart = rawText.substring(idxA); const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.)\s*/).filter(s => s.trim() !== ''); if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim()); else { options = optMatches; while (options.length < 4) options.push('選項缺失') } const ansIndex = ansKey === 'A' ? 0 : ansKey === 'B' ? 1 : ansKey === 'C' ? 2 : ansKey === 'D' ? 3 : 0; correctText = options[ansIndex] || options[0] } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) { const idxO = rawText.search(/[○×□]/); if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim(); else questionText = rawText.replace(/[○×□]/g, '').trim(); options = ['○', '×']; correctText = ansKey } else { questionText = rawText.trim(); options = ['(未解析出選項)', '(未解析出選項)']; correctText = options[0] }
-        if (questionText.length > 2) questions.push({ text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText, explanation: explanation })
-      }
-      if (questions.length === 0) throw new Error('未能自動解析出題目，請確保題目編號為「1. 」格式。'); previewQuestions.value = questions; Swal.close()
+
+        const idxA = rawText.search(/\s*(?:\(A\)|A\.|A、)\s*/i);
+        if (idxA !== -1) {
+          questionText = rawText.substring(0, idxA).trim(); const optsPart = rawText.substring(idxA); const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.|[A-D]、)\s*/i).filter(s => s.trim() !== '');
+          if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim()); else { options = optMatches; while (options.length < 4) options.push('選項缺失'); }
+          const ansIndex = ansKey.toUpperCase() === 'A' ? 0 : ansKey.toUpperCase() === 'B' ? 1 : ansKey.toUpperCase() === 'C' ? 2 : ansKey.toUpperCase() === 'D' ? 3 : 0; correctText = options[ansIndex] || options[0];
+        } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) {
+          const idxO = rawText.search(/[○×□]/); if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim(); else questionText = rawText.replace(/[○×□]/g, '').trim();
+          options = ['○', '×']; correctText = ansKey;
+        } else { questionText = rawText.trim(); options = ['(未解析出選項)', '(未解析出選項)']; correctText = options[0]; }
+
+        return { text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText, explanation: explanation };
+      });
+      previewQuestions.value = questions; Swal.close()
     } catch (err) { Swal.fire('解析失敗', err.message, 'error') } finally { event.target.value = '' }
   }; reader.readAsArrayBuffer(file)
 }
@@ -571,12 +625,15 @@ async function confirmSaveExam() {
       const { error: examErr } = await supabase.from('exams').update({ title: previewExamTitle.value, type: previewExamType.value }).eq('id', targetExamId); if (examErr) throw examErr
       const { data: existingQ } = await supabase.from('questions').select('id').eq('exam_id', targetExamId); const existingIds = existingQ.map(q => q.id); const keptIds = finalQuestions.map(q => q.id).filter(id => id); const idsToDelete = existingIds.filter(id => !keptIds.includes(id))
       if (idsToDelete.length > 0) await supabase.from('questions').delete().in('id', idsToDelete)
+      // 🌟 確保寫入資料庫時帶上 explanation
       const questionsToUpdate = finalQuestions.filter(q => q.id).map(q => ({ id: q.id, exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const questionsToInsert = finalQuestions.filter(q => !q.id).map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' }))
       if (questionsToUpdate.length > 0) { const { error: updErr } = await supabase.from('questions').upsert(questionsToUpdate); if (updErr) throw updErr }
       if (questionsToInsert.length > 0) { const { error: insErr } = await supabase.from('questions').insert(questionsToInsert); if (insErr) throw insErr }
     } else {
       const { data: examData, error: examErr } = await supabase.from('exams').insert([{ title: previewExamTitle.value, type: previewExamType.value }]).select(); if (examErr) throw examErr
-      targetExamId = examData[0].id; const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
+      targetExamId = examData[0].id; 
+      const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); 
+      const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
     }
     Swal.fire('成功', `已成功儲存題庫，共 ${finalQuestions.length} 題！`, 'success'); previewQuestions.value = []; editingExamId.value = null; previewExamTitle.value = ''; await loadExams()
   } catch (err) { Swal.fire('寫入失敗', err.message, 'error') }
@@ -781,7 +838,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
 .sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center;}
 
-/* 🌟 成績清單特定樣式 */
+/* 成績清單特定樣式 */
 .score-badge-custom { padding: 5px 10px; border-radius: 6px; font-weight: bold; display: inline-block; min-width: 45px; text-align: center; color: #fff !important; -webkit-text-fill-color: #fff !important;}
 .score-high-badge { background-color: #2ecc71 !important; border: 1px solid #2ecc71 !important; }
 .score-pass-badge { background-color: #f39c12 !important; border: 1px solid #f39c12 !important; }
@@ -794,7 +851,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
 /* 🌟 平時隱藏列印區域 */
-.print-only-scores { display: none; }
+.printable-scores { display: none; }
 
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; } .admin-header button { width: 100%; }
@@ -804,45 +861,49 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 }
 
 /* ============================================================ */
-/* 🖨️ PDF 列印專屬優化：純 CSS 控制，杜絕空白                      */
+/* 🖨️ PDF 列印專屬優化：徹底獨立列印版型                          */
 /* ============================================================ */
 @media print {
   @page { margin: 15mm; size: A4 portrait; }
 
+  /* 隱藏預設管理畫面與彈窗 */
   .app-wrapper { background: white !important; padding: 0 !important; }
-
-  /* 🌟 列印成績單時：隱藏主容器與遮罩，強制展開純成績單結構 */
+  .modal-overlay { display: none !important; }
+  
+  /* 根據 printMode 判斷要顯示哪一個列印專區 */
+  .print-mode-demo .admin-container { display: block !important; }
+  .print-mode-demo .admin-header, .print-mode-demo .tabs, .print-mode-demo .no-print-if-active { display: none !important; }
+  .print-mode-demo .tab-content:not(:has(.printable-demo)) { display: none !important; }
+  
+  .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+  
   .print-mode-scores .admin-container { display: none !important; }
-  .print-mode-scores .modal-overlay { display: none !important; }
-  .print-mode-scores .print-only-scores { display: block !important; width: 100% !important; }
-
-  /* 🌟 列印心得範本時：只隱藏多餘導覽，保留 admin-container 內的範本 */
-  .print-mode-demo .admin-header, 
-  .print-mode-demo .tabs, 
-  .print-mode-demo .no-print-if-active { display: none !important; }
+  .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
   
-  .print-mode-demo .admin-card { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
-  .print-mode-demo .printable-demo { display: block !important; width: 100% !important; max-width: 100% !important; }
-
-  /* 🌟 強制設定所有列印文字為純黑，突破深色模式防護盾 */
-  .print-only-scores *, .printable-demo * { 
-    -webkit-text-fill-color: initial !important; 
-    color: #000 !important; 
-    font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; 
-  }
+  /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
+  .printable-scores *, .printable-demo * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
+  .printable-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
+  .printable-scores h1, .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
   
-  .print-only-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
-
-  /* 成績單列印樣式 */
+  .print-doc-title { margin-top: 10px; margin-bottom: 30px; }
+  
   .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
   .print-meta-table td { border: 1px solid #000 !important; padding: 8px 12px !important; font-size: 14pt !important; }
-  .print-meta-table td strong { font-weight: bold; margin-right: 5px; }
-  
+  .print-meta-label { width: 120px; font-weight: bold; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-meta-value { width: calc(100% - 120px); }
+
+  .print-exam-name { font-size: 14pt !important; font-weight: bold; margin-bottom: 10px; }
+
   .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
   .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
   
-  /* 範本列印樣式保留 */
+  .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; }
+
+  /* 心得範本舊的 demo-print 樣式保留 */
+  .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
+    color: #000000 !important; -webkit-text-fill-color: #000000 !important; 
+  }
   .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
   .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
   .score-tags { display: block; margin-top: 10px; }
