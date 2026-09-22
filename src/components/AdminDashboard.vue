@@ -1,9 +1,9 @@
 <template>
   <div class="app-wrapper" :class="printMode ? `print-mode-${printMode}` : ''">
     <!-- ======================================================= -->
-    <!-- 一般網頁管理介面 (列印時會依據模式被隱藏)                     -->
+    <!-- 一般網頁管理介面                                           -->
     <!-- ======================================================= -->
-    <div class="admin-container">
+    <div class="admin-container no-print-if-active">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -20,6 +20,7 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
+      <!-- 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
           <h3>🎯 批次派發測驗卷</h3>
@@ -76,6 +77,7 @@
         </div>
       </div>
 
+      <!-- 題庫管理 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
@@ -136,6 +138,7 @@
         </div>
       </div>
 
+      <!-- 帳號管理 -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="admin-card">
           <div class="card-header-flex">
@@ -220,7 +223,7 @@
         </div>
       </div>
 
-      <!-- 心得範本預覽：網頁上可見 -->
+      <!-- 🌟 心得範本預覽：網頁上直接可見！ -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -269,7 +272,7 @@
       <div class="modal-content">
         <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
-          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。</div>
+          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。學員在實際作答時，<strong>「絕對不會」</strong>看到任何綠色的正確解答標示，請放心！</div>
           <div class="question-list">
             <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
@@ -288,7 +291,7 @@
       </div>
     </div>
 
-    <!-- 🌟 成績清單與設定視窗 -->
+    <!-- 成績清單與設定視窗 -->
     <div v-if="isScoreModalOpen" class="modal-overlay no-print-if-active" @click.self="closeScoreModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
@@ -342,57 +345,65 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ======================================================= -->
-    <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 (網頁上永遠看不見)      -->
-    <!-- ======================================================= -->
-    <div class="printable-scores">
-      <h1 style="text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px; color: #000; letter-spacing: 2px;">
-        {{ reportMeta.courseName || '課程名稱' }}
-      </h1>
-      
-      <table style="width: 100%; border: none; margin-bottom: 15px; font-size: 15px;">
+  <!-- ======================================================= -->
+  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面                       -->
+  <!-- ======================================================= -->
+  <div class="printable-scores" v-if="printMode === 'scores'">
+    <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #000; letter-spacing: 4px;">
+      {{ reportMeta.courseName || '未設定課程名稱' }}
+    </h1>
+    
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 15px; font-size: 16px;">
+      <tbody>
         <tr>
-          <td style="padding: 5px 0;"><strong>學年學期：</strong>{{ reportMeta.semester || '' }}</td>
-          <td style="padding: 5px 0;"><strong>授課老師：</strong>{{ reportMeta.teacherName || '' }}</td>
+          <td style="width: 150px; border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">授課老師：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.teacherName || '_____________' }}</td>
         </tr>
         <tr>
-          <td style="padding: 5px 0;"><strong>院系/部門：</strong>{{ reportMeta.department || '' }}</td>
-          <td style="padding: 5px 0;"><strong>班級：</strong>{{ reportMeta.className || '' }}</td>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">院系：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.department || '_____________' }}</td>
         </tr>
-      </table>
+        <tr>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">學年學期：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.semester || '_____________' }}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">班級：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className || '_____________' }}</td>
+        </tr>
+      </tbody>
+    </table>
 
-      <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #000;">
-        考試名稱： {{ reportMeta.examName || '' }}
-      </div>
+    <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #000;">
+      考試名稱： {{ reportMeta.examName || '_____________' }}
+    </div>
 
-      <table style="width: 100%; border-collapse: collapse; border: 2px solid #000;">
-        <thead>
-          <tr>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; width: 50px;">序號</th>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">學員帳號</th>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">姓名</th>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">院系</th>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">班級</th>
-            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">分數</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(record, index) in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
-            <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">{{ index + 1 }}</td>
-            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentEmail }}</td>
-            <td style="border: 1px solid #000; padding: 10px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
-            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
-            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.className || '-' }}</td>
-            <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
-          </tr>
-        </tbody>
-      </table>
+    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 50px;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 25%;">學員帳號：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">姓名：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">院系：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 15%;">班級：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">分數：</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="record in filteredScoreRecords" :key="record.studentId">
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentEmail }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentName }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.score }}</td>
+        </tr>
+      </tbody>
+    </table>
 
-      <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
-        <div>授課教師簽章：_______________________</div>
-        <div style="margin-right: 50px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
-      </div>
+    <div style="display: flex; justify-content: space-between; font-size: 18px; color: #000;">
+      <div>教師簽章：_______________________</div>
+      <div style="margin-right: 150px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
     </div>
   </div>
 </template>
@@ -416,7 +427,13 @@ const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
 
 const reportMeta = ref({
-  semester: '', courseName: 'AI賦能高齡健康照護培訓專班', teacherName: '', department: '護理部', className: '', examName: '', printDate: new Date().toISOString().split('T')[0]
+  semester: '',
+  courseName: 'AI賦能高齡健康照護培訓專班',
+  teacherName: '',
+  department: '護理部',
+  className: '',
+  examName: '',
+  printDate: new Date().toISOString().split('T')[0]
 })
 
 const isAllScoresSelected = computed(() => {
@@ -429,8 +446,11 @@ const filteredScoreRecords = computed(() => {
 })
 
 function toggleAllScores() {
-  if (isAllScoresSelected.value) selectedScoreRecords.value = []
-  else selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
+  if (isAllScoresSelected.value) {
+    selectedScoreRecords.value = []
+  } else {
+    selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
+  }
 }
 
 function formatPrintDate(dateStr) {
@@ -440,7 +460,7 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 精準且無延遲的列印觸發機制
+// 🌟 修正列印機制：利用 CSS 控制顯示，不依賴延遲關閉
 function printSelectedScores() {
   printMode.value = 'scores';
   const originalTitle = document.title;
@@ -448,13 +468,26 @@ function printSelectedScores() {
 
   nextTick(() => { 
     window.print();
-    document.title = originalTitle; // 復原檔名
   });
+
+  const restoreState = () => {
+    document.title = originalTitle;
+    printMode.value = '';
+    window.removeEventListener('afterprint', restoreState);
+  };
+  
+  window.addEventListener('afterprint', restoreState);
 }
 
 function exportDemoToPDF() { 
   printMode.value = 'demo';
   nextTick(() => { window.print() });
+  
+  const restoreState = () => {
+    printMode.value = '';
+    window.removeEventListener('afterprint', restoreState);
+  };
+  window.addEventListener('afterprint', restoreState);
 }
 
 function formatDateTime(isoString) {
@@ -585,7 +618,7 @@ const filteredUsers = computed(() => { return roleFilter.value === 'all' ? users
 const paginatedUsers = computed(() => { const start = (currentPage.value - 1) * itemsPerPage; return filteredUsers.value.slice(start, start + itemsPerPage) })
 function prevPage() { if (currentPage.value > 1) currentPage.value-- }; function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
 const selectedUserIds = ref([]); const isAllSelectedOnPage = computed(() => { if (paginatedUsers.value.length === 0) return false; return paginatedUsers.value.every(user => selectedUserIds.value.includes(user.id)) })
-function toggleSelectAllOnPage() { if (isAllSelectedOnPage.value) { const currentIds = paginatedUsers.value.map(u => u.id); selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id)) } else { paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.push(user.id) }) } }
+function toggleSelectAllOnPage() { if (isAllSelectedOnPage.value) { const currentIds = paginatedUsers.value.map(u => u.id); selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id)) } else { paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.value.push(user.id) }) } }
 
 async function batchDeleteUsers() {
   if (selectedUserIds.value.length === 0) return; const { isConfirmed } = await Swal.fire({ title: `確定刪除 ${selectedUserIds.value.length} 名人員？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (!isConfirmed) return
