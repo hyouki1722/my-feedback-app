@@ -401,6 +401,7 @@
           
           <div class="demo-section">
             <h4>📊 測驗成績紀錄</h4>
+            <!-- 🌟 更新為新的排版結構 -->
             <div class="score-tags">
               <div class="score-tag">
                 <span class="exam-name">兒科實習測驗 (課前)</span>
@@ -489,7 +490,6 @@ const isCreating = ref(false)
 
 const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 
-// === 🎯 測驗任務派發邏輯 ===
 const dispatchRecords = ref([])
 const dispatchSelectedExam = ref('')
 const dispatchSelectedUnit = ref('all')
@@ -606,7 +606,6 @@ async function toggleAnswersVisibility(examId, currentStatus) {
   }
 }
 
-// === 📝 測驗題庫解析、預覽與編輯邏輯 ===
 const examList = ref([])
 const previewQuestions = ref([])
 const previewExamTitle = ref('')
@@ -1018,7 +1017,7 @@ async function handleLogout() {
   display: flex; 
   flex-direction: column; 
   align-items: center; 
-  color-scheme: light only; /* 破解 Dark Mode */
+  color-scheme: light only; 
 }
 
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
@@ -1097,17 +1096,19 @@ async function handleLogout() {
 .modal-body { padding: 25px; overflow-y: auto; }
 .exam-warning { background: #e8f4fd; color: #2980b9; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; font-size: 14px; border: 1px solid #bce0fd; }
 
-/* 🌟 針對 PDF 範本演示區塊的文字顏色強制鎖定，避免被深色模式反轉吃掉 */
-.printable-demo * { -webkit-text-fill-color: initial; }
 .demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
-.demo-info-grid p { margin: 0; font-size: 15px; color: #2c3e50 !important; -webkit-text-fill-color: #2c3e50 !important; }
 .demo-section { margin-bottom: 20px; }
-.demo-section h4 { margin: 0 0 10px 0; color: #34495e !important; -webkit-text-fill-color: #34495e !important; font-size: 16px; font-weight: bold; }
-.demo-text-box { background: white; border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; color: #2c3e50 !important; -webkit-text-fill-color: #2c3e50 !important; min-height: 80px; }
+.demo-text-box { background: white; border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; color: #2c3e50; min-height: 80px; }
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
-.sign-box { font-weight: bold; color: #2c3e50 !important; -webkit-text-fill-color: #2c3e50 !important; font-size: 15px; }
-.sign-box span { font-weight: normal; color: #7f8c8d !important; -webkit-text-fill-color: #7f8c8d !important; font-style: italic; margin-left: 10px; }
-.score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50 !important; -webkit-text-fill-color: #2c3e50 !important; }
+.sign-box { font-weight: bold; color: #2c3e50; font-size: 15px; }
+
+/* 🌟 全新成績標籤設計，解決深色模式與列印模糊/太擠的問題 */
+.score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
+.score-tag .exam-name { color: #2c3e50 !important; font-weight: bold; font-size: 15px; -webkit-text-fill-color: #2c3e50 !important; }
+.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
+
+.score-high { color: #27ae60 !important; border-color: #27ae60 !important; background: #eafaf1 !important; -webkit-text-fill-color: #27ae60 !important; }
 
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; }
@@ -1119,7 +1120,7 @@ async function handleLogout() {
   .demo-info-grid { grid-template-columns: 1fr; }
 }
 
-/* 🌟 確保列印時所有文字都是絕對的黑色，不被任何深色模式設定干擾 */
+/* 🌟 確保列印時所有文字都是絕對的黑色，且成績標籤不再擠成一團 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
@@ -1132,8 +1133,10 @@ async function handleLogout() {
   
   .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
   .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
-  .score-tag { border: 1px solid #000 !important; }
-  .score-tag .exam-name { background: transparent !important; color: #000 !important; -webkit-text-fill-color: #000 !important; border-right: 1px solid #000 !important; }
-  .score-tag .score-val { color: #000 !important; -webkit-text-fill-color: #000 !important; background: transparent !important; }
+  
+  .score-tags { display: block; margin-top: 10px; }
+  .score-tag { display: flex !important; justify-content: space-between !important; border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
+  .score-tag .exam-name { color: #000 !important; -webkit-text-fill-color: #000 !important; background: transparent !important; border: none !important; padding: 0 !important; }
+  .score-tag .score-val { color: #000 !important; -webkit-text-fill-color: #000 !important; border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
 }
 </style>

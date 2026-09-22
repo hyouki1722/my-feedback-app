@@ -131,6 +131,7 @@
           <div v-if="studentExamRecords.length > 0" class="card section-card result-card">
             <h3>📊 測驗成績紀錄</h3>
             <p class="desc no-print">匯出 PDF 存查時，系統會自動將此成績列表附在報告中。</p>
+            <!-- 🌟 全新成績標籤排版 -->
             <div class="score-tags">
               <div v-for="record in studentExamRecords" :key="record.id" class="score-tag">
                 <span class="exam-name">{{ record.exams?.title }}</span>
@@ -159,16 +160,15 @@
               </div>
             </div>
             
-            <!-- 🌟 列印完美優化：畫面用 textarea，列印用自動延伸的 div -->
             <div class="form-group">
               <label>學習內容重點摘要：</label>
               <textarea v-model="report.content" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
-              <div class="print-text-box">{{ report.content || '無' }}</div>
+              <div class="show-on-print print-text-box">{{ report.content || '無' }}</div>
             </div>
             <div class="form-group">
               <label>自我反思與心得：</label>
               <textarea v-model="report.reflection" rows="5" :disabled="!isStudent || report.status !== 'draft'" class="form-input hide-on-print" required></textarea>
-              <div class="print-text-box">{{ report.reflection || '無' }}</div>
+              <div class="show-on-print print-text-box">{{ report.reflection || '無' }}</div>
             </div>
             
             <div class="action-row no-print" v-if="isStudent && report.status === 'draft'">
@@ -181,7 +181,7 @@
             <h3>👩‍⚕️ 臨床指導老師回饋</h3>
             <div class="form-group">
               <textarea v-model="report.teacher_feedback" rows="5" placeholder="請給予學員具體的指導與建議..." :disabled="!isTeacher || report.status !== 'pending_teacher'" class="form-input hide-on-print"></textarea>
-              <div class="print-text-box">{{ report.teacher_feedback || '無' }}</div>
+              <div class="show-on-print print-text-box">{{ report.teacher_feedback || '無' }}</div>
             </div>
             <div class="action-row no-print" v-if="isTeacher && report.status === 'pending_teacher'">
               <button @click="returnToStudent" class="btn danger-btn" :disabled="isSaving">退回修改</button>
@@ -193,7 +193,7 @@
             <h3>🏥 單位主管總評</h3>
             <div class="form-group">
               <textarea v-model="report.supervisor_feedback" rows="5" placeholder="請給予具體之臨床專業講評與期勉..." :disabled="!isSupervisor || report.status !== 'pending_supervisor'" class="form-input hide-on-print"></textarea>
-              <div class="print-text-box">{{ report.supervisor_feedback || '無' }}</div>
+              <div class="show-on-print print-text-box">{{ report.supervisor_feedback || '無' }}</div>
             </div>
             <div class="action-row no-print" v-if="isSupervisor && report.status === 'pending_supervisor'">
               <button @click="returnToTeacher" class="btn danger-btn" :disabled="isSaving">退回給老師</button>
@@ -201,13 +201,11 @@
             </div>
           </div>
 
-          <!-- 🏆 電子簽章與時間顯示區域 -->
           <div class="demo-signatures" v-if="report.id">
             <div class="sign-box">
               <span class="sign-title">學員簽章</span>
               <div v-if="report.student_signature" class="sign-content">
                 <img :src="report.student_signature" class="signature-img" />
-                <!-- 🌟 格式化並顯示簽章時間 -->
                 <div class="sign-timestamp">{{ formatDateTime(report.student_sign_date) }}</div>
               </div>
               <span v-else class="unsigned-text">(尚未簽署)</span>
@@ -273,7 +271,7 @@
           </div>
           <div class="action-row center" style="margin-top: 20px;">
             <button @click="closeSignatureModal" class="btn secondary-btn">取消</button>
-            <button @click="confirmSignature" class="btn primary-btn">✅ 確認簽章並儲存</button>
+            <button @click="confirmSignature" class="btn primary-btn">✅ 確認簽章並送出</button>
           </div>
         </div>
       </div>
@@ -370,14 +368,12 @@ watch([showSignatureModal, signatureMode, pendingAction, signatureUpdateTarget],
   sessionStorage.setItem('temp_modal_state', JSON.stringify({ show, mode, action, target }))
 })
 
-// 🌟 格式化時間：支援舊簽章防呆顯示
 function formatDateTime(isoString) {
   if (!isoString) return '(無時間紀錄)'
   const d = new Date(isoString)
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-// 通用日期格式化 (無時間)
 function formatDate(isoString) {
   if (!isoString) return ''
   const d = new Date(isoString)
@@ -418,8 +414,6 @@ const reviewingRecord = ref(null)
 function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }
 function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
 
-// === ✍️ 電子簽章邏輯 ===
-
 function updateSignature(role) {
   signatureUpdateTarget.value = role
   showSignatureModal.value = true
@@ -445,7 +439,6 @@ function initiateAction(actionRole) {
   signatureMode.value = 'draw'
   uploadedSignature.value = null
   hasDrawn = false
-
   setTimeout(() => { initCanvas() }, 350)
 }
 
@@ -465,11 +458,7 @@ function initCanvas() {
   }
 }
 
-function closeSignatureModal() { 
-  showSignatureModal.value = false
-  pendingAction.value = null 
-  signatureUpdateTarget.value = null
-}
+function closeSignatureModal() { showSignatureModal.value = false; pendingAction.value = null; signatureUpdateTarget.value = null }
 
 function getMousePos(e) {
   const rect = canvasRef.value.getBoundingClientRect()
@@ -481,38 +470,15 @@ function getMousePos(e) {
   return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
 }
 
-function startDraw(e) { 
-  isDrawing = true; hasDrawn = true
-  ctx.beginPath()
-  const pos = getMousePos(e)
-  ctx.moveTo(pos.x, pos.y)
-}
-
-function draw(e) {
-  if (!isDrawing) return
-  const pos = getMousePos(e)
-  ctx.lineTo(pos.x, pos.y)
-  ctx.stroke()
-}
-
+function startDraw(e) { isDrawing = true; hasDrawn = true; ctx.beginPath(); const pos = getMousePos(e); ctx.moveTo(pos.x, pos.y) }
+function draw(e) { if (!isDrawing) return; const pos = getMousePos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke() }
 function stopDraw() { isDrawing = false; ctx.closePath() }
-
-function clearCanvas() { 
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  hasDrawn = false 
-}
+function clearCanvas() { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvasRef.value.width, canvasRef.value.height); hasDrawn = false }
 
 function handleSignatureUpload(e) {
   const file = e.target.files[0]
   if (!file) return
-
-  if (!file.type.startsWith('image/')) {
-    Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳 JPG 或 PNG 圖檔。', 'error')
-    e.target.value = ''
-    return
-  }
-
+  if (!file.type.startsWith('image/')) { Swal.fire('格式錯誤', '您選擇的不是圖片檔案，請上傳 JPG 或 PNG 圖檔。', 'error'); e.target.value = ''; return }
   Swal.fire({ title: '處理圖片中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
 
   try {
@@ -524,44 +490,23 @@ function handleSignatureUpload(e) {
           const canvas = document.createElement('canvas')
           let width = img.width; let height = img.height
           const MAX_DIMENSION = 600 
-          
-          if (width > height && width > MAX_DIMENSION) { 
-            height *= MAX_DIMENSION / width; width = MAX_DIMENSION 
-          } else if (height > MAX_DIMENSION) { 
-            width *= MAX_DIMENSION / height; height = MAX_DIMENSION 
-          }
-          
+          if (width > height && width > MAX_DIMENSION) { height *= MAX_DIMENSION / width; width = MAX_DIMENSION } 
+          else if (height > MAX_DIMENSION) { width *= MAX_DIMENSION / height; height = MAX_DIMENSION }
           canvas.width = width; canvas.height = height
           const ctx = canvas.getContext('2d')
-          
-          ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, width, height)
-          ctx.drawImage(img, 0, 0, width, height)
-          
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(img, 0, 0, width, height)
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
-          
-          if (compressedDataUrl.length > 800000) {
-            Swal.fire('處理失敗', '圖片過於複雜，壓縮後仍超過系統限制，請嘗試裁切圖片。', 'error')
-            e.target.value = ''
-            return
-          }
-
-          uploadedSignature.value = compressedDataUrl
-          Swal.close()
-        } catch (err) {
-          Swal.fire('圖片渲染失敗', '您的裝置在處理圖片時發生錯誤：' + err.message, 'error')
-        }
+          if (compressedDataUrl.length > 800000) { Swal.fire('處理失敗', '圖片過於複雜，壓縮後仍超過系統限制，請嘗試裁切圖片。', 'error'); e.target.value = ''; return }
+          uploadedSignature.value = compressedDataUrl; Swal.close()
+        } catch (err) { Swal.fire('圖片渲染失敗', '您的裝置在處理圖片時發生錯誤：' + err.message, 'error') }
       }
       img.onerror = () => { Swal.fire('讀取失敗', '無法解析該圖片檔案，檔案可能已損壞。', 'error') }
       img.src = event.target.result
     }
     reader.onerror = () => { Swal.fire('讀取失敗', '無法讀取您手機中的檔案權限，請確認是否允許瀏覽器存取相簿。', 'error') }
     reader.readAsDataURL(file)
-  } catch (err) {
-    Swal.fire('系統錯誤', '上傳模組發生未知的錯誤：' + err.message, 'error')
-  } finally {
-    e.target.value = ''
-  }
+  } catch (err) { Swal.fire('系統錯誤', '上傳模組發生未知的錯誤：' + err.message, 'error') } 
+  finally { e.target.value = '' }
 }
 
 function confirmSignature() {
@@ -575,41 +520,23 @@ function confirmSignature() {
   }
   showSignatureModal.value = false
 
-  if (signatureUpdateTarget.value) {
-    executeSignatureUpdate(signatureUpdateTarget.value, base64Signature)
-  } else if (pendingAction.value === 'student') { 
-    report.value.student_signature = base64Signature; executeStudentSubmit() 
-  } else if (pendingAction.value === 'teacher') { 
-    report.value.teacher_signature = base64Signature; executeTeacherSubmit() 
-  } else if (pendingAction.value === 'supervisor') { 
-    report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() 
-  }
+  if (signatureUpdateTarget.value) { executeSignatureUpdate(signatureUpdateTarget.value, base64Signature) } 
+  else if (pendingAction.value === 'student') { report.value.student_signature = base64Signature; executeStudentSubmit() } 
+  else if (pendingAction.value === 'teacher') { report.value.teacher_signature = base64Signature; executeTeacherSubmit() } 
+  else if (pendingAction.value === 'supervisor') { report.value.supervisor_signature = base64Signature; executeSupervisorSubmit() }
 }
 
 async function executeSignatureUpdate(role, base64) {
   const field = role + '_signature'
   const dateField = role + '_sign_date'
   const nowISO = new Date().toISOString()
-  
-  report.value[field] = base64
-  report.value[dateField] = nowISO
-  signatureUpdateTarget.value = null 
+  report.value[field] = base64; report.value[dateField] = nowISO; signatureUpdateTarget.value = null 
 
   if (!report.value.id) return 
-
   Swal.fire({ title: '更新簽章中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
-  const { error } = await supabase.from('feedback_reports').update({ 
-    [field]: base64,
-    [dateField]: nowISO,
-    updated_at: nowISO
-  }).eq('id', report.value.id)
-
-  if (error) {
-    Swal.fire('錯誤', '簽章更新失敗: ' + error.message, 'error')
-  } else {
-    Toast.fire({ icon: 'success', title: '簽章與時間已成功更新' })
-    await loadReportsList(profile.value.id, profile.value.role)
-  }
+  const { error } = await supabase.from('feedback_reports').update({ [field]: base64, [dateField]: nowISO, updated_at: nowISO }).eq('id', report.value.id)
+  if (error) { Swal.fire('錯誤', '簽章更新失敗: ' + error.message, 'error') } 
+  else { Toast.fire({ icon: 'success', title: '簽章與時間已成功更新' }); await loadReportsList(profile.value.id, profile.value.role) }
 }
 
 function handleVisibilityChange() {
@@ -626,14 +553,8 @@ onMounted(async () => {
     await checkAndEnforcePasswordChange(user.id)
     const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     profile.value = userProfile
-    
-    if (userProfile.role === 'student') { 
-      if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'
-      await loadMyExams() 
-    }
-    await loadCategories(); 
-    await loadReportsList(user.id, userProfile.role)
-    
+    if (userProfile.role === 'student') { if (!sessionStorage.getItem('activeModule')) activeModule.value = 'exams'; await loadMyExams() }
+    await loadCategories(); await loadReportsList(user.id, userProfile.role)
     restoreDraftState()
   }
 })
@@ -907,8 +828,7 @@ async function handleLogout() {
   border: 1px solid #cbd5e1 !important;
 }
 
-/* 🌟 一般螢幕模式下隱藏列印專屬區塊 */
-.print-text-box { display: none; }
+.show-on-print { display: none; }
 
 .action-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .action-row.center { justify-content: center; }
@@ -923,15 +843,15 @@ async function handleLogout() {
 .btn:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
 .btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
 
-.score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; color: white; display: inline-block; min-width: 50px; }
-.score-high { background-color: #2ecc71; }
-.score-pass { background-color: #f39c12; }
-.score-fail { background-color: #e74c3c; }
-.result-card { background: #fdfdfd; border-color: #3498db; }
-.score-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-.score-tag { display: flex; align-items: center; border: 1px solid #dcdde1; border-radius: 6px; overflow: hidden; background: white; font-weight: bold; }
-.score-tag .exam-name { padding: 8px 12px; background: #f8f9fa; color: #2c3e50; }
-.score-tag .score-val { padding: 8px 12px; color: white; }
+/* 🌟 全新成績標籤設計，解決深色模式與列印模糊/太擠的問題 */
+.score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
+.score-tag .exam-name { color: #2c3e50 !important; font-weight: bold; font-size: 15px; -webkit-text-fill-color: #2c3e50 !important; }
+.score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
+
+.score-high { color: #27ae60 !important; border-color: #27ae60 !important; background: #eafaf1 !important; -webkit-text-fill-color: #27ae60 !important; }
+.score-pass { color: #d35400 !important; border-color: #f39c12 !important; background: #fdf4e5 !important; -webkit-text-fill-color: #d35400 !important; }
+.score-fail { color: #c0392b !important; border-color: #e74c3c !important; background: #fdedec !important; -webkit-text-fill-color: #c0392b !important; }
 
 .exam-card { border-top: 5px solid #3498db; }
 .exam-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecf0f1; padding-bottom: 15px; margin-bottom: 15px; }
@@ -975,16 +895,13 @@ async function handleLogout() {
 .preview-img-box { margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; }
 .signature-preview { max-height: 100px; max-width: 100%; object-fit: contain; }
 
-/* 🌟 🖨️ 列印專屬終極修復版：將 textarea 徹底隱藏，讓純文字區塊全數展開 */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
   
-  /* 徹底消滅所有 textarea 的捲軸限制 */
-  textarea.form-input { display: none !important; }
+  .hide-on-print { display: none !important; }
   
-  /* 強制展開我們設計好的純文字備用區塊 */
-  .print-text-box { 
+  .show-on-print { 
     display: block !important; 
     white-space: pre-wrap !important; 
     word-break: break-word !important; 
@@ -994,14 +911,18 @@ async function handleLogout() {
     padding: 5px 0 !important;
     border: none !important;
     min-height: auto !important;
+    -webkit-text-fill-color: #000 !important;
   }
-  
-  .print-border-none { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; }
+
+  .print-border-none { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; -webkit-text-fill-color: #000 !important; }
   
   .card { box-shadow: none !important; border: 1px solid #ccc !important; page-break-inside: avoid; margin-bottom: 20px; padding: 15px !important; }
-  .score-tag { border: 1px solid #000 !important; }
-  .score-tag .exam-name { background: transparent !important; color: #000 !important; border-right: 1px solid #000 !important; }
-  .score-tag .score-val { color: #000 !important; background: transparent !important; }
+
+  /* 🌟 列印專用成績標籤：化繁為簡，清晰俐落 */
+  .score-tags { display: block; margin-top: 10px; }
+  .score-tag { display: flex !important; justify-content: space-between !important; border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
+  .score-tag .exam-name { color: #000 !important; -webkit-text-fill-color: #000 !important; background: transparent !important; border: none !important; padding: 0 !important; }
+  .score-tag .score-val { color: #000 !important; -webkit-text-fill-color: #000 !important; border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
 }
 
 @media screen and (max-width: 600px) {
