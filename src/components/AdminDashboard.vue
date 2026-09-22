@@ -3,7 +3,7 @@
     <!-- ======================================================= -->
     <!-- 一般網頁管理介面 (列印時會被完全隱藏)                         -->
     <!-- ======================================================= -->
-    <div class="admin-container no-print-if-scores">
+    <div class="admin-container no-print-if-active">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -20,7 +20,6 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
-      <!-- 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
           <h3>🎯 批次派發測驗卷</h3>
@@ -77,7 +76,6 @@
         </div>
       </div>
 
-      <!-- 題庫管理 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
@@ -138,7 +136,6 @@
         </div>
       </div>
 
-      <!-- 帳號管理 -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="admin-card">
           <div class="card-header-flex">
@@ -223,9 +220,9 @@
         </div>
       </div>
 
-      <!-- 🌟 心得範本預覽：放回原位，網頁上可見 -->
+      <!-- 心得範本預覽：畫面上可見 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
-        <div class="admin-card no-print">
+        <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
           <p class="desc">這是一份完整的學習心得測試範本。您可以在教學、系統交接或評鑑展示時，點擊下方按鈕直接預覽實際匯出的 PDF 排版效果。</p>
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
@@ -279,14 +276,14 @@
           </div>
         </div>
       </div>
-    </div> <!-- admin-container 結束 -->
+    </div>
 
     <!-- ======================================================= -->
     <!-- 彈出視窗區域 (Modal)                                        -->
     <!-- ======================================================= -->
 
     <!-- 測驗卷預覽彈出視窗 -->
-    <div v-if="isViewingModalOpen" class="modal-overlay no-print" @click.self="closeViewModal">
+    <div v-if="isViewingModalOpen" class="modal-overlay no-print-if-active" @click.self="closeViewModal">
       <div class="modal-content">
         <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
@@ -309,8 +306,8 @@
       </div>
     </div>
 
-    <!-- 成績清單與設定視窗 -->
-    <div v-if="isScoreModalOpen" class="modal-overlay no-print" @click.self="closeScoreModal">
+    <!-- 🌟 成績清單與設定視窗 -->
+    <div v-if="isScoreModalOpen" class="modal-overlay no-print-if-active" @click.self="closeScoreModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
           <h3>📊 成績清單：{{ scoreReportData.title }}</h3>
@@ -318,7 +315,6 @@
         </div>
         <div class="modal-body">
           
-          <!-- 報表標頭設定區 -->
           <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
             <div class="form-row">
@@ -370,52 +366,60 @@
   <!-- ======================================================= -->
   <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面                       -->
   <!-- ======================================================= -->
-  <div class="printable-scores" v-if="printMode === 'scores'">
-    <h1 style="text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px; color: #000; letter-spacing: 2px;">
-      課程成績單
+  <div class="printable-scores" v-show="printMode === 'scores'">
+    <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #000; letter-spacing: 4px;">
+      {{ reportMeta.courseName || '未設定課程名稱' }}
     </h1>
     
-    <table style="width: 100%; border: none; margin-bottom: 15px; font-size: 15px;">
-      <tr>
-        <td style="padding: 5px 0;"><strong>學年學期：</strong>{{ reportMeta.semester || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>課程名稱：</strong>{{ reportMeta.courseName || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>授課老師：</strong>{{ reportMeta.teacherName || '未設定' }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0;"><strong>院系/部門：</strong>{{ reportMeta.department || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>班級：</strong>{{ reportMeta.className || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>考試名稱：</strong>{{ reportMeta.examName || '未設定' }}</td>
-      </tr>
-    </table>
-
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000;">
-      <thead>
-        <tr>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; width: 50px;">序號</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">學員帳號</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">姓名</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">院系</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">班級</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">考試名稱</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">分數</th>
-        </tr>
-      </thead>
+    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 15px; font-size: 16px;">
       <tbody>
-        <tr v-for="(record, index) in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
-          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">{{ index + 1 }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentEmail }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.className || '-' }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.examName }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
+        <tr>
+          <td style="width: 150px; border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">授課老師：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.teacherName || '_____________' }}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">院系：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.department || '_____________' }}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">學年學期：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.semester || '_____________' }}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">班級：</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className || '_____________' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <div style="margin-top: 50px; display: flex; justify-content: flex-end; gap: 50px; font-size: 16px; font-weight: bold;">
-      <div>授課教師簽章：_______________________</div>
-      <div>日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+    <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #000;">
+      考試名稱： {{ reportMeta.examName || '_____________' }}
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 50px;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 25%;">學員帳號：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">姓名：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">院系：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 15%;">班級：</th>
+          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">分數：</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="record in filteredScoreRecords" :key="record.studentId">
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentEmail }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentName }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className }}</td>
+          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.score }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display: flex; justify-content: space-between; font-size: 18px; color: #000;">
+      <div>教師簽章：_______________________</div>
+      <div style="margin-right: 150px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
     </div>
   </div>
 </template>
@@ -434,12 +438,10 @@ const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
 const printMode = ref('')
 
-// 🌟 成績單專用變數與邏輯
 const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
 
-// 🌟 成績報表 Metadata
 const reportMeta = ref({
   semester: '',
   courseName: 'AI賦能高齡健康照護培訓專班',
@@ -453,6 +455,10 @@ const reportMeta = ref({
 const isAllScoresSelected = computed(() => {
   if (scoreReportData.value.records.length === 0) return false;
   return scoreReportData.value.records.every(r => selectedScoreRecords.value.includes(r.studentId))
+})
+
+const filteredScoreRecords = computed(() => {
+  return scoreReportData.value.records.filter(r => selectedScoreRecords.value.includes(r.studentId));
 })
 
 function toggleAllScores() {
@@ -470,27 +476,36 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 觸發列印成績單
+// 🌟 精準的列印觸發機制 (防白紙防破圖)
 function printSelectedScores() {
   printMode.value = 'scores';
-  isScoreModalOpen.value = false; // 暫時關閉視窗，確保列印畫面乾淨
   const originalTitle = document.title;
-  document.title = `課程成績單_${reportMeta.value.examName}`; // 自動更改匯出檔名
-  nextTick(() => { 
+  document.title = `課程成績單_${reportMeta.value.examName}`; 
+
+  setTimeout(() => { 
     window.print();
-    document.title = originalTitle; // 復原檔名
-    isScoreModalOpen.value = true; // 列印完畢恢復視窗
-    printMode.value = ''; // 恢復一般模式
-  })
+  }, 400); // 延長渲染等待時間，讓隱藏元素有時間變成可見狀態
+
+  const restoreState = () => {
+    document.title = originalTitle;
+    printMode.value = '';
+    window.removeEventListener('afterprint', restoreState);
+  };
+  
+  window.addEventListener('afterprint', restoreState);
+  setTimeout(restoreState, 4000); // 保底恢復機制
 }
 
-// 🌟 觸發列印心得範本
 function exportDemoToPDF() { 
   printMode.value = 'demo';
-  nextTick(() => { 
-    window.print();
-    printMode.value = ''; // 恢復一般模式
-  }) 
+  setTimeout(() => { window.print() }, 300);
+  
+  const restoreState = () => {
+    printMode.value = '';
+    window.removeEventListener('afterprint', restoreState);
+  };
+  window.addEventListener('afterprint', restoreState);
+  setTimeout(restoreState, 4000);
 }
 
 function formatDateTime(isoString) {
@@ -830,6 +845,9 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
+/* 🌟 隱藏真實列印畫面 (平時不見) */
+.printable-scores, .printable-demo { display: none; }
+
 @media screen and (max-width: 768px) {
   .admin-header { flex-direction: column; gap: 15px; } .admin-header button { width: 100%; }
   .tabs { flex-direction: column; border-bottom: none; } .tabs button { border-radius: 6px; border-bottom: none; margin-bottom: 5px; }
@@ -845,15 +863,10 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 
   /* 隱藏預設管理畫面與彈窗 */
   .app-wrapper { background: white; padding: 0; }
-  .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
+  .admin-container, .modal-overlay { display: none !important; }
   
   /* 根據 printMode 判斷要顯示哪一個列印專區 */
-  .printable-demo { display: none !important; }
-  .printable-scores { display: none !important; }
-
   .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-  
-  .print-mode-scores .admin-container { display: none !important; }
   .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
   
   /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
@@ -876,7 +889,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   
   .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; }
 
-  /* 舊的 demo-print 樣式保留 */
+  /* 心得範本舊的 demo-print 樣式保留 */
   .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
     color: #000000 !important; -webkit-text-fill-color: #000000 !important; 
   }
