@@ -206,6 +206,7 @@
       </div>
     </div>
 
+    <!-- ✍️ 簽章 Modal -->
     <div v-if="showSignatureModal" class="modal-overlay" @click.self="closeSignatureModal">
       <div class="modal-content signature-modal">
         <div class="modal-header">
@@ -234,6 +235,7 @@
       </div>
     </div>
 
+    <!-- 💡 全新升級：檢視完整題目與解析 Modal -->
     <div v-if="isReviewModalOpen" class="modal-overlay" @click.self="closeReviewModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
@@ -245,16 +247,29 @@
             您的最終得分為：<strong style="font-size: 18px;">{{ reviewingRecord?.score }} 分</strong>
           </div>
           <div class="question-list">
-            <div v-for="(q, index) in reviewingRecord?.answers?.grading" :key="q.id" class="question-item">
+            <!-- 🌟 迭代完整撈回來的題目 -->
+            <div v-for="(q, index) in reviewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
               <div class="q-options">
-                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" :class="{'is-correct-preview': opt === q.correct_answer, 'is-wrong-preview': opt === q.student_answer && q.student_answer !== q.correct_answer}">
-                  <input type="radio" disabled class="custom-radio" :checked="opt === q.student_answer">
+                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" 
+                       :class="{
+                         'is-correct-preview': opt === q.correct_answer, 
+                         'is-wrong-preview': opt === getStudentAnswer(reviewingRecord, q.id) && opt !== q.correct_answer
+                       }">
+                  <input type="radio" disabled class="custom-radio" :checked="opt === getStudentAnswer(reviewingRecord, q.id)">
                   <span class="opt-text">{{ opt }}</span>
                   <span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">✅ 正確解答</span>
-                  <span v-else-if="opt === q.student_answer" class="wrong-badge" style="margin-left: auto;">❌ 您的作答</span>
+                  <span v-else-if="opt === getStudentAnswer(reviewingRecord, q.id)" class="wrong-badge" style="margin-left: auto;">❌ 您的作答</span>
                 </label>
               </div>
+              <!-- 🌟 顯示解題分析 -->
+              <div v-if="q.explanation" class="q-explanation" style="margin-top: 15px; padding: 12px; background: #fdf4e5; border-left: 4px solid #f39c12; border-radius: 4px;">
+                <strong style="color: #d35400;">💡 解題分析：</strong>
+                <div style="color: #2c3e50; font-size: 14px; margin-top: 5px; white-space: pre-wrap;">{{ q.explanation }}</div>
+              </div>
+            </div>
+            <div v-if="reviewingQuestions.length === 0" style="text-align: center; color: #7f8c8d; padding: 20px;">
+              無法載入題目詳情，可能該測驗已遭刪除。
             </div>
           </div>
         </div>
@@ -301,8 +316,25 @@ function restoreDraftState() {
   if (savedModal) { try { const parsedModal = JSON.parse(savedModal); if (parsedModal.show) { showSignatureModal.value = parsedModal.show; signatureMode.value = parsedModal.mode; pendingAction.value = parsedModal.action; signatureUpdateTarget.value = parsedModal.target || null; if (parsedModal.mode === 'draw') nextTick(() => { initCanvas() }); Toast.fire({ icon: 'info', title: '已自動為您恢復填寫進度與簽章畫面' }) } } catch (e) {} }
 }
 
-const isReviewModalOpen = ref(false); const reviewingRecord = ref(null)
-function openReviewModal(record) { reviewingRecord.value = record; isReviewModalOpen.value = true }; function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null }
+const isReviewModalOpen = ref(false); const reviewingRecord = ref(null); const reviewingQuestions = ref([])
+
+// 🌟 輔助函式：安全地從作答紀錄 JSON 中取出該題答案
+function getStudentAnswer(record, qId) {
+  if (!record || !record.answers) return null;
+  if (record.answers[qId]) return record.answers[qId];
+  if (record.answers.studentAnswers && record.answers.studentAnswers[qId]) return record.answers.studentAnswers[qId];
+  return null;
+}
+
+// 🌟 全新檢視函式：動態去資料庫撈取完整題目與解析
+async function openReviewModal(record) { 
+  Swal.fire({ title: '載入考卷詳情中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { data: qData, error } = await supabase.from('questions').select('*').eq('exam_id', record.exam_id)
+  if (error) { Swal.fire('錯誤', '無法載入題目內容，可能已遭刪除。', 'error'); return }
+  reviewingQuestions.value = qData; reviewingRecord.value = record; isReviewModalOpen.value = true; Swal.close()
+}
+
+function closeReviewModal() { isReviewModalOpen.value = false; reviewingRecord.value = null; reviewingQuestions.value = [] }
 
 function updateSignature(role) { signatureUpdateTarget.value = role; showSignatureModal.value = true; signatureMode.value = 'draw'; uploadedSignature.value = null; hasDrawn = false; setTimeout(() => { initCanvas() }, 350) }
 function initiateAction(actionRole) {
@@ -370,7 +402,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
-/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
@@ -388,7 +419,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   color-scheme: light only; 
 }
 
-/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -398,14 +428,12 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 🌟 次要文字加深鎖定 */
 .desc, .empty-state, .sign-timestamp {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
 }
 
-/* 🌟 修正簽章底下的說明文字顏色與對比度 */
 .unsigned-text, .demo-signatures span {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
@@ -413,7 +441,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   font-style: italic !important;
 }
 
-/* 輸入框絕對鎖定 */
 .form-input, .print-text-box, .demo-text-box {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
@@ -427,18 +454,15 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   opacity: 1 !important;
 }
 
-/* 警告色特例 */
 .exam-warning, .exam-warning strong {
   color: #856404 !important;
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
 .btn { 
   color: #ffffff !important; 
   -webkit-text-fill-color: #ffffff !important; 
 }
-/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
 .module-tabs button:not(.active), .signature-tabs button:not(.active) {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
@@ -453,9 +477,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* ============================================================ */
-/* 一般排版與元件樣式                                            */
-/* ============================================================ */
 .form-container { width: 100%; max-width: 850px; font-family: "微軟正黑體", sans-serif; }
 .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .module-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; }
@@ -493,7 +514,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .score-badge { padding: 6px 12px; border-radius: 6px; font-weight: bold; display: inline-block; min-width: 50px; }
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
-/* 🌟 成績標籤列表排版 */
 .score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
 .score-tag .exam-name { font-weight: bold; font-size: 15px; }
@@ -542,9 +562,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   .demo-signatures { flex-direction: column; gap: 20px; } .sign-box { width: 100%; }
 }
 
-/* ============================================================ */
-/* 🖨️ PDF 列印專屬優化                                           */
-/* ============================================================ */
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .no-print { display: none !important; }
