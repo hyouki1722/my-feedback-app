@@ -1,9 +1,9 @@
 <template>
   <div class="app-wrapper" :class="printMode ? `print-mode-${printMode}` : ''">
     <!-- ======================================================= -->
-    <!-- 一般網頁管理介面 (列印時會被完全隱藏)                         -->
+    <!-- 一般網頁管理介面 (列印時會依據模式被隱藏)                     -->
     <!-- ======================================================= -->
-    <div class="admin-container no-print-if-active">
+    <div class="admin-container">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -220,7 +220,7 @@
         </div>
       </div>
 
-      <!-- 心得範本預覽：畫面上可見 -->
+      <!-- 心得範本預覽：網頁上可見 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -242,33 +242,15 @@
           <div class="demo-section">
             <h4>📊 測驗成績紀錄</h4>
             <div class="score-tags">
-              <div class="score-tag">
-                <span class="exam-name">兒科實習測驗 (課前)</span>
-                <span class="score-val score-high">90 分</span>
-              </div>
-              <div class="score-tag">
-                <span class="exam-name">兒科實習測驗 (課後)</span>
-                <span class="score-val score-high">100 分</span>
-              </div>
+              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課前)</span><span class="score-val score-high">90 分</span></div>
+              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課後)</span><span class="score-val score-high">100 分</span></div>
             </div>
           </div>
 
-          <div class="demo-section">
-            <h4>📚 學習內容重點摘要</h4>
-            <div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位（如避開關節處、選擇彈性佳的靜脈），以及下針時的角度拿捏。同時也學習了遇到點滴不滴或病人反應疼痛時的初步排除與異常處理流程。</div>
-          </div>
-          <div class="demo-section">
-            <h4>💡 自我反思與心得</h4>
-            <div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張，導致下針猶豫不決。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。我意識到自己對血管走向的判斷還不夠敏銳，未來在臨床跟診時會多加觀察學姊們的選位技巧，並利用空檔重複練習無菌撕貼步驟，期許能讓動作更加流暢，減少病人的不適感。</div>
-          </div>
-          <div class="demo-section">
-            <h4>👩‍⚕️ 臨床指導老師回饋</h4>
-            <div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！下針時因為緊張導致角度稍微偏高，建議下次可以深呼吸放鬆手腕，將角度壓低至 15-30 度之間順勢推入。只要多加練習，相信很快就能熟能生巧，繼續保持！</div>
-          </div>
-          <div class="demo-section">
-            <h4>🏥 單位主管總評</h4>
-            <div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。臨床護理技術需要時間與經驗的累積，能主動察覺自身的不足並提出改進策略，是極佳的專業成長態度。期許未來在實際面對病患時，除了技術的持續精進外，也能發揮同理心與良好的溝通技巧。核定通過本次臨床評核。</div>
-          </div>
+          <div class="demo-section"><h4>📚 學習內容重點摘要</h4><div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位，以及下針時的角度拿捏。</div></div>
+          <div class="demo-section"><h4>💡 自我反思與心得</h4><div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。</div></div>
+          <div class="demo-section"><h4>👩‍⚕️ 臨床指導老師回饋</h4><div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！</div></div>
+          <div class="demo-section"><h4>🏥 單位主管總評</h4><div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。核定通過本次臨床評核。</div></div>
           <div class="demo-signatures">
             <div class="sign-box">學員簽章：<br><span>(系統已認證)</span></div>
             <div class="sign-box">老師簽章：<br><span>(系統已認證)</span></div>
@@ -276,7 +258,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> <!-- admin-container 結束 -->
 
     <!-- ======================================================= -->
     <!-- 彈出視窗區域 (Modal)                                        -->
@@ -287,7 +269,7 @@
       <div class="modal-content">
         <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
-          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。學員在實際作答時，<strong>「絕對不會」</strong>看到任何綠色的正確解答標示，請放心！</div>
+          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。</div>
           <div class="question-list">
             <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
@@ -314,7 +296,6 @@
           <button @click="closeScoreModal" class="close-btn">✖</button>
         </div>
         <div class="modal-body">
-          
           <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
             <div class="form-row">
@@ -361,65 +342,57 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ======================================================= -->
-  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面                       -->
-  <!-- ======================================================= -->
-  <div class="printable-scores" v-show="printMode === 'scores'">
-    <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #000; letter-spacing: 4px;">
-      {{ reportMeta.courseName || '未設定課程名稱' }}
-    </h1>
-    
-    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 15px; font-size: 16px;">
-      <tbody>
+    <!-- ======================================================= -->
+    <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 (網頁上永遠看不見)      -->
+    <!-- ======================================================= -->
+    <div class="printable-scores">
+      <h1 style="text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px; color: #000; letter-spacing: 2px;">
+        {{ reportMeta.courseName || '課程名稱' }}
+      </h1>
+      
+      <table style="width: 100%; border: none; margin-bottom: 15px; font-size: 15px;">
         <tr>
-          <td style="width: 150px; border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">授課老師：</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.teacherName || '_____________' }}</td>
+          <td style="padding: 5px 0;"><strong>學年學期：</strong>{{ reportMeta.semester || '' }}</td>
+          <td style="padding: 5px 0;"><strong>授課老師：</strong>{{ reportMeta.teacherName || '' }}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">院系：</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.department || '_____________' }}</td>
+          <td style="padding: 5px 0;"><strong>院系/部門：</strong>{{ reportMeta.department || '' }}</td>
+          <td style="padding: 5px 0;"><strong>班級：</strong>{{ reportMeta.className || '' }}</td>
         </tr>
-        <tr>
-          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">學年學期：</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.semester || '_____________' }}</td>
-        </tr>
-        <tr>
-          <td style="border: 1px solid #000; padding: 12px; font-weight: bold; background-color: #f9f9f9; color: #000;">班級：</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className || '_____________' }}</td>
-        </tr>
-      </tbody>
-    </table>
+      </table>
 
-    <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #000;">
-      考試名稱： {{ reportMeta.examName || '_____________' }}
-    </div>
+      <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #000;">
+        考試名稱： {{ reportMeta.examName || '' }}
+      </div>
 
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 50px;">
-      <thead>
-        <tr>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 25%;">學員帳號：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">姓名：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">院系：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 15%;">班級：</th>
-          <th style="border: 1px solid #000; padding: 12px; background-color: #f0f0f0; color: #000; text-align: left; font-weight: normal; width: 20%;">分數：</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="record in filteredScoreRecords" :key="record.studentId">
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentEmail }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentName }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ reportMeta.className }}</td>
-          <td style="border: 1px solid #000; padding: 12px; color: #000;">{{ record.score }}</td>
-        </tr>
-      </tbody>
-    </table>
+      <table style="width: 100%; border-collapse: collapse; border: 2px solid #000;">
+        <thead>
+          <tr>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; width: 50px;">序號</th>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">學員帳號</th>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">姓名</th>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">院系</th>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">班級</th>
+            <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">分數</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(record, index) in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
+            <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">{{ index + 1 }}</td>
+            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentEmail }}</td>
+            <td style="border: 1px solid #000; padding: 10px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
+            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentUnit || reportMeta.department }}</td>
+            <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.className || '-' }}</td>
+            <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
+          </tr>
+        </tbody>
+      </table>
 
-    <div style="display: flex; justify-content: space-between; font-size: 18px; color: #000;">
-      <div>教師簽章：_______________________</div>
-      <div style="margin-right: 150px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+      <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
+        <div>授課教師簽章：_______________________</div>
+        <div style="margin-right: 50px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -443,13 +416,7 @@ const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
 
 const reportMeta = ref({
-  semester: '',
-  courseName: 'AI賦能高齡健康照護培訓專班',
-  teacherName: '',
-  department: '護理部',
-  className: '',
-  examName: '',
-  printDate: new Date().toISOString().split('T')[0]
+  semester: '', courseName: 'AI賦能高齡健康照護培訓專班', teacherName: '', department: '護理部', className: '', examName: '', printDate: new Date().toISOString().split('T')[0]
 })
 
 const isAllScoresSelected = computed(() => {
@@ -462,11 +429,8 @@ const filteredScoreRecords = computed(() => {
 })
 
 function toggleAllScores() {
-  if (isAllScoresSelected.value) {
-    selectedScoreRecords.value = []
-  } else {
-    selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
-  }
+  if (isAllScoresSelected.value) selectedScoreRecords.value = []
+  else selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
 }
 
 function formatPrintDate(dateStr) {
@@ -476,36 +440,21 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 精準的列印觸發機制 (防白紙防破圖)
+// 🌟 精準且無延遲的列印觸發機制
 function printSelectedScores() {
   printMode.value = 'scores';
   const originalTitle = document.title;
   document.title = `課程成績單_${reportMeta.value.examName}`; 
 
-  setTimeout(() => { 
+  nextTick(() => { 
     window.print();
-  }, 400); // 延長渲染等待時間，讓隱藏元素有時間變成可見狀態
-
-  const restoreState = () => {
-    document.title = originalTitle;
-    printMode.value = '';
-    window.removeEventListener('afterprint', restoreState);
-  };
-  
-  window.addEventListener('afterprint', restoreState);
-  setTimeout(restoreState, 4000); // 保底恢復機制
+    document.title = originalTitle; // 復原檔名
+  });
 }
 
 function exportDemoToPDF() { 
   printMode.value = 'demo';
-  setTimeout(() => { window.print() }, 300);
-  
-  const restoreState = () => {
-    printMode.value = '';
-    window.removeEventListener('afterprint', restoreState);
-  };
-  window.addEventListener('afterprint', restoreState);
-  setTimeout(restoreState, 4000);
+  nextTick(() => { window.print() });
 }
 
 function formatDateTime(isoString) {
@@ -553,7 +502,6 @@ async function openScoreModal(stat) {
   scoreReportData.value = { title: stat.title, records: mappedRecords }
   selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
   
-  // 自動預填表頭 Metadata
   reportMeta.value.examName = stat.title;
   reportMeta.value.teacherName = profile.value?.name || '';
   
@@ -637,7 +585,7 @@ const filteredUsers = computed(() => { return roleFilter.value === 'all' ? users
 const paginatedUsers = computed(() => { const start = (currentPage.value - 1) * itemsPerPage; return filteredUsers.value.slice(start, start + itemsPerPage) })
 function prevPage() { if (currentPage.value > 1) currentPage.value-- }; function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
 const selectedUserIds = ref([]); const isAllSelectedOnPage = computed(() => { if (paginatedUsers.value.length === 0) return false; return paginatedUsers.value.every(user => selectedUserIds.value.includes(user.id)) })
-function toggleSelectAllOnPage() { if (isAllSelectedOnPage.value) { const currentIds = paginatedUsers.value.map(u => u.id); selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id)) } else { paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.value.push(user.id) }) } }
+function toggleSelectAllOnPage() { if (isAllSelectedOnPage.value) { const currentIds = paginatedUsers.value.map(u => u.id); selectedUserIds.value = selectedUserIds.value.filter(id => !currentIds.includes(id)) } else { paginatedUsers.value.forEach(user => { if (!selectedUserIds.value.includes(user.id)) selectedUserIds.push(user.id) }) } }
 
 async function batchDeleteUsers() {
   if (selectedUserIds.value.length === 0) return; const { isConfirmed } = await Swal.fire({ title: `確定刪除 ${selectedUserIds.value.length} 名人員？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (!isConfirmed) return
@@ -862,17 +810,23 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   @page { margin: 15mm; size: A4 portrait; }
 
   /* 隱藏預設管理畫面與彈窗 */
-  .app-wrapper { background: white; padding: 0; }
-  .admin-container, .modal-overlay { display: none !important; }
+  .app-wrapper { background: white !important; padding: 0 !important; }
+  .modal-overlay { display: none !important; }
   
   /* 根據 printMode 判斷要顯示哪一個列印專區 */
+  .print-mode-demo .admin-container { display: block !important; }
+  .print-mode-demo .admin-header, .print-mode-demo .tabs, .print-mode-demo .no-print-if-active { display: none !important; }
+  .print-mode-demo .tab-content:not(:has(.printable-demo)) { display: none !important; }
+  
   .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+  
+  .print-mode-scores .admin-container { display: none !important; }
   .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
   
   /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
-  .printable-scores * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
-  .printable-scores h1 { font-family: "標楷體", "DFKai-SB", serif !important; }
-  .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+  .printable-scores *, .printable-demo * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
+  .printable-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
+  .printable-scores h1, .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
   
   .print-doc-title { margin-top: 10px; margin-bottom: 30px; }
   
