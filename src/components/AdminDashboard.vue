@@ -306,6 +306,22 @@
           <button @click="closeScoreModal" class="close-btn">✖</button>
         </div>
         <div class="modal-body">
+          
+          <!-- 🌟 報表標頭設定區 -->
+          <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
+            <div class="form-row">
+              <div class="form-group"><label>學年學期：</label><input v-model="reportMeta.semester" class="form-input" placeholder="例：112學年度上學期"></div>
+              <div class="form-group"><label>課程名稱：</label><input v-model="reportMeta.courseName" class="form-input"></div>
+              <div class="form-group"><label>授課老師：</label><input v-model="reportMeta.teacherName" class="form-input"></div>
+            </div>
+            <div class="form-row" style="margin-bottom: 0;">
+              <div class="form-group"><label>院系/部門：</label><input v-model="reportMeta.department" class="form-input"></div>
+              <div class="form-group"><label>班級名稱：</label><input v-model="reportMeta.className" class="form-input" placeholder="例：A班"></div>
+              <div class="form-group"><label>列印日期：</label><input type="date" v-model="reportMeta.printDate" class="form-input"></div>
+            </div>
+          </div>
+
           <div class="action-row" style="margin-bottom: 15px; justify-content: space-between; align-items: center; border-bottom: 1px solid #e1e4e8; padding-bottom: 15px;">
             <span style="font-size: 15px; font-weight: bold; color: #2c3e50;">已選取 <strong style="color: #e74c3c;">{{ selectedScoreRecords.length }}</strong> 名學員</span>
             <button @click="printSelectedScores" class="btn dark-btn small-btn" :disabled="selectedScoreRecords.length === 0">🖨️ 匯出所選成績 (PDF)</button>
@@ -340,33 +356,54 @@
     </div>
   </div>
 
-  <!-- 🖨️ 隱藏版：列印專用成績清單 PDF 畫面 -->
+  <!-- 🌟 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 -->
   <div class="printable-scores" v-if="printMode === 'scores'">
-    <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
-      📊 測驗成績總覽
-    </h2>
-    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; color: #000; font-weight: bold;">
-      <span>測驗卷名稱：{{ scoreReportData.title }}</span>
-      <span>匯出時間：{{ formatDateTime(new Date().toISOString()) }}</span>
-    </div>
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid #2c3e50;">
+    <h1 style="text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px; color: #000; letter-spacing: 2px;">
+      課程成績單
+    </h1>
+    
+    <table style="width: 100%; border: none; margin-bottom: 15px; font-size: 15px;">
+      <tr>
+        <td style="padding: 5px 0;"><strong>學年學期：</strong>{{ reportMeta.semester || '未設定' }}</td>
+        <td style="padding: 5px 0;"><strong>課程名稱：</strong>{{ reportMeta.courseName || '未設定' }}</td>
+        <td style="padding: 5px 0;"><strong>授課老師：</strong>{{ reportMeta.teacherName || '未設定' }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0;"><strong>院系/部門：</strong>{{ reportMeta.department || '未設定' }}</td>
+        <td style="padding: 5px 0;"><strong>班級：</strong>{{ reportMeta.className || '未設定' }}</td>
+        <td style="padding: 5px 0;"><strong>考試名稱：</strong>{{ reportMeta.examName || '未設定' }}</td>
+      </tr>
+    </table>
+
+    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000;">
       <thead>
         <tr>
-          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">實習單位</th>
-          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">學員姓名</th>
-          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: center;">測驗得分</th>
-          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">交卷時間</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left; width: 50px;">序號</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">學員帳號</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">姓名</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">院系</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">班級</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">考試名稱</th>
+          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">分數</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="record in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
-          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000;">{{ record.studentUnit }}</td>
-          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
-          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000; text-align: center; font-weight: bold;">{{ record.score }} 分</td>
-          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000;">{{ formatDateTime(record.completedAt) }}</td>
+        <tr v-for="(record, index) in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
+          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">{{ index + 1 }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentEmail }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentUnit }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.className || '-' }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.examName }}</td>
+          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
         </tr>
       </tbody>
     </table>
+
+    <div style="margin-top: 50px; display: flex; justify-content: flex-end; gap: 50px; font-size: 16px; font-weight: bold;">
+      <div>授課教師簽章：_______________________</div>
+      <div>日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+    </div>
   </div>
 </template>
 
@@ -379,6 +416,7 @@ import * as mammoth from 'mammoth'
 import { checkAndEnforcePasswordChange } from '../utils/auth'
 import { Toast } from '../utils/toast'
 
+const profile = ref(null)
 const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref([]); const students = ref([]); const teachers = ref([]); const supervisors = ref([]); const assignmentData = ref({}); const isCreating = ref(false); const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
 const printMode = ref('')
@@ -387,6 +425,17 @@ const printMode = ref('')
 const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
+
+// 🌟 成績報表 Metadata
+const reportMeta = ref({
+  semester: '',
+  courseName: 'AI賦能高齡健康照護培訓專班',
+  teacherName: '',
+  department: '護理部',
+  className: '',
+  examName: '',
+  printDate: new Date().toISOString().split('T')[0]
+})
 
 const isAllScoresSelected = computed(() => {
   if (scoreReportData.value.records.length === 0) return false;
@@ -401,9 +450,21 @@ function toggleAllScores() {
   }
 }
 
+function formatPrintDate(dateStr) {
+  if (!dateStr) return '______年______月______日';
+  const parts = dateStr.split('-');
+  if(parts.length !== 3) return '______年______月______日';
+  return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
+}
+
 function printSelectedScores() {
   printMode.value = 'scores';
-  nextTick(() => { window.print() })
+  const originalTitle = document.title;
+  document.title = `課程成績單_${reportMeta.value.examName}`; // 自動更改匯出檔名
+  nextTick(() => { 
+    window.print();
+    document.title = originalTitle; // 復原檔名
+  })
 }
 
 function exportDemoToPDF() { 
@@ -444,10 +505,22 @@ async function openScoreModal(stat) {
   if (error) { Swal.fire('錯誤', '載入成績失敗', 'error'); return }
   const mappedRecords = data.map(r => {
     const student = users.value.find(u => u.id === r.student_id) || {}
-    return { studentId: r.student_id, studentName: student.name || '未知學員', studentUnit: student.unit || '未指定', score: r.score, completedAt: r.completed_at }
+    return { 
+      studentId: r.student_id, 
+      studentEmail: student.email || '未提供', // 🌟 加入帳號欄位
+      studentName: student.name || '未知學員', 
+      studentUnit: student.unit || '未指定', 
+      score: r.score, 
+      completedAt: r.completed_at 
+    }
   })
   scoreReportData.value = { title: stat.title, records: mappedRecords }
   selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
+  
+  // 🌟 自動預填表頭 Metadata
+  reportMeta.value.examName = stat.title;
+  reportMeta.value.teacherName = profile.value?.name || '';
+  
   isScoreModalOpen.value = true
   Swal.close()
 }
@@ -538,7 +611,15 @@ async function batchDeleteUsers() {
   selectedUserIds.value = []; await loadUsers(); if (currentPage.value > totalPages.value && totalPages.value > 0) currentPage.value = totalPages.value
 }
 
-onMounted(async () => { const { data: { user } } = await supabase.auth.getUser(); if (user) await checkAndEnforcePasswordChange(user.id); await loadUsers(); await loadAssignments(); await loadCategories(); await loadExams(); await loadDispatches() })
+onMounted(async () => { 
+  const { data: { user } } = await supabase.auth.getUser(); 
+  if (user) {
+    const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    profile.value = userProfile;
+    await checkAndEnforcePasswordChange(user.id); 
+    await loadUsers(); await loadAssignments(); await loadCategories(); await loadExams(); await loadDispatches();
+  }
+})
 function getRoleName(role) { const map = { student: '受訓學員', teacher: '指導老師', supervisor: '單位主管', admin: '系統管理員' }; return map[role] || role }
 async function loadUsers() { const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }); users.value = data || []; students.value = users.value.filter(u => u.role === 'student'); teachers.value = users.value.filter(u => u.role === 'teacher'); supervisors.value = users.value.filter(u => u.role === 'supervisor'); students.value.forEach(s => { if (!assignmentData.value[s.id]) assignmentData.value[s.id] = { teacher_id: '', supervisor_id: '' } }) }
 async function loadAssignments() { const { data } = await supabase.from('assignments').select('*'); if(data) data.forEach(assign => { if (assignmentData.value[assign.student_id]) { assignmentData.value[assign.student_id].teacher_id = assign.teacher_id || ''; assignmentData.value[assign.student_id].supervisor_id = assign.supervisor_id || '' } }) }
@@ -564,6 +645,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
+/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
@@ -581,6 +663,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   color-scheme: light only; 
 }
 
+/* 🌟 精準鎖定：只針對「一般文字標籤」強制設定深色，排除按鈕與特定標籤 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -590,19 +673,22 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-.desc, .empty-state, .sign-timestamp, .unsigned-text, .demo-signatures span {
+/* 🌟 次要文字加深鎖定 */
+.desc, .empty-state, .sign-timestamp {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
   font-weight: bold !important;
 }
 
+/* 🌟 修正簽章底下的說明文字顏色與對比度 */
 .unsigned-text, .demo-signatures span {
-  font-size: 13px !important;
-  font-style: italic !important;
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
+  font-size: 13px !important;
+  font-style: italic !important;
 }
 
+/* 輸入框絕對鎖定 */
 .form-input, .print-text-box, .demo-text-box {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
@@ -616,15 +702,18 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   opacity: 1 !important;
 }
 
+/* 警告色特例 */
 .exam-warning, .exam-warning strong {
   color: #856404 !important;
   -webkit-text-fill-color: #856404 !important;
 }
 
+/* 🌟 白字元素特例：確保按鈕與標籤的字體維持白色 */
 .btn { 
   color: #ffffff !important; 
   -webkit-text-fill-color: #ffffff !important; 
 }
+/* 但如果是白底按鈕 (如分頁、篩選)，需要維持深色字 */
 .tabs button:not(.active), .filter-tabs button:not(.active), .page-btn {
   color: #7f8c8d !important;
   -webkit-text-fill-color: #7f8c8d !important;
@@ -639,6 +728,9 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #ffffff !important;
 }
 
+/* ============================================================ */
+/* 一般排版與元件樣式                                            */
+/* ============================================================ */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; overflow-x: auto; white-space: nowrap; }
@@ -705,6 +797,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
 .sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center;}
 
+/* 🌟 成績清單特定樣式 */
 .score-badge-custom { padding: 5px 10px; border-radius: 6px; font-weight: bold; display: inline-block; min-width: 45px; text-align: center; color: #fff !important; -webkit-text-fill-color: #fff !important;}
 .score-high-badge { background-color: #2ecc71 !important; border: 1px solid #2ecc71 !important; }
 .score-pass-badge { background-color: #f39c12 !important; border: 1px solid #f39c12 !important; }
