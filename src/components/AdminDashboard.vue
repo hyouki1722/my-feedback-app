@@ -1,6 +1,9 @@
 <template>
   <div class="app-wrapper" :class="printMode ? `print-mode-${printMode}` : ''">
-    <div class="admin-container">
+    <!-- ======================================================= -->
+    <!-- 一般網頁管理介面 (列印時會被完全隱藏)                         -->
+    <!-- ======================================================= -->
+    <div class="admin-container no-print">
       <div class="admin-header">
         <div class="header-titles">
           <h2>⚙️ 實習生學習系統 - 管理員後台</h2>
@@ -17,6 +20,7 @@
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
+      <!-- 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
           <h3>🎯 批次派發測驗卷</h3>
@@ -73,6 +77,7 @@
         </div>
       </div>
 
+      <!-- 題庫管理 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷</h3>
@@ -133,6 +138,7 @@
         </div>
       </div>
 
+      <!-- 帳號與其他管理... -->
       <div v-if="activeTab === 'users'" class="tab-content">
         <div class="admin-card">
           <div class="card-header-flex">
@@ -140,7 +146,6 @@
             <div class="import-actions"><button @click="downloadTemplate" class="btn dark-btn">下載範本格式</button><input type="file" ref="fileInput" @change="handleFileUpload" accept=".xlsx, .xls" style="display: none" id="excel-upload" /><label for="excel-upload" class="btn success-btn">上傳人事報表</label></div>
           </div>
         </div>
-
         <div class="admin-card">
           <h3>➕ 單筆建立使用者帳號</h3>
           <form @submit.prevent="createUser" class="create-form">
@@ -156,7 +161,6 @@
             <button type="submit" class="btn primary-btn" :disabled="isCreating">確認建立</button>
           </form>
         </div>
-
         <div class="admin-card">
           <div class="card-header-flex align-center" style="margin-bottom: 15px;">
             <h3 style="margin-bottom: 0; border: none;">📋 系統人員總覽</h3>
@@ -217,65 +221,22 @@
         </div>
       </div>
 
+      <!-- 心得範本預覽 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
-          <p class="desc">這是一份完整的學習心得測試範本。您可以在教學、系統交接或評鑑展示時，點擊下方按鈕直接預覽實際匯出的 PDF 排版效果。</p>
+          <p class="desc">這是一份完整的學習心得測試範本。點擊下方按鈕直接預覽實際匯出的 PDF 排版效果。</p>
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
         </div>
-
-        <div class="admin-card printable-demo">
-          <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900;">
-            📘 實習生學習系統 - 心得反思紀錄
-          </h2>
-          <div class="demo-info-grid">
-            <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
-            <p><strong>指導老師：</strong> 臨床指導教師</p>
-            <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
-            <p><strong>訓練日期：</strong> 2026-09-14</p>
-          </div>
-          
-          <div class="demo-section">
-            <h4>📊 測驗成績紀錄</h4>
-            <div class="score-tags">
-              <div class="score-tag">
-                <span class="exam-name">兒科實習測驗 (課前)</span>
-                <span class="score-val score-high">90 分</span>
-              </div>
-              <div class="score-tag">
-                <span class="exam-name">兒科實習測驗 (課後)</span>
-                <span class="score-val score-high">100 分</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="demo-section">
-            <h4>📚 學習內容重點摘要</h4>
-            <div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位（如避開關節處、選擇彈性佳的靜脈），以及下針時的角度拿捏。同時也學習了遇到點滴不滴或病人反應疼痛時的初步排除與異常處理流程。</div>
-          </div>
-          <div class="demo-section">
-            <h4>💡 自我反思與心得</h4>
-            <div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張，導致下針猶豫不決。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。我意識到自己對血管走向的判斷還不夠敏銳，未來在臨床跟診時會多加觀察學姊們的選位技巧，並利用空檔重複練習無菌撕貼步驟，期許能讓動作更加流暢，減少病人的不適感。</div>
-          </div>
-          <div class="demo-section">
-            <h4>👩‍⚕️ 臨床指導老師回饋</h4>
-            <div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！下針時因為緊張導致角度稍微偏高，建議下次可以深呼吸放鬆手腕，將角度壓低至 15-30 度之間順勢推入。只要多加練習，相信很快就能熟能生巧，繼續保持！</div>
-          </div>
-          <div class="demo-section">
-            <h4>🏥 單位主管總評</h4>
-            <div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。臨床護理技術需要時間與經驗的累積，能主動察覺自身的不足並提出改進策略，是極佳的專業成長態度。期許未來在實際面對病患時，除了技術的持續精進外，也能發揮同理心與良好的溝通技巧。核定通過本次臨床評核。</div>
-          </div>
-          <div class="demo-signatures">
-            <div class="sign-box">學員簽章：<br><span>(系統已認證)</span></div>
-            <div class="sign-box">老師簽章：<br><span>(系統已認證)</span></div>
-            <div class="sign-box">主管簽章：<br><span>(系統已認證)</span></div>
-          </div>
-        </div>
       </div>
-    </div>
+    </div> <!-- admin-container 結束 -->
 
-    <!-- 💡 測驗卷預覽彈出視窗 -->
-    <div v-if="isViewingModalOpen" class="modal-overlay" @click.self="closeViewModal">
+    <!-- ======================================================= -->
+    <!-- 彈出視窗區域 (Modal)                                        -->
+    <!-- ======================================================= -->
+
+    <!-- 測驗卷預覽彈出視窗 -->
+    <div v-if="isViewingModalOpen" class="modal-overlay no-print" @click.self="closeViewModal">
       <div class="modal-content">
         <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
@@ -298,8 +259,8 @@
       </div>
     </div>
 
-    <!-- 🌟 成績清單與 PDF 匯出勾選視窗 -->
-    <div v-if="isScoreModalOpen" class="modal-overlay" @click.self="closeScoreModal">
+    <!-- 🌟 成績清單與設定視窗 -->
+    <div v-if="isScoreModalOpen" class="modal-overlay no-print" @click.self="closeScoreModal">
       <div class="modal-content review-modal">
         <div class="modal-header">
           <h3>📊 成績清單：{{ scoreReportData.title }}</h3>
@@ -307,7 +268,7 @@
         </div>
         <div class="modal-body">
           
-          <!-- 🌟 報表標頭設定區 -->
+          <!-- 報表標頭設定區 -->
           <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
             <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
             <div class="form-row">
@@ -342,7 +303,7 @@
                   <td style="text-align: center;"><input type="checkbox" class="custom-checkbox" :value="record.studentId" v-model="selectedScoreRecords" /></td>
                   <td>{{ record.studentUnit }}</td>
                   <td><strong>{{ record.studentName }}</strong></td>
-                  <td style="text-align: center;"><span class="score-badge" :class="getScoreBadgeClass(record.score)">{{ record.score }} 分</span></td>
+                  <td style="text-align: center;"><span class="score-badge-custom" :class="getScoreBadgeClass(record.score)">{{ record.score }} 分</span></td>
                   <td>{{ formatDateTime(record.completedAt) }}</td>
                 </tr>
                 <tr v-if="scoreReportData.records.length === 0">
@@ -354,55 +315,80 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- 🌟 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 -->
-  <div class="printable-scores" v-if="printMode === 'scores'">
-    <h1 style="text-align: center; font-size: 26px; font-weight: 900; margin-bottom: 20px; color: #000; letter-spacing: 2px;">
-      課程成績單
-    </h1>
+    <!-- ======================================================= -->
+    <!-- 🖨️ PDF 專屬列印區塊 (平時隱藏，按下匯出時才會顯示)                -->
+    <!-- ======================================================= -->
     
-    <table style="width: 100%; border: none; margin-bottom: 15px; font-size: 15px;">
-      <tr>
-        <td style="padding: 5px 0;"><strong>學年學期：</strong>{{ reportMeta.semester || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>課程名稱：</strong>{{ reportMeta.courseName || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>授課老師：</strong>{{ reportMeta.teacherName || '未設定' }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0;"><strong>院系/部門：</strong>{{ reportMeta.department || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>班級：</strong>{{ reportMeta.className || '未設定' }}</td>
-        <td style="padding: 5px 0;"><strong>考試名稱：</strong>{{ reportMeta.examName || '未設定' }}</td>
-      </tr>
-    </table>
+    <!-- 1. 獨立的成績單列印版型 -->
+    <div class="printable-scores" v-if="printMode === 'scores'">
+      <h1 class="print-doc-title">{{ reportMeta.courseName || '課程名稱' }}</h1>
+      
+      <table class="print-meta-table">
+        <tbody>
+          <tr><td class="print-meta-label">授課老師：</td><td class="print-meta-value">{{ reportMeta.teacherName }}</td></tr>
+          <tr><td class="print-meta-label">院系：</td><td class="print-meta-value">{{ reportMeta.department }}</td></tr>
+          <tr><td class="print-meta-label">學年學期：</td><td class="print-meta-value">{{ reportMeta.semester }}</td></tr>
+          <tr><td class="print-meta-label">班級：</td><td class="print-meta-value">{{ reportMeta.className }}</td></tr>
+        </tbody>
+      </table>
 
-    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000;">
-      <thead>
-        <tr>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left; width: 50px;">序號</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">學員帳號</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">姓名</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">院系</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">班級</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: left;">考試名稱</th>
-          <th style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">分數</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(record, index) in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
-          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center;">{{ index + 1 }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentEmail }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ record.studentUnit }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.className || '-' }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000;">{{ reportMeta.examName }}</td>
-          <td style="border: 1px solid #000; padding: 10px; color: #000; text-align: center; font-weight: bold;">{{ record.score }}</td>
-        </tr>
-      </tbody>
-    </table>
+      <div class="print-exam-name">考試名稱： {{ reportMeta.examName }}</div>
 
-    <div style="margin-top: 50px; display: flex; justify-content: flex-end; gap: 50px; font-size: 16px; font-weight: bold;">
-      <div>授課教師簽章：_______________________</div>
-      <div>日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+      <table class="print-score-table">
+        <thead>
+          <tr>
+            <th style="width: 15%;">學員帳號</th>
+            <th style="width: 15%;">姓名</th>
+            <th style="width: 20%;">院系</th>
+            <th style="width: 15%;">班級</th>
+            <th style="width: 15%; text-align: center;">分數</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="record in filteredScoreRecords" :key="record.studentId">
+            <td>{{ record.studentEmail }}</td>
+            <td>{{ record.studentName }}</td>
+            <td>{{ record.studentUnit || reportMeta.department }}</td>
+            <td>{{ reportMeta.className }}</td>
+            <td style="text-align: center; font-weight: bold;">{{ record.score }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="print-footer">
+        <div>教師簽章：</div>
+        <div>日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+      </div>
+    </div>
+
+    <!-- 2. 心得報告範本列印版型 -->
+    <div class="printable-demo" v-if="printMode === 'demo'">
+      <h2 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #000; font-size: 24px;">
+        📘 實習生學習系統 - 心得反思紀錄
+      </h2>
+      <div class="demo-info-grid">
+        <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
+        <p><strong>指導老師：</strong> 臨床指導教師</p>
+        <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
+        <p><strong>訓練日期：</strong> 2026-09-14</p>
+      </div>
+      <div class="demo-section">
+        <h4>📊 測驗成績紀錄</h4>
+        <div class="score-tags">
+          <div class="score-tag"><span class="exam-name">兒科實習測驗 (課前)</span><span class="score-val">90 分</span></div>
+          <div class="score-tag"><span class="exam-name">兒科實習測驗 (課後)</span><span class="score-val">100 分</span></div>
+        </div>
+      </div>
+      <div class="demo-section"><h4>📚 學習內容重點摘要</h4><div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。課程中詳細說明了如何挑選合適的注射部位，以及下針時的角度拿捏。</div></div>
+      <div class="demo-section"><h4>💡 自我反思與心得</h4><div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張。但在學姊的逐步引導與鼓勵下，順利完成回血與固定動作。</div></div>
+      <div class="demo-section"><h4>👩‍⚕️ 臨床指導老師回饋</h4><div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！</div></div>
+      <div class="demo-section"><h4>🏥 單位主管總評</h4><div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力，核定通過本次臨床評核。</div></div>
+      <div class="demo-signatures">
+        <div class="sign-box">學員簽章：<br><span>(系統已認證)</span></div>
+        <div class="sign-box">老師簽章：<br><span>(系統已認證)</span></div>
+        <div class="sign-box">主管簽章：<br><span>(系統已認證)</span></div>
+      </div>
     </div>
   </div>
 </template>
@@ -426,7 +412,7 @@ const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', records: [] })
 const selectedScoreRecords = ref([])
 
-// 🌟 成績報表 Metadata
+// 🌟 成績報表預設 Metadata
 const reportMeta = ref({
   semester: '',
   courseName: 'AI賦能高齡健康照護培訓專班',
@@ -442,28 +428,31 @@ const isAllScoresSelected = computed(() => {
   return scoreReportData.value.records.every(r => selectedScoreRecords.value.includes(r.studentId))
 })
 
+const filteredScoreRecords = computed(() => {
+  return scoreReportData.value.records.filter(r => selectedScoreRecords.value.includes(r.studentId));
+})
+
 function toggleAllScores() {
-  if (isAllScoresSelected.value) {
-    selectedScoreRecords.value = []
-  } else {
-    selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
-  }
+  if (isAllScoresSelected.value) selectedScoreRecords.value = []
+  else selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
 }
 
 function formatPrintDate(dateStr) {
-  if (!dateStr) return '______年______月______日';
+  if (!dateStr) return '______ 年 ______ 月 ______ 日';
   const parts = dateStr.split('-');
-  if(parts.length !== 3) return '______年______月______日';
+  if(parts.length !== 3) return '______ 年 ______ 月 ______ 日';
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
 function printSelectedScores() {
   printMode.value = 'scores';
+  isScoreModalOpen.value = false; // 暫時關閉視窗以防干擾列印畫面
   const originalTitle = document.title;
   document.title = `課程成績單_${reportMeta.value.examName}`; // 自動更改匯出檔名
   nextTick(() => { 
     window.print();
     document.title = originalTitle; // 復原檔名
+    isScoreModalOpen.value = true; // 列印完畢恢復視窗
   })
 }
 
@@ -507,9 +496,9 @@ async function openScoreModal(stat) {
     const student = users.value.find(u => u.id === r.student_id) || {}
     return { 
       studentId: r.student_id, 
-      studentEmail: student.email || '未提供', // 🌟 加入帳號欄位
+      studentEmail: student.email || '未提供', 
       studentName: student.name || '未知學員', 
-      studentUnit: student.unit || '未指定', 
+      studentUnit: student.unit || '', 
       score: r.score, 
       completedAt: r.completed_at 
     }
@@ -517,7 +506,7 @@ async function openScoreModal(stat) {
   scoreReportData.value = { title: stat.title, records: mappedRecords }
   selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
   
-  // 🌟 自動預填表頭 Metadata
+  // 自動預填表頭 Metadata
   reportMeta.value.examName = stat.title;
   reportMeta.value.teacherName = profile.value?.name || '';
   
@@ -816,29 +805,51 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   .import-actions { flex-direction: column; width: 100%; } .demo-info-grid { grid-template-columns: 1fr; }
 }
 
+/* ============================================================ */
+/* 🖨️ PDF 列印專屬優化：徹底獨立列印版型                          */
+/* ============================================================ */
 @media print {
+  @page { margin: 15mm; size: A4 portrait; }
+
+  /* 隱藏預設管理畫面與彈窗 */
   .app-wrapper { background: white; padding: 0; }
   .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
   
+  /* 根據 printMode 判斷要顯示哪一個列印專區 */
   .printable-demo { display: none !important; }
   .printable-scores { display: none !important; }
 
   .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+  
   .print-mode-scores .admin-container { display: none !important; }
   .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
   
-  .printable-scores * { -webkit-text-fill-color: initial !important; }
-  .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span { color: #000 !important; -webkit-text-fill-color: #000 !important; }
-  .printable-scores th { background: #f0f0f0 !important; }
-
-  .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
-    color: #000000 !important; 
-    -webkit-text-fill-color: #000000 !important; 
-  }
+  /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
+  .printable-scores * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
+  .printable-scores h1 { font-family: "標楷體", "DFKai-SB", serif !important; }
+  .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
   
+  .print-doc-title { margin-top: 10px; margin-bottom: 30px; }
+  
+  .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+  .print-meta-table td { border: 1px solid #000 !important; padding: 8px 12px !important; font-size: 14pt !important; }
+  .print-meta-label { width: 120px; font-weight: bold; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-meta-value { width: calc(100% - 120px); }
+
+  .print-exam-name { font-size: 14pt !important; font-weight: bold; margin-bottom: 10px; }
+
+  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+  .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  
+  .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; }
+
+  /* 舊的 demo-print 樣式保留 */
+  .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
+    color: #000000 !important; -webkit-text-fill-color: #000000 !important; 
+  }
   .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
   .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
-  
   .score-tags { display: block; margin-top: 10px; }
   .score-tag { display: flex !important; justify-content: space-between !important; border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
   .score-tag .exam-name { background: transparent !important; border: none !important; padding: 0 !important; }
