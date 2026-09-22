@@ -1,5 +1,5 @@
 <template>
-  <div class="app-wrapper">
+  <div class="app-wrapper" :class="printMode ? `print-mode-${printMode}` : ''">
     <div class="admin-container">
       <div class="admin-header">
         <div class="header-titles">
@@ -45,8 +45,8 @@
         </div>
 
         <div class="admin-card" style="margin-top: 20px;">
-          <h3>🔓 已派發測驗之解答管理</h3>
-          <p class="desc">在確認所有學員皆完成測驗後，在此處「一鍵公開」正確解答。</p>
+          <h3>🔓 已派發測驗之解答管理與成績</h3>
+          <p class="desc">在此處可查看未交卷名單、匯出成績單，並於測驗結束後「一鍵公開」解答。</p>
           <div class="table-responsive"><table class="data-table">
             <thead><tr><th>測驗卷名稱</th><th style="text-align: center;">交卷進度</th><th style="text-align: center;">解答狀態</th><th style="text-align: center;">操作</th></tr></thead>
             <tbody>
@@ -59,7 +59,13 @@
                   </div>
                 </td>
                 <td style="text-align: center;"><span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span><span v-else style="color: #e74c3c; font-weight: bold;">🔒 未公開</span></td>
-                <td style="text-align: center;"><button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn">一鍵公開解答</button><button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn">關閉解答</button></td>
+                <td style="text-align: center;">
+                  <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+                    <button @click="openScoreModal(stat)" class="btn primary-btn small-btn" style="width: 100%; max-width: 120px;">📊 成績單匯出</button>
+                    <button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn" style="width: 100%; max-width: 120px;">一鍵公開解答</button>
+                    <button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn" style="width: 100%; max-width: 120px;">關閉解答</button>
+                  </div>
+                </td>
               </tr>
               <tr v-if="dispatchStats.length === 0"><td colspan="4" class="empty-state">尚無派發紀錄</td></tr>
             </tbody>
@@ -97,6 +103,10 @@
                   <span v-if="q.correct === opt" class="correct-badge">正確解答</span>
                 </li>
               </ul>
+              <div style="margin-top: 15px;">
+                <label style="font-size: 13px; font-weight: bold; color: #7f8c8d;">💡 解題分析 (選填)：</label>
+                <textarea v-model="q.explanation" class="form-input" rows="2" placeholder="如有解析請輸入於此..."></textarea>
+              </div>
             </div>
             <div class="action-row" style="justify-content: center; margin-top: 10px;"><button @click="addNewQuestion" class="btn success-btn small-btn" style="width: 100%; max-width: 300px;">➕ 手動新增一題</button></div>
           </div>
@@ -278,26 +288,141 @@
                   <input type="radio" disabled class="custom-radio"><span class="opt-text">{{ opt }}</span><span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">正確解答</span>
                 </label>
               </div>
+              <div v-if="q.explanation" style="margin-top: 15px; padding: 12px; background: #fdf4e5; border-left: 4px solid #f39c12; border-radius: 4px;">
+                <strong style="color: #d35400;">💡 解題分析：</strong>
+                <div style="color: #2c3e50; font-size: 14px; margin-top: 5px; white-space: pre-wrap;">{{ q.explanation }}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 🌟 成績清單與 PDF 匯出勾選視窗 -->
+    <div v-if="isScoreModalOpen" class="modal-overlay" @click.self="closeScoreModal">
+      <div class="modal-content review-modal">
+        <div class="modal-header">
+          <h3>📊 成績清單：{{ scoreReportData.title }}</h3>
+          <button @click="closeScoreModal" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div class="action-row" style="margin-bottom: 15px; justify-content: space-between; align-items: center; border-bottom: 1px solid #e1e4e8; padding-bottom: 15px;">
+            <span style="font-size: 15px; font-weight: bold; color: #2c3e50;">已選取 <strong style="color: #e74c3c;">{{ selectedScoreRecords.length }}</strong> 名學員</span>
+            <button @click="printSelectedScores" class="btn dark-btn small-btn" :disabled="selectedScoreRecords.length === 0">🖨️ 匯出所選成績 (PDF)</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center;"><input type="checkbox" class="custom-checkbox" :checked="isAllScoresSelected" @change="toggleAllScores" /></th>
+                  <th>實習單位</th>
+                  <th>學員姓名</th>
+                  <th style="text-align: center;">測驗得分</th>
+                  <th>交卷時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(record, index) in scoreReportData.records" :key="index" :class="{'selected-row': selectedScoreRecords.includes(record.studentId)}">
+                  <td style="text-align: center;"><input type="checkbox" class="custom-checkbox" :value="record.studentId" v-model="selectedScoreRecords" /></td>
+                  <td>{{ record.studentUnit }}</td>
+                  <td><strong>{{ record.studentName }}</strong></td>
+                  <td style="text-align: center;"><span class="score-badge" :class="getScoreBadgeClass(record.score)">{{ record.score }} 分</span></td>
+                  <td>{{ formatDateTime(record.completedAt) }}</td>
+                </tr>
+                <tr v-if="scoreReportData.records.length === 0">
+                  <td colspan="5" class="empty-state">尚無學員交卷，暫無成績資料。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🖨️ 隱藏版：列印專用成績清單 PDF 畫面 -->
+  <div class="printable-scores" v-if="printMode === 'scores'">
+    <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
+      📊 測驗成績總覽
+    </h2>
+    <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; color: #000; font-weight: bold;">
+      <span>測驗卷名稱：{{ scoreReportData.title }}</span>
+      <span>匯出時間：{{ formatDateTime(new Date().toISOString()) }}</span>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; border: 2px solid #2c3e50;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">實習單位</th>
+          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">學員姓名</th>
+          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: center;">測驗得分</th>
+          <th style="border: 1px solid #2c3e50; padding: 12px; background: #ecf0f1; color: #000; text-align: left;">交卷時間</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="record in scoreReportData.records.filter(r => selectedScoreRecords.includes(r.studentId))" :key="record.studentId">
+          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000;">{{ record.studentUnit }}</td>
+          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000; font-weight: bold;">{{ record.studentName }}</td>
+          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000; text-align: center; font-weight: bold;">{{ record.score }} 分</td>
+          <td style="border: 1px solid #2c3e50; padding: 12px; color: #000;">{{ formatDateTime(record.completedAt) }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 import * as XLSX from 'xlsx'
 import * as mammoth from 'mammoth'
-import { formatDate } from '../utils/format'
 import { checkAndEnforcePasswordChange } from '../utils/auth'
 import { Toast } from '../utils/toast'
 
 const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref([]); const students = ref([]); const teachers = ref([]); const supervisors = ref([]); const assignmentData = ref({}); const isCreating = ref(false); const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
+const printMode = ref('')
+
+// 🌟 成績單專用變數與邏輯
+const isScoreModalOpen = ref(false)
+const scoreReportData = ref({ title: '', records: [] })
+const selectedScoreRecords = ref([])
+
+const isAllScoresSelected = computed(() => {
+  if (scoreReportData.value.records.length === 0) return false;
+  return scoreReportData.value.records.every(r => selectedScoreRecords.value.includes(r.studentId))
+})
+
+function toggleAllScores() {
+  if (isAllScoresSelected.value) {
+    selectedScoreRecords.value = []
+  } else {
+    selectedScoreRecords.value = scoreReportData.value.records.map(r => r.studentId)
+  }
+}
+
+function printSelectedScores() {
+  printMode.value = 'scores';
+  nextTick(() => { window.print() })
+}
+
+function exportDemoToPDF() { 
+  printMode.value = 'demo';
+  nextTick(() => { window.print() }) 
+}
+
+function formatDateTime(isoString) {
+  if (!isoString) return '(無時間紀錄)';
+  const d = new Date(isoString);
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function formatDate(isoString) { if (!isoString) return ''; const d = new Date(isoString); return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}` }
+
+function getScoreBadgeClass(score) {
+  if (score >= 80) return 'score-high-badge';
+  if (score >= 60) return 'score-pass-badge';
+  return 'score-fail-badge';
+}
 
 const uniqueUnits = computed(() => { const units = students.value.map(s => s.unit).filter(u => u); return [...new Set(units)] })
 const dispatchFilteredStudents = computed(() => { if (dispatchSelectedUnit.value === 'all') return students.value; return students.value.filter(s => s.unit === dispatchSelectedUnit.value) })
@@ -310,13 +435,37 @@ async function submitDispatch() { if (dispatchSelectedStudents.value.length === 
 
 const dispatchStats = computed(() => { const stats = {}; dispatchRecords.value.forEach(r => { if (!stats[r.exam_id]) { const exam = examList.value.find(e => e.id === r.exam_id); stats[r.exam_id] = { exam_id: r.exam_id, title: exam ? exam.title : '未知測驗', total: 0, completed: 0, show_answers: r.show_answers, pending_names: [] } } stats[r.exam_id].total++; if (r.is_completed) { stats[r.exam_id].completed++ } else { const student = users.value.find(u => u.id === r.student_id); if (student) stats[r.exam_id].pending_names.push(student.name) } if (r.show_answers) stats[r.exam_id].show_answers = true }); return Object.values(stats) })
 function showPendingStudents(stat) { if (stat.pending_names.length === 0) { Swal.fire('提示', '所有學員皆已完成測驗！', 'success'); return } const namesHtml = stat.pending_names.map(name => `<span style="display:inline-block; margin: 5px; padding: 5px 10px; background:#ecf0f1; border-radius:4px; font-weight:bold; color: #2c3e50;">${name}</span>`).join(''); Swal.fire({ title: `尚未交卷名單 (${stat.pending_names.length} 人)`, html: `<div style="text-align: left; margin-top: 15px;">${namesHtml}</div>`, icon: 'info', confirmButtonText: '關閉' }) }
+
 async function toggleAnswersVisibility(examId, currentStatus) { const newStatus = !currentStatus; Swal.fire({ title: '更新中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { error } = await supabase.from('exam_dispatch').update({ show_answers: newStatus }).eq('exam_id', examId); if (error) { Swal.fire('錯誤', error.message, 'error') } else { Toast.fire({ icon: 'success', title: newStatus ? '已全面公開解答' : '已關閉解答' }); await loadDispatches() } }
+
+async function openScoreModal(stat) {
+  Swal.fire({ title: '載入成績中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  const { data, error } = await supabase.from('exam_records').select('student_id, score, completed_at').eq('exam_id', stat.exam_id).order('score', { ascending: false })
+  if (error) { Swal.fire('錯誤', '載入成績失敗', 'error'); return }
+  const mappedRecords = data.map(r => {
+    const student = users.value.find(u => u.id === r.student_id) || {}
+    return { studentId: r.student_id, studentName: student.name || '未知學員', studentUnit: student.unit || '未指定', score: r.score, completedAt: r.completed_at }
+  })
+  scoreReportData.value = { title: stat.title, records: mappedRecords }
+  selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
+  isScoreModalOpen.value = true
+  Swal.close()
+}
+function closeScoreModal() { isScoreModalOpen.value = false; scoreReportData.value = { title: '', records: [] }; selectedScoreRecords.value = []; }
 
 const examList = ref([]); const previewQuestions = ref([]); const previewExamTitle = ref(''); const previewExamType = ref('pre_test'); const shuffleQuestionsMode = ref(true); const shuffleOptionsMode = ref(true); const editingExamId = ref(null); const isViewingModalOpen = ref(false); const viewingExam = ref(null); const viewingQuestions = ref([])
 async function loadExams() { const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false }); if (!error && data) examList.value = data }
 function shuffleArray(array) { let currentIndex = array.length, randomIndex; while (currentIndex !== 0) { randomIndex = Math.floor(Math.random() * currentIndex); currentIndex--; [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]]; } return array; }
-function addNewQuestion() { previewQuestions.value.push({ text: '請輸入新題目內容...', options: ['選項A', '選項B', '選項C', '選項D'], correct: '選項A' }) }
-async function editExam(exam) { Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); if (error) return Swal.fire('錯誤', '題目載入失敗', 'error'); editingExamId.value = exam.id; previewExamTitle.value = exam.title; previewExamType.value = exam.type; previewQuestions.value = data.map(q => ({ id: q.id, text: q.question_text, options: q.options, correct: q.correct_answer })); Swal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+function addNewQuestion() { previewQuestions.value.push({ text: '請輸入新題目內容...', options: ['選項A', '選項B', '選項C', '選項D'], correct: '選項A', explanation: '' }) }
+
+async function editExam(exam) { 
+  Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
+  const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); 
+  if (error) return Swal.fire('錯誤', '題目載入失敗', 'error'); 
+  editingExamId.value = exam.id; previewExamTitle.value = exam.title; previewExamType.value = exam.type; 
+  previewQuestions.value = data.map(q => ({ id: q.id, text: q.question_text, options: q.options, correct: q.correct_answer, explanation: q.explanation || '' })); 
+  Swal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) 
+}
 
 async function handleExamUpload(event) {
   const file = event.target.files[0]; if (!file) return; if (!file.name.endsWith('.docx')) return Swal.fire('錯誤', '請上傳 .docx 檔案', 'error')
@@ -331,9 +480,12 @@ async function handleExamUpload(event) {
       if (!useStrict) { const pureAnswers = answerSection.match(/[○×ABCD]/g); if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans }) }
       const questions = []; const qRegex = /(?:^|\n|】|）|\s)0*(\d+)\.\s+(.*?)(?=(?:^|\n|】|）|\s)0*\d+\.\s+|$)/gs; let matchQ
       while ((matchQ = qRegex.exec(questionSection)) !== null) {
-        const qNum = parseInt(matchQ[1]); let rawText = matchQ[2].trim(); let options = [], questionText = '', correctText = ''; const ansKey = answersMap[qNum] || 'A'; const idxA = rawText.search(/\s*(?:\(A\)|A\.)\s*/)
+        const qNum = parseInt(matchQ[1]); let rawText = matchQ[2].trim(); let options = [], questionText = '', correctText = '', explanation = ''; 
+        const expMatch = rawText.match(/(?:解析|詳解|說明)\s*[：:]\s*(.*)/is);
+        if (expMatch) { explanation = expMatch[1].trim(); rawText = rawText.substring(0, expMatch.index).trim(); }
+        const ansKey = answersMap[qNum] || 'A'; const idxA = rawText.search(/\s*(?:\(A\)|A\.)\s*/)
         if (idxA !== -1) { questionText = rawText.substring(0, idxA).trim(); const optsPart = rawText.substring(idxA); const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.)\s*/).filter(s => s.trim() !== ''); if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim()); else { options = optMatches; while (options.length < 4) options.push('選項缺失') } const ansIndex = ansKey === 'A' ? 0 : ansKey === 'B' ? 1 : ansKey === 'C' ? 2 : ansKey === 'D' ? 3 : 0; correctText = options[ansIndex] || options[0] } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) { const idxO = rawText.search(/[○×□]/); if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim(); else questionText = rawText.replace(/[○×□]/g, '').trim(); options = ['○', '×']; correctText = ansKey } else { questionText = rawText.trim(); options = ['(未解析出選項)', '(未解析出選項)']; correctText = options[0] }
-        if (questionText.length > 2) questions.push({ text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText })
+        if (questionText.length > 2) questions.push({ text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText, explanation: explanation })
       }
       if (questions.length === 0) throw new Error('未能自動解析出題目，請確保題目編號為「1. 」格式。'); previewQuestions.value = questions; Swal.close()
     } catch (err) { Swal.fire('解析失敗', err.message, 'error') } finally { event.target.value = '' }
@@ -351,12 +503,12 @@ async function confirmSaveExam() {
       const { error: examErr } = await supabase.from('exams').update({ title: previewExamTitle.value, type: previewExamType.value }).eq('id', targetExamId); if (examErr) throw examErr
       const { data: existingQ } = await supabase.from('questions').select('id').eq('exam_id', targetExamId); const existingIds = existingQ.map(q => q.id); const keptIds = finalQuestions.map(q => q.id).filter(id => id); const idsToDelete = existingIds.filter(id => !keptIds.includes(id))
       if (idsToDelete.length > 0) await supabase.from('questions').delete().in('id', idsToDelete)
-      const questionsToUpdate = finalQuestions.filter(q => q.id).map(q => ({ id: q.id, exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct })); const questionsToInsert = finalQuestions.filter(q => !q.id).map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct }))
+      const questionsToUpdate = finalQuestions.filter(q => q.id).map(q => ({ id: q.id, exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const questionsToInsert = finalQuestions.filter(q => !q.id).map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' }))
       if (questionsToUpdate.length > 0) { const { error: updErr } = await supabase.from('questions').upsert(questionsToUpdate); if (updErr) throw updErr }
       if (questionsToInsert.length > 0) { const { error: insErr } = await supabase.from('questions').insert(questionsToInsert); if (insErr) throw insErr }
     } else {
       const { data: examData, error: examErr } = await supabase.from('exams').insert([{ title: previewExamTitle.value, type: previewExamType.value }]).select(); if (examErr) throw examErr
-      targetExamId = examData[0].id; const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct })); const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
+      targetExamId = examData[0].id; const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
     }
     Swal.fire('成功', `已成功儲存題庫，共 ${finalQuestions.length} 題！`, 'success'); previewQuestions.value = []; editingExamId.value = null; previewExamTitle.value = ''; await loadExams()
   } catch (err) { Swal.fire('寫入失敗', err.message, 'error') }
@@ -365,7 +517,6 @@ async function confirmSaveExam() {
 async function deleteExam(id, title) { const { isConfirmed } = await Swal.fire({ title: `確定要刪除「${title}」嗎？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (!isConfirmed) return; const { error } = await supabase.from('exams').delete().eq('id', id); if (error) return Swal.fire('錯誤', error.message, 'error'); Toast.fire({ icon: 'success', title: '測驗卷已刪除' }); await loadExams() }
 async function viewExam(exam) { Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); if (error) { Swal.fire('錯誤', '題目載入失敗', 'error'); return } viewingExam.value = exam; viewingQuestions.value = data; isViewingModalOpen.value = true; Swal.close() }
 function closeViewModal() { isViewingModalOpen.value = false; viewingExam.value = null; viewingQuestions.value = [] }
-function exportDemoToPDF() { window.print() }
 
 const dynamicCategories = ref([]); const newCategoryName = ref('')
 async function loadCategories() { const { data, error } = await supabase.from('training_categories').select('*').order('created_at', { ascending: true }); if (!error && data) dynamicCategories.value = data }
@@ -413,7 +564,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 </script>
 
 <style scoped>
-/* 🌟 強制封鎖深色模式，精準設定文字顏色 */
 * { color-scheme: light only !important; }
 
 .app-wrapper { 
@@ -431,7 +581,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   color-scheme: light only; 
 }
 
-/* 🌟 重新精準鎖定，拔除對 button 以及特定標籤的干擾，確保原本白字按鈕維持白色 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -441,7 +590,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-/* 🌟 次要文字加深鎖定，涵蓋簽章下的防呆文字 */
 .desc, .empty-state, .sign-timestamp, .unsigned-text, .demo-signatures span {
   color: #34495e !important;
   -webkit-text-fill-color: #34495e !important;
@@ -455,7 +603,6 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #7f8c8d !important;
 }
 
-/* 輸入框絕對鎖定 */
 .form-input, .print-text-box, .demo-text-box {
   color: #000000 !important;
   -webkit-text-fill-color: #000000 !important;
@@ -469,13 +616,11 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   opacity: 1 !important;
 }
 
-/* 警告色特例 */
 .exam-warning, .exam-warning strong {
   color: #856404 !important;
   -webkit-text-fill-color: #856404 !important;
 }
 
-/* 🌟 確保所有主要按鈕與狀態標籤的字體維持白色，不受深色模式反轉干擾 */
 .btn { 
   color: #ffffff !important; 
   -webkit-text-fill-color: #ffffff !important; 
@@ -489,14 +634,11 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #3498db !important;
 }
 
-.role-badge, .status-badge, .score-badge, .correct-badge, .wrong-badge, .score-val {
+.role-badge, .status-badge, .score-badge, .score-badge-custom, .correct-badge, .wrong-badge, .score-val {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* ============================================================ */
-/* 一般排版與元件樣式                                            */
-/* ============================================================ */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
 .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 20px 25px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e1e4e8; }
 .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #e1e4e8; padding-bottom: 0; overflow-x: auto; white-space: nowrap; }
@@ -549,6 +691,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .q-options li.is-correct { border-color: #2ecc71; background: #f4fdf8; }
 .custom-radio { width: 18px; height: 18px; cursor: pointer; accent-color: #2ecc71; }
 .correct-badge { background: #2ecc71; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
+.wrong-badge { background: #e74c3c; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 12px; white-space: nowrap; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.6); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
 .modal-content { background: white; width: 100%; max-width: 850px; max-height: 90vh; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
@@ -561,6 +704,11 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .demo-text-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; }
 .demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
 .sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center;}
+
+.score-badge-custom { padding: 5px 10px; border-radius: 6px; font-weight: bold; display: inline-block; min-width: 45px; text-align: center; color: #fff !important; -webkit-text-fill-color: #fff !important;}
+.score-high-badge { background-color: #2ecc71 !important; border: 1px solid #2ecc71 !important; }
+.score-pass-badge { background-color: #f39c12 !important; border: 1px solid #f39c12 !important; }
+.score-fail-badge { background-color: #e74c3c !important; border: 1px solid #e74c3c !important; }
 
 .score-tags { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .score-tag { display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff; }
@@ -578,8 +726,18 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 @media print {
   .app-wrapper { background: white; padding: 0; }
   .admin-header, .tabs, .no-print, .batch-action-bar, .admin-card:not(.printable-demo) { display: none !important; }
-  .printable-demo { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
   
+  .printable-demo { display: none !important; }
+  .printable-scores { display: none !important; }
+
+  .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+  .print-mode-scores .admin-container { display: none !important; }
+  .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
+  
+  .printable-scores * { -webkit-text-fill-color: initial !important; }
+  .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+  .printable-scores th { background: #f0f0f0 !important; }
+
   .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
     color: #000000 !important; 
     -webkit-text-fill-color: #000000 !important; 
