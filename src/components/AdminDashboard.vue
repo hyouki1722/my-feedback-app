@@ -15,21 +15,22 @@
         <button :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">👥 帳號管理</button>
         <button :class="{ active: activeTab === 'pairing' }" @click="activeTab = 'pairing'">🔗 師生配對</button>
         <button :class="{ active: activeTab === 'categories' }" @click="activeTab = 'categories'">🗂️ 訓練類別</button>
-        <button :class="{ active: activeTab === 'exams' }" @click="activeTab = 'exams'">📝 題庫管理</button>
-        <button :class="{ active: activeTab === 'dispatch' }" @click="activeTab = 'dispatch'">🎯 測驗任務派發</button>
+        <button :class="{ active: activeTab === 'exams' }" @click="activeTab = 'exams'">📝 題庫與量表</button>
+        <button :class="{ active: activeTab === 'dispatch' }" @click="activeTab = 'dispatch'">🎯 任務派發</button>
         <button :class="{ active: activeTab === 'demo' }" @click="activeTab = 'demo'">📄 PDF 範本</button>
       </div>
 
+      <!-- 測驗任務派發區塊 -->
       <div v-if="activeTab === 'dispatch'" class="tab-content">
         <div class="admin-card">
-          <h3>🎯 批次派發測驗卷</h3>
+          <h3>🎯 批次派發測驗卷與量表</h3>
           <p class="desc">請先選擇要派發的測驗卷，接著透過「實習單位」篩選目標學員，即可進行批次派發。</p>
           <div class="form-row" style="background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px solid #eee; margin-top: 15px;">
-            <div class="form-group"><label>1. 選擇要派發的測驗卷：</label><select v-model="dispatchSelectedExam" class="form-input"><option value="">-- 請選擇測驗卷 --</option><option v-for="exam in examList" :key="exam.id" :value="exam.id">{{ exam.title }} ({{ exam.type === 'pre_test' ? '課前' : '課後' }})</option></select></div>
+            <div class="form-group"><label>1. 選擇派發項目：</label><select v-model="dispatchSelectedExam" class="form-input"><option value="">-- 請選擇 --</option><option v-for="exam in examList" :key="exam.id" :value="exam.id">{{ exam.title }} ({{ exam.type === 'pre_test' ? '課前' : exam.type === 'post_test' ? '課後' : '量表' }})</option></select></div>
             <div class="form-group"><label>2. 篩選目標實習單位：</label><select v-model="dispatchSelectedUnit" class="form-input"><option value="all">顯示所有單位學員</option><option v-for="unit in uniqueUnits" :key="unit" :value="unit">{{ unit }}</option></select></div>
           </div>
           <div v-if="dispatchSelectedExam" style="margin-top: 15px; background: #f0f8ff; padding: 12px 15px; border-radius: 8px; border: 1px solid #bce0fd;">
-            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; color: #2980b9;"><input type="checkbox" v-model="dispatchShowAnswers" class="custom-checkbox">☑️ 派發時直接公開解答（建議預設取消，等全部考完再統一公開）</label>
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; color: #2980b9;"><input type="checkbox" v-model="dispatchShowAnswers" class="custom-checkbox">☑️ 派發時直接公開解答（若是量表則無標準解答，請自由勾選）</label>
           </div>
           <div v-if="dispatchSelectedExam" style="margin-top: 20px;">
             <div class="card-header-flex align-center"><h4 style="margin: 0;">勾選要派發的學員</h4><button @click="submitDispatch" class="btn success-btn small-btn">🚀 確認派發</button></div>
@@ -48,10 +49,10 @@
         </div>
 
         <div class="admin-card" style="margin-top: 20px;">
-          <h3>🔓 已派發測驗之解答管理與成績</h3>
+          <h3>🔓 已派發任務進度與成績</h3>
           <p class="desc">在此處可查看未交卷名單、匯出成績單，並於測驗結束後「一鍵公開」解答。</p>
           <div class="table-responsive"><table class="data-table">
-            <thead><tr><th>測驗卷名稱</th><th style="text-align: center;">交卷進度</th><th style="text-align: center;">解答狀態</th><th style="text-align: center;">操作</th></tr></thead>
+            <thead><tr><th>任務名稱</th><th style="text-align: center;">交卷進度</th><th style="text-align: center;">解答狀態</th><th style="text-align: center;">操作</th></tr></thead>
             <tbody>
               <tr v-for="stat in dispatchStats" :key="stat.exam_id">
                 <td><strong>{{ stat.title }}</strong></td>
@@ -76,40 +77,65 @@
         </div>
       </div>
 
-      <!-- ========================================== -->
-      <!-- 🌟 題庫管理區塊 (全新智慧解析引擎)              -->
-      <!-- ========================================== -->
+      <!-- 🌟 全新升級：AI 智慧容錯題庫與量表解析 -->
       <div v-if="activeTab === 'exams'" class="tab-content">
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
-          <h3>➕ 匯入 Word 測驗卷</h3>
-          <p class="desc">支援匯入標準格式之 .docx 測驗卷，系統將自動解析題目、選項與答案。</p>
-          <div style="margin-top: 15px;"><input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" /><label for="exam-upload" class="btn success-btn">上傳 .docx 測驗卷</label></div>
+          <h3>➕ 匯入 Word 測驗卷 / 評估量表</h3>
+          <p class="desc">系統搭載容錯解析引擎。若抓不到答案，系統會直接進入預覽畫面供您手動校對，不再阻擋匯入！</p>
+          <div style="margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
+            <div>
+              <input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" />
+              <label for="exam-upload" class="btn success-btn">📝 上傳一般測驗卷</label>
+            </div>
+            <div>
+              <input type="file" @change="handleScaleUpload" accept=".docx" style="display: none" id="scale-upload" />
+              <label for="scale-upload" class="btn primary-btn" style="background-color: #e67e22;">📊 上傳評估量表 (計分制)</label>
+            </div>
+          </div>
         </div>
 
         <div class="admin-card preview-card" v-else>
           <div class="card-header-flex align-center">
-            <h3>{{ editingExamId ? '✏️ 編輯測驗卷與校對' : '👁️ 測驗卷預覽與校對' }}</h3>
+            <h3>{{ editingExamId ? '✏️ 編輯任務與校對' : '👁️ 任務預覽與校對' }}</h3>
             <div class="action-row" style="margin-top: 0;"><button @click="cancelPreview" class="btn danger-btn small-btn">{{ editingExamId ? '取消編輯' : '取消匯入' }}</button><button @click="confirmSaveExam" class="btn primary-btn small-btn">✅ 確認無誤並儲存</button></div>
           </div>
+          
+          <div class="exam-warning" v-if="!hasParsedAnswers && previewExamType !== 'scale'">
+            💡 <strong>系統提示：</strong> 檔案中未發現明確的解答區塊。系統已將所有題目提取，請您手動點擊選項前方的「圓圈」來設定正確答案！
+          </div>
+
           <div class="form-row" style="background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px solid #eee;">
-            <div class="form-group"><label>測驗卷名稱：</label><input type="text" v-model="previewExamTitle" class="form-input" /></div>
-            <div class="form-group"><label>測驗類型：</label><select v-model="previewExamType" class="form-input"><option value="pre_test">課前測驗</option><option value="post_test">課後測驗</option></select></div>
+            <div class="form-group"><label>{{ previewExamType === 'scale' ? '量表名稱：' : '測驗卷名稱：' }}</label><input type="text" v-model="previewExamTitle" class="form-input" /></div>
+            <div class="form-group">
+              <label>任務類型：</label>
+              <select v-model="previewExamType" class="form-input">
+                <option value="pre_test">課前測驗</option>
+                <option value="post_test">課後測驗</option>
+                <option value="scale">評估量表 (無標準解答)</option>
+              </select>
+            </div>
           </div>
-          <div class="shuffle-options">
-            <label class="checkbox-label"><input type="checkbox" v-model="shuffleQuestionsMode" class="custom-checkbox"> 🔀 儲存時隨機打亂「題目順序」</label>
-            <label class="checkbox-label"><input type="checkbox" v-model="shuffleOptionsMode" class="custom-checkbox"> 🔀 儲存時隨機打亂「選項順序」</label>
+
+          <div class="shuffle-options" style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; gap: 20px;">
+              <label class="checkbox-label"><input type="checkbox" v-model="shuffleQuestionsMode" class="custom-checkbox"> 🔀 儲存時隨機打亂「題目順序」</label>
+              <label class="checkbox-label" v-if="previewExamType !== 'scale'"><input type="checkbox" v-model="shuffleOptionsMode" class="custom-checkbox"> 🔀 儲存時隨機打亂「選項順序」</label>
+            </div>
+            <!-- 🌟 量表專屬：一鍵套用全選項按鈕 -->
+            <button v-if="previewExamType === 'scale'" @click="applyOptionsToAll" class="btn secondary-btn small-btn" style="width: fit-content; background-color: #8e44ad;">🔂 將 Q1 選項套用至整份量表</button>
           </div>
+
           <div class="preview-questions-list">
             <div v-for="(q, qIndex) in previewQuestions" :key="qIndex" class="question-item">
               <div class="q-header"><span class="q-num">Q{{ qIndex + 1 }}</span><input v-model="q.text" class="form-input q-text-input" /><button @click="removePreviewQuestion(qIndex)" class="btn danger-btn small-btn" title="刪除此題">🗑️</button></div>
               <ul class="q-options">
-                <li v-for="(opt, oIndex) in q.options" :key="oIndex" :class="{'is-correct': q.correct === opt}">
-                  <input type="radio" :name="'correct_' + qIndex" :value="opt" v-model="q.correct" class="custom-radio" title="設為正確解答" />
-                  <input v-model="q.options[oIndex]" class="form-input opt-text-input" :disabled="q.options.length === 2" />
-                  <span v-if="q.correct === opt" class="correct-badge">正確解答</span>
+                <li v-for="(opt, oIndex) in q.options" :key="oIndex" :class="{'is-correct': q.correct === opt && previewExamType !== 'scale'}">
+                  <input v-if="previewExamType !== 'scale'" type="radio" :name="'correct_' + qIndex" :value="opt" v-model="q.correct" class="custom-radio" title="設為正確解答" />
+                  <input v-model="q.options[oIndex]" class="form-input opt-text-input" />
+                  <span v-if="q.correct === opt && previewExamType !== 'scale'" class="correct-badge">正確解答</span>
                 </li>
               </ul>
-              <div style="margin-top: 15px;">
+              <div style="margin-top: 15px;" v-if="previewExamType !== 'scale'">
                 <label style="font-size: 13px; font-weight: bold; color: #7f8c8d;">💡 解題分析 (選填)：</label>
                 <textarea v-model="q.explanation" class="form-input" rows="2" placeholder="如有解析請輸入於此..."></textarea>
               </div>
@@ -119,13 +145,17 @@
         </div>
 
         <div class="admin-card">
-          <h3>📋 目前已建立的測驗卷清單</h3>
+          <h3>📋 目前已建立的任務清單</h3>
           <div class="table-responsive"><table class="data-table">
-            <thead><tr><th>測驗卷名稱</th><th>測驗類型</th><th>建立時間</th><th style="width: 180px; text-align: center;">操作</th></tr></thead>
+            <thead><tr><th>任務名稱</th><th>任務類型</th><th>建立時間</th><th style="width: 180px; text-align: center;">操作</th></tr></thead>
             <tbody>
               <tr v-for="exam in examList" :key="exam.id">
                 <td><strong>{{ exam.title }}</strong></td>
-                <td><span class="role-badge" :class="exam.type === 'pre_test' ? 'student' : 'teacher'">{{ exam.type === 'pre_test' ? '課前測驗' : '課後測驗' }}</span></td>
+                <td>
+                  <span class="role-badge" :class="exam.type === 'pre_test' ? 'student' : exam.type === 'post_test' ? 'teacher' : 'supervisor'">
+                    {{ exam.type === 'pre_test' ? '課前測驗' : exam.type === 'post_test' ? '課後測驗' : '評估量表' }}
+                  </span>
+                </td>
                 <td>{{ formatDate(exam.created_at) }}</td>
                 <td style="text-align: center; white-space: nowrap;">
                   <button @click="viewExam(exam)" class="btn primary-btn small-btn" style="margin-right: 5px;">預覽</button>
@@ -133,7 +163,7 @@
                   <button @click="deleteExam(exam.id, exam.title)" class="btn danger-btn small-btn">刪除</button>
                 </td>
               </tr>
-              <tr v-if="examList.length === 0"><td colspan="4" class="empty-state">尚無測驗卷資料</td></tr>
+              <tr v-if="examList.length === 0"><td colspan="4" class="empty-state">尚無任務資料</td></tr>
             </tbody>
           </table></div>
         </div>
@@ -222,6 +252,7 @@
         </div>
       </div>
 
+      <!-- 心得範本預覽：網頁上直接可見 -->
       <div v-if="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print-if-active">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -259,25 +290,26 @@
           </div>
         </div>
       </div>
-    </div> 
+    </div> <!-- admin-container 結束 -->
 
     <!-- ======================================================= -->
     <!-- 彈出視窗區域 (Modal)                                        -->
     <!-- ======================================================= -->
     <div v-if="isViewingModalOpen" class="modal-overlay no-print" @click.self="closeViewModal">
       <div class="modal-content">
-        <div class="modal-header"><h3>👁️ 預覽測驗卷：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
+        <div class="modal-header"><h3>👁️ 預覽任務：{{ viewingExam?.title }}</h3><button @click="closeViewModal" class="close-btn">✖</button></div>
         <div class="modal-body">
-          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。</div>
+          <div class="exam-warning">💡 <strong>【管理者專屬預覽模式】</strong>此畫面僅供您確認題目排版與校對答案。學員在實際作答時，<strong>「絕對不會」</strong>看到任何綠色的正確解答標示。</div>
           <div class="question-list">
             <div v-for="(q, index) in viewingQuestions" :key="q.id" class="question-item">
               <div class="q-title"><strong>Q{{ index + 1 }}.</strong> {{ q.question_text }}</div>
               <div class="q-options">
-                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" :class="{'is-correct-preview': opt === q.correct_answer}">
-                  <input type="radio" disabled class="custom-radio"><span class="opt-text">{{ opt }}</span><span v-if="opt === q.correct_answer" class="correct-badge" style="margin-left: auto;">正確解答</span>
+                <label v-for="(opt, optIndex) in q.options" :key="optIndex" class="opt-label" :class="{'is-correct-preview': opt === q.correct_answer && viewingExam?.type !== 'scale'}">
+                  <input type="radio" disabled class="custom-radio"><span class="opt-text">{{ opt }}</span>
+                  <span v-if="opt === q.correct_answer && viewingExam?.type !== 'scale'" class="correct-badge" style="margin-left: auto;">正確解答</span>
                 </label>
               </div>
-              <div v-if="q.explanation" style="margin-top: 15px; padding: 12px; background: #fdf4e5; border-left: 4px solid #f39c12; border-radius: 4px;">
+              <div v-if="q.explanation && viewingExam?.type !== 'scale'" style="margin-top: 15px; padding: 12px; background: #fdf4e5; border-left: 4px solid #f39c12; border-radius: 4px;">
                 <strong style="color: #d35400;">💡 解題分析：</strong>
                 <div style="color: #2c3e50; font-size: 14px; margin-top: 5px; white-space: pre-wrap;">{{ q.explanation }}</div>
               </div>
@@ -344,7 +376,7 @@
   </div>
 
   <!-- ======================================================= -->
-  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面 (網頁上永遠看不見)      -->
+  <!-- 🖨️ 隱藏版：列印專屬正式成績單 PDF 畫面                       -->
   <!-- ======================================================= -->
   <div class="print-only-scores" v-show="printMode === 'scores'">
     <h1 style="text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 25px; color: #000; letter-spacing: 4px;">
@@ -417,6 +449,7 @@ const profile = ref(null)
 const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref([]); const students = ref([]); const teachers = ref([]); const supervisors = ref([]); const assignmentData = ref({}); const isCreating = ref(false); const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
 const printMode = ref('')
+const hasParsedAnswers = ref(true) // 用來記錄是否成功找到標準解答
 
 const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', records: [] })
@@ -446,35 +479,31 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
+// 🌟 精準且無延遲的列印觸發機制
 function printSelectedScores() {
   printMode.value = 'scores';
   const originalTitle = document.title;
   document.title = `課程成績單_${reportMeta.value.examName}`; 
 
-  setTimeout(() => { 
-    window.print();
-  }, 400); 
+  nextTick(() => { window.print(); });
 
   const restoreState = () => {
     document.title = originalTitle;
     printMode.value = '';
     window.removeEventListener('afterprint', restoreState);
   };
-  
   window.addEventListener('afterprint', restoreState);
-  setTimeout(restoreState, 4000); 
 }
 
 function exportDemoToPDF() { 
   printMode.value = 'demo';
-  setTimeout(() => { window.print() }, 300);
+  nextTick(() => { window.print() });
   
   const restoreState = () => {
     printMode.value = '';
     window.removeEventListener('afterprint', restoreState);
   };
   window.addEventListener('afterprint', restoreState);
-  setTimeout(restoreState, 4000);
 }
 
 function formatDateTime(isoString) {
@@ -511,105 +540,130 @@ async function openScoreModal(stat) {
   const mappedRecords = data.map(r => {
     const student = users.value.find(u => u.id === r.student_id) || {}
     return { 
-      studentId: r.student_id, 
-      studentEmail: student.email || '未提供', 
-      studentName: student.name || '未知學員', 
-      studentUnit: student.unit || '', 
-      score: r.score, 
-      completedAt: r.completed_at 
+      studentId: r.student_id, studentEmail: student.email || '未提供', 
+      studentName: student.name || '未知學員', studentUnit: student.unit || '', 
+      score: r.score, completedAt: r.completed_at 
     }
   })
   scoreReportData.value = { title: stat.title, records: mappedRecords }
-  selectedScoreRecords.value = mappedRecords.map(r => r.studentId) // 預設全選
-  
-  reportMeta.value.examName = stat.title;
-  reportMeta.value.teacherName = profile.value?.name || '';
-  
-  isScoreModalOpen.value = true
-  Swal.close()
+  selectedScoreRecords.value = mappedRecords.map(r => r.studentId)
+  reportMeta.value.examName = stat.title; reportMeta.value.teacherName = profile.value?.name || '';
+  isScoreModalOpen.value = true; Swal.close()
 }
 function closeScoreModal() { isScoreModalOpen.value = false; scoreReportData.value = { title: '', records: [] }; selectedScoreRecords.value = []; }
 
 const examList = ref([]); const previewQuestions = ref([]); const previewExamTitle = ref(''); const previewExamType = ref('pre_test'); const shuffleQuestionsMode = ref(true); const shuffleOptionsMode = ref(true); const editingExamId = ref(null); const isViewingModalOpen = ref(false); const viewingExam = ref(null); const viewingQuestions = ref([])
 async function loadExams() { const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false }); if (!error && data) examList.value = data }
 function shuffleArray(array) { let currentIndex = array.length, randomIndex; while (currentIndex !== 0) { randomIndex = Math.floor(Math.random() * currentIndex); currentIndex--; [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]]; } return array; }
-function addNewQuestion() { previewQuestions.value.push({ text: '請輸入新題目內容...', options: ['選項A', '選項B', '選項C', '選項D'], correct: '選項A', explanation: '' }) }
+function addNewQuestion() { 
+  if (previewExamType.value === 'scale') {
+    previewQuestions.value.push({ text: '請輸入量表題目...', options: ['從不如此 (1分)', '很少如此 (2分)', '有時如此 (3分)', '經常如此 (4分)', '總是如此 (5分)'], correct: '無', explanation: '' }) 
+  } else {
+    previewQuestions.value.push({ text: '請輸入新題目內容...', options: ['選項A', '選項B', '選項C', '選項D'], correct: '選項A', explanation: '' }) 
+  }
+}
+
+function applyOptionsToAll() {
+  if (previewQuestions.value.length === 0) return;
+  const firstOpts = [...previewQuestions.value[0].options];
+  previewQuestions.value.forEach(q => { q.options = [...firstOpts]; });
+  Toast.fire({ icon: 'success', title: '已套用 Q1 選項至全部題目' });
+}
 
 async function editExam(exam) { 
-  Swal.fire({ title: '載入題目中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
+  Swal.fire({ title: '載入任務中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
   const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); 
-  if (error) return Swal.fire('錯誤', '題目載入失敗', 'error'); 
+  if (error) return Swal.fire('錯誤', '載入失敗', 'error'); 
   editingExamId.value = exam.id; previewExamTitle.value = exam.title; previewExamType.value = exam.type; 
-  
-  // 🌟 核心更新：確保載入考卷時，如果沒有 explanation 屬性，預設給予空字串，避免 undefined
-  previewQuestions.value = data.map(q => ({ 
-    id: q.id, 
-    text: q.question_text, 
-    options: q.options, 
-    correct: q.correct_answer, 
-    explanation: q.explanation || '' 
-  })); 
+  hasParsedAnswers.value = true;
+  previewQuestions.value = data.map(q => ({ id: q.id, text: q.question_text, options: q.options, correct: q.correct_answer, explanation: q.explanation || '' })); 
   Swal.close(); window.scrollTo({ top: 0, behavior: 'smooth' }) 
 }
 
+// 🌟 AI 智慧解析引擎：容錯與內嵌解答擷取
 async function handleExamUpload(event) {
   const file = event.target.files[0]; if (!file) return; if (!file.name.endsWith('.docx')) return Swal.fire('錯誤', '請上傳 .docx 檔案', 'error')
-  Swal.fire({ title: '解析中...', text: '正在讀取考卷內容', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  Swal.fire({ title: 'AI 智慧解析中...', text: '正在辨識題目與答案...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const reader = new FileReader(); reader.onload = async (e) => {
     try {
-      const arrayBuffer = e.target.result; const result = await mammoth.extractRawText({ arrayBuffer }); const text = result.value; previewExamTitle.value = file.name.replace('.docx', ''); editingExamId.value = null; 
+      const arrayBuffer = e.target.result; const result = await mammoth.extractRawText({ arrayBuffer }); const text = result.value; 
+      previewExamTitle.value = file.name.replace('.docx', ''); editingExamId.value = null; previewExamType.value = 'post_test';
       
-      let questions = [];
-      const interleavedRegex = /(?:^|\n)\s*0*(\d+)[\s\.\t]+([A-D○×])[\s\.\t\n]+(.*?)(?=(?:^|\n)\s*0*\d+[\s\.\t]+[A-D○×][\s\.\t\n]+|$)/gs;
-      let matchInterleaved; const interleavedQuestions = [];
-      while ((matchInterleaved = interleavedRegex.exec(text)) !== null) {
-        interleavedQuestions.push({ num: parseInt(matchInterleaved[1]), ansKey: matchInterleaved[2], rawText: matchInterleaved[3] });
+      let answerSection = ''; let questionSection = text; 
+      const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答區', '答案：', '答案:']; let foundIndex = -1
+      for (const kw of answerKeywords) { const idx = text.lastIndexOf(kw); if (idx !== -1 && idx > text.length * 0.4) { foundIndex = idx; break; } }
+      if (foundIndex !== -1) { 
+        answerSection = text.substring(foundIndex); questionSection = text.substring(0, foundIndex); hasParsedAnswers.value = true;
+      } else {
+        questionSection = text; hasParsedAnswers.value = false; // 啟動容錯：全部當作題目
       }
 
-      const classicQuestions = []; let answerSection = ''; let questionSection = text; const answerKeywords = ['標準解答', '參考答案', '解答對照表', '解答', '答案：', '答案:']; let foundIndex = -1;
-      for (const kw of answerKeywords) { const idx = text.lastIndexOf(kw); if (idx !== -1) { foundIndex = idx; break; } }
-      if (foundIndex !== -1) { answerSection = text.substring(foundIndex); questionSection = text.substring(0, foundIndex); }
+      const answersMap = {}; 
+      if (answerSection) {
+        const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]?\s*\(*([A-D○×])\)*/g; let matchAns; let useStrict = false
+        while ((matchAns = strictAnsRegex.exec(answerSection)) !== null) { answersMap[parseInt(matchAns[1])] = matchAns[2]; useStrict = true }
+        if (!useStrict) { const pureAnswers = answerSection.match(/[○×ABCD]/g); if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans }) }
+      }
 
-      const qRegex = /(?:^|\n)\s*(?:\()?0*(\d+)(?:\)|\.)?\s+(.*?)(?=(?:^|\n)\s*(?:\()?0*\d+(?:\)|\.)?\s+|$)/gs;
-      let matchQ;
+      const questions = []; const qRegex = /(?:^|\n)\s*(?:\()?0*(\d+)(?:\)|\.|、)?\s+(.*?)(?=(?:^|\n)\s*(?:\()?0*\d+(?:\)|\.|、)?\s+|$)/gs; let matchQ
       while ((matchQ = qRegex.exec(questionSection)) !== null) {
-        classicQuestions.push({ num: parseInt(matchQ[1]), rawText: matchQ[2] });
-      }
-
-      let chosenFormat = []; let answersMap = {};
-      if (interleavedQuestions.length >= classicQuestions.length && interleavedQuestions.length > 0) {
-        chosenFormat = interleavedQuestions;
-      } else if (classicQuestions.length > 0) {
-        chosenFormat = classicQuestions;
-        const strictAnsRegex = /(?:第\s*)?0*(\d+)\s*(?:題)?\s*[：:]?\s*\(*([A-D○×])\)*/g;
-        let matchAns; let useStrict = false;
-        while ((matchAns = strictAnsRegex.exec(answerSection)) !== null) { answersMap[parseInt(matchAns[1])] = matchAns[2]; useStrict = true; }
-        if (!useStrict) { const pureAnswers = answerSection.match(/[○×ABCD]/g); if (pureAnswers) pureAnswers.forEach((ans, idx) => { answersMap[idx + 1] = ans }); }
-      }
-
-      if (chosenFormat.length === 0) throw new Error('無法自動識別題目格式。請確保題號帶有「1. 」格式，或使用「題號、答案、題目」的表格格式。');
-
-      questions = chosenFormat.map(item => {
-        let rawText = item.rawText.trim(); let options = [], questionText = '', correctText = '', explanation = '';
-        const ansKey = item.ansKey || answersMap[item.num] || 'A'; 
+        const qNum = parseInt(matchQ[1]); let rawText = matchQ[2].trim(); let options = [], questionText = '', correctText = '', explanation = ''; 
         
-        // 🌟 解析「解析」關鍵字
         const expMatch = rawText.match(/(?:解析|詳解|說明)\s*[：:]\s*(.*)/is);
         if (expMatch) { explanation = expMatch[1].trim(); rawText = rawText.substring(0, expMatch.index).trim(); }
+        
+        let inlineAns = ''; const inlineAnsMatch = rawText.match(/^\s*\(?([A-D○×])\)?\s+/i);
+        if(inlineAnsMatch) { inlineAns = inlineAnsMatch[1].toUpperCase(); rawText = rawText.replace(/^\s*\(?[A-D○×]\)?\s+/, '').trim(); hasParsedAnswers.value = true; }
+        const ansKey = answersMap[qNum] || inlineAns || 'A';
 
         const idxA = rawText.search(/\s*(?:\(A\)|A\.|A、)\s*/i);
-        if (idxA !== -1) {
-          questionText = rawText.substring(0, idxA).trim(); const optsPart = rawText.substring(idxA); const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.|[A-D]、)\s*/i).filter(s => s.trim() !== '');
-          if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim()); else { options = optMatches; while (options.length < 4) options.push('選項缺失'); }
-          const ansIndex = ansKey.toUpperCase() === 'A' ? 0 : ansKey.toUpperCase() === 'B' ? 1 : ansKey.toUpperCase() === 'C' ? 2 : ansKey.toUpperCase() === 'D' ? 3 : 0; correctText = options[ansIndex] || options[0];
-        } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) {
-          const idxO = rawText.search(/[○×□]/); if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim(); else questionText = rawText.replace(/[○×□]/g, '').trim();
-          options = ['○', '×']; correctText = ansKey;
-        } else { questionText = rawText.trim(); options = ['(未解析出選項)', '(未解析出選項)']; correctText = options[0]; }
+        if (idxA !== -1) { 
+          questionText = rawText.substring(0, idxA).trim(); const optsPart = rawText.substring(idxA); const optMatches = optsPart.split(/\s*(?:\([A-D]\)|[A-D]\.|[A-D]、)\s*/i).filter(s => s.trim() !== ''); 
+          if (optMatches.length >= 4) options = optMatches.slice(0, 4).map(s => s.trim()); else { options = optMatches; while (options.length < 4) options.push('選項缺失') } 
+          const ansIndex = ansKey === 'A' ? 0 : ansKey === 'B' ? 1 : ansKey === 'C' ? 2 : ansKey === 'D' ? 3 : 0; correctText = options[ansIndex] || options[0]; 
+        } else if (rawText.includes('○') || rawText.includes('×') || ['○', '×'].includes(ansKey)) { 
+          const idxO = rawText.search(/[○×□]/); if (idxO !== -1 && idxO < rawText.length - 10) questionText = rawText.substring(0, idxO).trim(); else questionText = rawText.replace(/[○×□]/g, '').trim(); 
+          options = ['○', '×']; correctText = ansKey 
+        } else { questionText = rawText.trim(); options = ['選項 A', '選項 B', '選項 C', '選項 D']; correctText = options[0] }
+        
+        if (questionText.length > 2) questions.push({ text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText, explanation: explanation })
+      }
+      if (questions.length === 0) throw new Error('未能自動解析出題目，請確保題目為條列式格式。'); previewQuestions.value = questions; Swal.close();
+      Toast.fire({ icon: 'success', title: `成功辨識 ${questions.length} 題，請於下方校對` });
+    } catch (err) { Swal.fire('解析失敗', err.message, 'error') } finally { event.target.value = '' }
+  }; reader.readAsArrayBuffer(file)
+}
 
-        return { text: questionText.replace(/^[(\s]+/, ''), options: options, correct: correctText, explanation: explanation };
-      });
-      previewQuestions.value = questions; Swal.close()
+// 🌟 全新專屬：評估量表上傳解析器
+async function handleScaleUpload(event) {
+  const file = event.target.files[0]; if (!file) return; if (!file.name.endsWith('.docx')) return Swal.fire('錯誤', '請上傳 .docx 檔案', 'error')
+  Swal.fire({ title: 'AI 解析量表中...', text: '正在辨識評估項目', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+  const reader = new FileReader(); reader.onload = async (e) => {
+    try {
+      const arrayBuffer = e.target.result; const result = await mammoth.extractRawText({ arrayBuffer }); const text = result.value;
+      previewExamTitle.value = file.name.replace('.docx', ''); editingExamId.value = null; previewExamType.value = 'scale';
+
+      const questions = []; const defaultOptions = ['從不如此 (1分)', '很少如此 (2分)', '有時如此 (3分)', '經常如此 (4分)', '總是如此 (5分)'];
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      for (let line of lines) {
+        if (line.includes('總分') || line.includes('量表') || line.includes('維持支持') || line.length < 3) continue;
+        const match = line.match(/^(?:\()?0*(\d+)(?:\)|\.|、)?\s+(.*)/);
+        if (match) { questions.push({ text: match[2].trim(), options: [...defaultOptions], correct: '無', explanation: '' }); }
+      }
+
+      if (questions.length < 3) {
+        questions.length = 0;
+        for (let line of lines) {
+          if (line.length >= 5 && line.length <= 100 && !line.includes('分') && !line.includes('選項')) {
+             questions.push({ text: line, options: [...defaultOptions], correct: '無', explanation: '' });
+          }
+        }
+      }
+
+      if (questions.length === 0) throw new Error('未能自動解析出內容，請檢查檔案格式。');
+      previewQuestions.value = questions; Swal.close();
+      Toast.fire({ icon: 'success', title: `成功辨識 ${questions.length} 個評估項目，請於下方校對` });
     } catch (err) { Swal.fire('解析失敗', err.message, 'error') } finally { event.target.value = '' }
   }; reader.readAsArrayBuffer(file)
 }
@@ -620,27 +674,28 @@ function cancelPreview() { previewQuestions.value = []; editingExamId.value = nu
 async function confirmSaveExam() {
   if (!previewExamTitle.value.trim()) return Swal.fire('提示', '名稱不能為空', 'warning'); if (previewQuestions.value.length === 0) return Swal.fire('提示', '考卷內不能沒有題目！', 'warning')
   Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); try {
-    let finalQuestions = JSON.parse(JSON.stringify(previewQuestions.value)); if (shuffleOptionsMode.value) finalQuestions.forEach(q => { if (q.options.length > 2) q.options = shuffleArray(q.options) }); if (shuffleQuestionsMode.value) finalQuestions = shuffleArray(finalQuestions); let targetExamId = editingExamId.value
+    let finalQuestions = JSON.parse(JSON.stringify(previewQuestions.value)); 
+    if (shuffleOptionsMode.value && previewExamType.value !== 'scale') finalQuestions.forEach(q => { if (q.options.length > 2) q.options = shuffleArray(q.options) }); 
+    if (shuffleQuestionsMode.value && previewExamType.value !== 'scale') finalQuestions = shuffleArray(finalQuestions); 
+    let targetExamId = editingExamId.value
+    
     if (targetExamId) {
       const { error: examErr } = await supabase.from('exams').update({ title: previewExamTitle.value, type: previewExamType.value }).eq('id', targetExamId); if (examErr) throw examErr
       const { data: existingQ } = await supabase.from('questions').select('id').eq('exam_id', targetExamId); const existingIds = existingQ.map(q => q.id); const keptIds = finalQuestions.map(q => q.id).filter(id => id); const idsToDelete = existingIds.filter(id => !keptIds.includes(id))
       if (idsToDelete.length > 0) await supabase.from('questions').delete().in('id', idsToDelete)
-      // 🌟 確保寫入資料庫時帶上 explanation
       const questionsToUpdate = finalQuestions.filter(q => q.id).map(q => ({ id: q.id, exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const questionsToInsert = finalQuestions.filter(q => !q.id).map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' }))
       if (questionsToUpdate.length > 0) { const { error: updErr } = await supabase.from('questions').upsert(questionsToUpdate); if (updErr) throw updErr }
       if (questionsToInsert.length > 0) { const { error: insErr } = await supabase.from('questions').insert(questionsToInsert); if (insErr) throw insErr }
     } else {
       const { data: examData, error: examErr } = await supabase.from('exams').insert([{ title: previewExamTitle.value, type: previewExamType.value }]).select(); if (examErr) throw examErr
-      targetExamId = examData[0].id; 
-      const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); 
-      const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
+      targetExamId = examData[0].id; const qPayload = finalQuestions.map(q => ({ exam_id: targetExamId, question_text: q.text, options: q.options, correct_answer: q.correct, explanation: q.explanation || '' })); const { error: qErr } = await supabase.from('questions').insert(qPayload); if (qErr) throw qErr
     }
-    Swal.fire('成功', `已成功儲存題庫，共 ${finalQuestions.length} 題！`, 'success'); previewQuestions.value = []; editingExamId.value = null; previewExamTitle.value = ''; await loadExams()
+    Swal.fire('成功', `已成功儲存！`, 'success'); previewQuestions.value = []; editingExamId.value = null; previewExamTitle.value = ''; await loadExams()
   } catch (err) { Swal.fire('寫入失敗', err.message, 'error') }
 }
 
-async function deleteExam(id, title) { const { isConfirmed } = await Swal.fire({ title: `確定要刪除「${title}」嗎？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (!isConfirmed) return; const { error } = await supabase.from('exams').delete().eq('id', id); if (error) return Swal.fire('錯誤', error.message, 'error'); Toast.fire({ icon: 'success', title: '測驗卷已刪除' }); await loadExams() }
-async function viewExam(exam) { Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); if (error) { Swal.fire('錯誤', '題目載入失敗', 'error'); return } viewingExam.value = exam; viewingQuestions.value = data; isViewingModalOpen.value = true; Swal.close() }
+async function deleteExam(id, title) { const { isConfirmed } = await Swal.fire({ title: `確定要刪除「${title}」嗎？`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#e74c3c' }); if (!isConfirmed) return; const { error } = await supabase.from('exams').delete().eq('id', id); if (error) return Swal.fire('錯誤', error.message, 'error'); Toast.fire({ icon: 'success', title: '已刪除' }); await loadExams() }
+async function viewExam(exam) { Swal.fire({ title: '載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { data, error } = await supabase.from('questions').select('*').eq('exam_id', exam.id); if (error) { Swal.fire('錯誤', '載入失敗', 'error'); return } viewingExam.value = exam; viewingQuestions.value = data; isViewingModalOpen.value = true; Swal.close() }
 function closeViewModal() { isViewingModalOpen.value = false; viewingExam.value = null; viewingQuestions.value = [] }
 
 const dynamicCategories = ref([]); const newCategoryName = ref('')
@@ -850,7 +905,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .score-tag .score-val { font-size: 16px; font-weight: 900; padding: 6px 12px; border-radius: 6px; border: 2px solid transparent; }
 .score-high { background-color: #2ecc71 !important; border-color: #2ecc71 !important; }
 
-/* 🌟 平時隱藏列印區域 */
+/* 🌟 平時完全隱藏真正的列印版型 */
 .printable-scores { display: none; }
 
 @media screen and (max-width: 768px) {
@@ -861,54 +916,51 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 }
 
 /* ============================================================ */
-/* 🖨️ PDF 列印專屬優化：徹底獨立列印版型                          */
+/* 🖨️ PDF 列印專屬優化：純 CSS 切換，絕對無白紙                      */
 /* ============================================================ */
 @media print {
   @page { margin: 15mm; size: A4 portrait; }
 
-  /* 隱藏預設管理畫面與彈窗 */
   .app-wrapper { background: white !important; padding: 0 !important; }
-  .modal-overlay { display: none !important; }
+
+  /* 🌟 列印心得範本時 (.print-mode-demo) */
+  .print-mode-demo .admin-header, 
+  .print-mode-demo .tabs, 
+  .print-mode-demo .no-print-if-active { display: none !important; }
   
-  /* 根據 printMode 判斷要顯示哪一個列印專區 */
-  .print-mode-demo .admin-container { display: block !important; }
-  .print-mode-demo .admin-header, .print-mode-demo .tabs, .print-mode-demo .no-print-if-active { display: none !important; }
-  .print-mode-demo .tab-content:not(:has(.printable-demo)) { display: none !important; }
+  .print-mode-demo .admin-card { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+  .print-mode-demo .printable-demo { display: block !important; width: 100% !important; max-width: 100% !important; }
   
-  .print-mode-demo .printable-demo { display: block !important; box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
-  
+  .print-mode-demo .printable-demo *, 
+  .print-mode-demo .printable-demo h2, 
+  .print-mode-demo .printable-demo h4 { 
+    color: #000000 !important; -webkit-text-fill-color: #000000 !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; 
+  }
+  .print-mode-demo .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
+  .print-mode-demo .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
+  .print-mode-demo .score-tag { border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
+  .print-mode-demo .score-tag .exam-name { background: transparent !important; border: none !important; padding: 0 !important; }
+  .print-mode-demo .score-tag .score-val { border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
+
+  /* 🌟 列印成績單時 (.print-mode-scores) */
   .print-mode-scores .admin-container { display: none !important; }
+  .print-mode-scores .modal-overlay { display: none !important; }
+  
   .print-mode-scores .printable-scores { display: block !important; width: 100% !important; }
   
-  /* 🌟 成績單表格純黑白嚴謹排版 (精準還原要求) */
-  .printable-scores *, .printable-demo * { -webkit-text-fill-color: initial !important; font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; }
-  .printable-scores h1, .printable-demo h2 { font-family: "標楷體", "DFKai-SB", serif !important; }
-  .printable-scores h1, .printable-scores h2, .printable-scores th, .printable-scores td, .printable-scores span, .printable-scores div { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+  .print-mode-scores .printable-scores * { 
+    -webkit-text-fill-color: initial !important; 
+    color: #000 !important; 
+    font-family: "標楷體", "DFKai-SB", "微軟正黑體", serif !important; 
+  }
   
-  .print-doc-title { margin-top: 10px; margin-bottom: 30px; }
-  
+  .print-mode-scores .printable-scores h1 { font-family: "標楷體", "DFKai-SB", serif !important; }
   .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
   .print-meta-table td { border: 1px solid #000 !important; padding: 8px 12px !important; font-size: 14pt !important; }
-  .print-meta-label { width: 120px; font-weight: bold; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-meta-value { width: calc(100% - 120px); }
-
-  .print-exam-name { font-size: 14pt !important; font-weight: bold; margin-bottom: 10px; }
-
-  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-  .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  .print-meta-table td strong { font-weight: bold; margin-right: 5px; }
   
-  .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; }
-
-  /* 心得範本舊的 demo-print 樣式保留 */
-  .printable-demo h2, .printable-demo h4, .printable-demo p, .printable-demo div, .printable-demo span { 
-    color: #000000 !important; -webkit-text-fill-color: #000000 !important; 
-  }
-  .demo-text-box { border: 1px solid #000 !important; break-inside: avoid; }
-  .demo-info-grid { background: transparent !important; border: 1px solid #000 !important; }
-  .score-tags { display: block; margin-top: 10px; }
-  .score-tag { display: flex !important; justify-content: space-between !important; border: 1px solid #000 !important; border-radius: 4px !important; padding: 10px 15px !important; margin-bottom: 12px !important; background: transparent !important; page-break-inside: avoid; }
-  .score-tag .exam-name { background: transparent !important; border: none !important; padding: 0 !important; }
-  .score-tag .score-val { border: 1px solid #000 !important; background: transparent !important; padding: 4px 10px !important; }
+  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+  .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 </style>
