@@ -353,6 +353,7 @@
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
         </div>
         
+        <!-- 用於網頁預覽的心得範本 -->
         <div class="admin-card printable-demo no-print">
           <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
             📘 實習生學習系統 - 心得反思紀錄
@@ -381,20 +382,20 @@
           </div>
         </div>
       </div>
-    </div> 
+    </div> <!-- admin-container 結束 -->
 
     <!-- ======================================================= -->
     <!-- 📊 任務/量表分析彈出視窗 (Modal)                            -->
     <!-- ======================================================= -->
     <div v-if="isScoreModalOpen" class="modal-overlay no-print" @click.self="closeScoreModal">
-      <div class="modal-content review-modal" style="max-width: 950px; height: 90vh;">
+      <div class="modal-content review-modal" style="max-width: 900px;">
         <div class="modal-header">
           <h3>📊 {{ scoreReportData.isScale ? '量表分析與填答報告' : '成績清單' }}：{{ scoreReportData.title }}</h3>
           <button @click="closeScoreModal" class="close-btn">✖</button>
         </div>
-        <div class="modal-body" style="height: calc(100% - 70px); overflow-y: auto;">
+        <div class="modal-body">
           <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
+            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表與表頭設定 (支援預填)</h4>
             <div class="form-row">
               <div class="form-group"><label>學年學期：</label><input v-model="reportMeta.semester" class="form-input" placeholder="例：112學年度上學期"></div>
               <div class="form-group"><label>課程名稱：</label><input v-model="reportMeta.courseName" class="form-input"></div>
@@ -412,7 +413,6 @@
             <button @click="printSelectedScores" class="btn dark-btn small-btn" :disabled="selectedScoreRecords.length === 0">🖨️ 匯出勾選學員之報表 (PDF)</button>
           </div>
 
-          <!-- 列表顯示 -->
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -425,7 +425,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(record, index) in scoreReportData.records" :key="index" :class="{'selected-row': selectedScoreRecords.includes(record.studentId)}">
+                <tr v-for="(record, index) in scoreReportData.records" :key="index">
                   <td style="text-align: center;"><input type="checkbox" class="custom-checkbox" :value="record.studentId" v-model="selectedScoreRecords" /></td>
                   <td>{{ record.studentUnit }}</td>
                   <td><strong>{{ record.studentName }}</strong></td>
@@ -471,7 +471,7 @@
     </div>
 
     <!-- ======================================================= -->
-    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (包含 🌟雷達圖🌟 與 表格)          -->
+    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (包含雷達圖與六大類表格分析)       -->
     <!-- ======================================================= -->
     <div class="print-only-scores" v-show="printMode === 'scores'">
       <h1 style="text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 20px; color: #000;">
@@ -495,31 +495,32 @@
         </tbody>
       </table>
 
-      <!-- 🌟 量表：顯示 個人雷達圖 + 六大類壓力因子分析表格 -->
+      <!-- 🌟 量表：顯示個人雷達圖 + 六大類壓力因子分析表格 -->
       <div v-if="scoreReportData.isScale">
         <div v-for="record in filteredScoreRecords" :key="record.studentId" style="page-break-inside: avoid; margin-bottom: 40px; border: 2px solid #000; padding: 20px;">
           <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between;">
-            <span>學員：{{ record.studentName }} ({{ record.studentUnit || '未分組' }})</span>
+            <span>學員姓名：{{ record.studentName }} ({{ record.studentUnit || '未分組' }})</span>
             <span>總分：{{ record.totalScore }} 分 [評估：{{ record.stressLevel }}]</span>
           </h3>
+          
           <p style="font-size: 13px; color: #555; margin: 5px 0 15px 0;">* 評估：31-77分(維持支持)、78-108分(列入觀察，每週追蹤)、109-155分(高度壓力，48-72小時內面談)</p>
 
-          <div style="display: flex; gap: 20px; align-items: flex-start;">
+          <div style="display: flex; gap: 20px; align-items: flex-start; width: 100%; box-sizing: border-box;">
             <!-- 左側：SVG 雷達圖 -->
             <div style="width: 35%; text-align: center;">
               <h4 style="margin: 0 0 10px 0;">🎯 個人壓力分佈雷達圖</h4>
               <div v-html="generateRadarSVG(record.radarScores, '#e8862c')"></div>
             </div>
 
-            <!-- 右側：六大類數據表格 -->
-            <div style="width: 65%;">
+            <!-- 右側：六大類數據表格 (防溢出設計) -->
+            <div style="width: 65%; box-sizing: border-box;">
               <h4 style="margin: 0 0 10px 0;">📈 六大類壓力因子摘要</h4>
-              <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 14px;">
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 14px; table-layout: fixed; word-wrap: break-word;">
                 <thead>
                   <tr style="background: #f0f0f0;">
-                    <th style="border: 1px solid #000; padding: 8px; text-align: left;">壓力構面與類別</th>
-                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 80px;">平均得分</th>
-                    <th style="border: 1px solid #000; padding: 8px; text-align: left;">壓力解讀</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: left; width: 35%;">壓力構面與類別</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 20%;">平均得分</th>
+                    <th style="border: 1px solid #000; padding: 8px; text-align: left; width: 45%;">壓力解讀</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -535,7 +536,7 @@
         </div>
       </div>
 
-      <!-- 🌟 測驗：顯示 標準成績單表格 -->
+      <!-- 🌟 一般測驗：顯示標準成績單表格 -->
       <div v-else>
         <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 40px;">
           <thead>
@@ -565,7 +566,7 @@
       </div>
     </div>
 
-    <!-- 🖨️ 列印專屬：心得 PDF 範本 (避免網頁版直接印導致破圖) -->
+    <!-- 🖨️ 隱藏版：列印專屬心得 PDF 範本 -->
     <div class="printable-demo-printonly" v-show="printMode === 'demo'">
       <h2 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #000; font-size: 24px;">
         📘 實習生學習系統 - 心得反思紀錄
@@ -609,10 +610,9 @@ const profile = ref(null)
 const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref([]); const students = ref([]); const teachers = ref([]); const supervisors = ref([]); const assignmentData = ref({}); const isCreating = ref(false); const newUser = ref({ email: '', password: '', name: '', role: 'student', unit: '' })
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
 const printMode = ref('')
-const hasParsedAnswers = ref(true)
 
 // ==========================================
-// 📊 量表分析與成績單匯出邏輯 (包含雷達圖引擎)
+// 📊 量表分析與成績單匯出邏輯
 // ==========================================
 const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', isScale: false, records: [] })
@@ -642,7 +642,7 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 SVG 雷達圖生成引擎 (完美移植自 HTML 範本)
+// 🌟 SVG 雷達圖生成引擎
 function generateRadarSVG(values6, color = '#1f6f78') {
   if (!values6 || values6.length !== 6) return '';
   const cx = 160, cy = 160, R = 100, N = 6;
@@ -719,12 +719,7 @@ const dispatchStats = computed(() => {
   dispatchRecords.value.forEach(r => { 
     if (!stats[r.exam_id]) { 
       const exam = examList.value.find(e => e.id === r.exam_id); 
-      stats[r.exam_id] = { 
-        exam_id: r.exam_id, 
-        title: exam ? exam.title : '未知任務', 
-        total: 0, completed: 0, show_answers: r.show_answers, 
-        type: exam ? exam.type : '', pending_names: [] 
-      } 
+      stats[r.exam_id] = { exam_id: r.exam_id, title: exam ? exam.title : '未知任務', total: 0, completed: 0, show_answers: r.show_answers, type: exam ? exam.type : '', pending_names: [] } 
     } 
     stats[r.exam_id].total++; 
     if (r.is_completed) { stats[r.exam_id].completed++ } 
@@ -737,7 +732,7 @@ const dispatchStats = computed(() => {
 function showPendingStudents(stat) { if (stat.pending_names.length === 0) { Swal.fire('提示', '所有學員皆已完成！', 'success'); return } const namesHtml = stat.pending_names.map(name => `<span style="display:inline-block; margin: 5px; padding: 5px 10px; background:#ecf0f1; border-radius:4px; font-weight:bold; color: #2c3e50;">${name}</span>`).join(''); Swal.fire({ title: `尚未交卷名單 (${stat.pending_names.length} 人)`, html: `<div style="text-align: left; margin-top: 15px;">${namesHtml}</div>`, icon: 'info', confirmButtonText: '關閉' }) }
 async function toggleAnswersVisibility(examId, currentStatus) { const newStatus = !currentStatus; Swal.fire({ title: '更新中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { error } = await supabase.from('exam_dispatch').update({ show_answers: newStatus }).eq('exam_id', examId); if (error) { Swal.fire('錯誤', error.message, 'error') } else { Toast.fire({ icon: 'success', title: newStatus ? '已全面公開解答' : '已關閉解答' }); await loadDispatches() } }
 
-// 🌟 核心：解決「全 0 分Bug」的排序對應與雷達圖計算引擎
+// 🌟 核心：量表六大類壓力因子計算引擎
 const DIMENSIONS_MAP = {
   dim1: { name: 'I. 實際護理病人之壓力', qList: [4, 3, 8, 12, 11, 2, 10, 9] },
   dim2: { name: 'II. 教師及護理人員之壓力', qList: [17, 18, 25, 14, 20, 1] },
@@ -754,26 +749,19 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
     let totalScore = 0; let count = 0;
     
     dim.qList.forEach(qNum => {
-      // 透過 UUID 對應找出學員在該題的答案，解決 0 分 Bug
       const qIndex = qNum - 1; 
       const targetUuid = Object.keys(qOrderMap).find(id => qOrderMap[id] === qIndex);
       
       let ansVal = undefined;
-      // 支援兩種 JSON 格式: 平坦化 {"uuid": "ans"} 或 嵌套 {"grading": [{"id": "uuid", "student_answer": "ans"}]}
       if (answersJson && targetUuid) {
-        if (answersJson.grading) {
-           const g = answersJson.grading.find(x => x.id === targetUuid);
-           if (g) ansVal = g.student_answer;
-        } else {
-           ansVal = answersJson[targetUuid];
-        }
+        if (answersJson.grading) { const g = answersJson.grading.find(x => x.id === targetUuid); if (g) ansVal = g.student_answer; } 
+        else { ansVal = answersJson[targetUuid]; }
       }
 
       if (ansVal !== undefined) {
         let scoreNum = 3;
         if (typeof ansVal === 'number') scoreNum = ansVal;
         else if (typeof ansVal === 'string') {
-          // 精準解析 "(4分)"
           const sMatch = ansVal.match(/(\d+)分/);
           if (sMatch) scoreNum = parseInt(sMatch[1], 10);
           else {
@@ -799,16 +787,14 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
 }
 
 async function openScoreModal(stat) {
-  Swal.fire({ title: '載入資料與繪製圖表中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  Swal.fire({ title: '載入資料中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const exam = examList.value.find(e => e.id === stat.exam_id) || {};
   const isScale = exam.type === 'scale';
 
-  // 1. 抓取題目以建立正確的排序對應表 (解決 0 分 Bug 的關鍵)
   const { data: qData } = await supabase.from('questions').select('id').eq('exam_id', stat.exam_id).order('id', { ascending: true });
   const qOrderMap = {}; 
   if (qData) { qData.forEach((q, idx) => { qOrderMap[q.id] = idx; }); }
 
-  // 2. 抓取作答紀錄
   const { data, error } = await supabase.from('exam_records').select('student_id, score, answers, completed_at').eq('exam_id', stat.exam_id)
   if (error) { Swal.fire('錯誤', '載入失敗', 'error'); return }
 
@@ -823,7 +809,6 @@ async function openScoreModal(stat) {
       totalScore = Object.values(dimensions).reduce((sum, d) => sum + Number(d.totalScore), 0);
       if (totalScore >= 109) stressLevel = '高度壓力 (48-72小時內面談)';
       else if (totalScore >= 78) stressLevel = '列入觀察 (每週追蹤)';
-      
       radarScores = Object.values(dimensions).map(d => Number(d.avgScore));
     }
 
@@ -839,7 +824,6 @@ async function openScoreModal(stat) {
   reportMeta.value.examName = stat.title; reportMeta.value.teacherName = profile.value?.name || '';
   isScoreModalOpen.value = true; Swal.close()
 }
-
 function closeScoreModal() { isScoreModalOpen.value = false; scoreReportData.value = { title: '', isScale: false, records: [] }; selectedScoreRecords.value = []; }
 
 // ==========================================
@@ -1032,10 +1016,41 @@ function getRoleName(role) { const map = { student: '受訓學員', teacher: '�
 async function loadUsers() { const { data } = await supabase.from('profiles').select('*'); users.value = data || []; students.value = users.value.filter(u => u.role === 'student'); teachers.value = users.value.filter(u => u.role === 'teacher'); supervisors.value = users.value.filter(u => u.role === 'supervisor'); students.value.forEach(s => { if (!assignmentData.value[s.id]) assignmentData.value[s.id] = { teacher_id: '', supervisor_id: '' } }) }
 async function loadAssignments() { const { data } = await supabase.from('assignments').select('*'); if(data) data.forEach(a => { if (assignmentData.value[a.student_id]) { assignmentData.value[a.student_id].teacher_id = a.teacher_id || ''; assignmentData.value[a.student_id].supervisor_id = a.supervisor_id || '' } }) }
 async function createUser() { isCreating.value = true; await supabase.functions.invoke('create-user', { body: newUser.value }); newUser.value = { email: '', password: '', name: '', role: 'student', unit: '' }; await loadUsers(); isCreating.value = false; }
-async function editUser(user) { /* 編輯邏輯保留 */ }
+async function editUser(user) {
+  const currentUnit = (user.unit === '未指定單位' || !user.unit) ? '' : user.unit;
+  const { value: formValues } = await Swal.fire({ 
+    title: '✏️ 修改人員資料', 
+    html: `<div style="text-align: left; margin-top: 10px;"><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; color:#2c3e50;">身分角色：</label><select id="edit-role" class="swal2-select" style="width: 100%; max-width: 100%; margin: 0 0 15px 0; font-size: 15px; padding: 8px; color:#000;"><option value="student" ${user.role === 'student' ? 'selected' : ''}>受訓學員</option><option value="teacher" ${user.role === 'teacher' ? 'selected' : ''}>指導老師</option><option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>單位主管</option><option value="admin" ${user.role === 'admin' ? 'selected' : ''}>系統管理員</option></select><label style="font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; color:#2c3e50;">實習單位：</label><input id="edit-unit" class="swal2-input" value="${currentUnit}" placeholder="例如：5B病房 (留空則為未指定)" style="width: 100%; max-width: 100%; margin: 0; box-sizing: border-box; color:#000;"></div>`, 
+    showCancelButton: true, confirmButtonColor: '#3498db', cancelButtonColor: '#7f8c8d', confirmButtonText: '儲存修改', cancelButtonText: '取消', 
+    preConfirm: () => { return { role: document.getElementById('edit-role').value, unit: document.getElementById('edit-unit').value.trim() } } 
+  });
+  if (formValues) { Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const finalUnit = formValues.unit ? formValues.unit : '未指定單位'; const { error } = await supabase.rpc('update_user_admin', { target_user_id: user.id, new_role: formValues.role, new_unit: finalUnit }); if (error) { Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error'); } else { Toast.fire({ icon: 'success', title: '資料修改成功' }); await loadUsers(); } }
+}
 async function deleteUser(userId) { await supabase.rpc('delete_user_admin', { target_user_id: userId }); await loadUsers(); }
-function downloadTemplate() { /* 略 */ }
-function handleFileUpload(event) { /* 略 */ }
+function downloadTemplate() { const ws = XLSX.utils.json_to_sheet([{ "姓名": "王大明", "身分證字號": "A123456789", "Email": "test@hospital.com", "身分": "學員", "實習單位": "5B病房" }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "人員匯入範本"); XLSX.writeFile(wb, "系統人員匯入範本.xlsx") }
+const ROLE_MAP = { '學員': 'student', '受訓學員': 'student', '老師': 'teacher', '指導老師': 'teacher', '主管': 'supervisor', '單位主管': 'supervisor', '管理員': 'admin' }
+function handleFileUpload(event) {
+  const file = event.target.files[0]; if (!file) return; 
+  const reader = new FileReader(); 
+  reader.onload = async (e) => {
+    try { 
+      const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); 
+      Swal.fire({ title: '批次匯入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
+      const results = { success: 0, fail: 0 }; 
+      for (let i = 0; i < jsonData.length; i += 5) { 
+        const batch = jsonData.slice(i, i + 5); 
+        await Promise.all(batch.map(async (row) => { 
+          if (!row.Email || !row['姓名'] || !row['身分證字號']) { results.fail++; return; } 
+          const roleText = row['身分']?.toString().trim() || '學員'; const role = ROLE_MAP[roleText]; const unit = row['實習單位']?.toString().trim() || ''; 
+          if (!role) { results.fail++; return; } 
+          const { error } = await supabase.functions.invoke('create-user', { body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role, unit } }); 
+          error ? results.fail++ : results.success++ 
+        })) 
+      } 
+      await loadUsers(); Swal.fire({ icon: 'info', title: '匯入完成', html: `成功: ${results.success} 筆，失敗: ${results.fail} 筆` }) 
+    } catch (err) { Swal.fire('錯誤', '檔案解析失敗', 'error') } event.target.value = ''
+  }; reader.readAsArrayBuffer(file)
+}
 async function saveAssignment(sId) { await supabase.from('assignments').upsert({ student_id: sId, ...assignmentData.value[sId] }, { onConflict: 'student_id' }); Toast.fire({ icon: 'success', title: '儲存成功' }); }
 async function handleLogout() { sessionStorage.clear(); await supabase.auth.signOut() }
 </script>
@@ -1148,23 +1163,14 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
 
-/* 上傳按鈕群組平行對齊 */
-.upload-btn-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-top: 15px; }
-
-/* 心得範本細節 */
-.demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
-.demo-section { margin-bottom: 20px; }
-.demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
-.sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center; }
-
 /* 🌟 平時隱藏列印區域 */
 .print-only-scores, .printable-demo-printonly { display: none; }
 
 /* ============================================================ */
-/* 🖨️ PDF 列印引擎 (完全獨立，防閃退與白紙)                       */
+/* 🖨️ PDF 列印引擎 (橫向與直向適應)                               */
 /* ============================================================ */
 @media print {
-  @page { margin: 15mm; size: A4 portrait; }
+  @page { margin: 15mm; size: A4 landscape; }
 
   /* 移除預設背景並釋放絕對定位，讓表格可以自然換頁延伸 */
   .app-wrapper { 
