@@ -91,14 +91,21 @@
                     </div>
                   </td>
                   <td style="text-align: center;">
-                    <span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span>
-                    <span v-else style="color: #e74c3c; font-weight: bold;">🔒 未公開</span>
+                    <!-- 🌟 量表不顯示解答狀態，一般測驗正常顯示 -->
+                    <template v-if="stat.type !== 'scale'">
+                      <span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span>
+                      <span v-else style="color: #e74c3c; font-weight: bold;">🔒 未公開</span>
+                    </template>
+                    <span v-else style="color: #95a5a6; font-size: 13px;">(無標準解答)</span>
                   </td>
                   <td style="text-align: center;">
                     <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
                       <button @click="openScoreModal(stat)" class="btn primary-btn small-btn" style="width: 100%; max-width: 140px;">📊 統計分析與匯出</button>
-                      <button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn" style="width: 100%; max-width: 140px;">一鍵公開解答</button>
-                      <button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn" style="width: 100%; max-width: 140px;">關閉解答</button>
+                      <!-- 🌟 量表不顯示公開解答按鈕 -->
+                      <template v-if="stat.type !== 'scale'">
+                        <button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn" style="width: 100%; max-width: 140px;">一鍵公開解答</button>
+                        <button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn" style="width: 100%; max-width: 140px;">關閉解答</button>
+                      </template>
                     </div>
                   </td>
                 </tr>
@@ -581,33 +588,33 @@
             </p>
 
             <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
-              <!-- 左側：SVG 雷達圖 -->
-              <div style="width: 38%; text-align: center; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
-                <h4 style="margin: 0 0 10px 0; font-size: 16px;">🎯 個人壓力分佈雷達圖</h4>
+              <!-- 左側：SVG 雷達圖 (放大標籤) -->
+              <div style="width: 38%; text-align: center; box-sizing: border-box;">
+                <h4 style="margin: 0 0 10px 0;">🎯 個人壓力分佈雷達圖</h4>
                 <div v-html="generateRadarSVG(record.radarScores, '#e8862c')" style="width: 100%;"></div>
               </div>
 
               <!-- 右側：六大類數據表格 -->
               <div style="width: 62%; box-sizing: border-box;">
-                <h4 style="margin: 0 0 10px 0; font-size: 16px;">📈 六大類壓力因子摘要</h4>
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px; table-layout: fixed; word-wrap: break-word;">
+                <h4 style="margin: 0 0 10px 0;">📈 六大類壓力因子摘要</h4>
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 14px; table-layout: fixed; word-wrap: break-word;">
                   <thead>
                     <tr style="background: #f0f0f0;">
-                      <th style="border: 1px solid #000; padding: 6px; text-align: left; width: 40%;">壓力構面與類別</th>
-                      <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 18%;">構面總分</th>
-                      <th style="border: 1px solid #000; padding: 6px; text-align: left; width: 42%;">壓力解讀</th>
+                      <th style="border: 1px solid #000; padding: 8px; text-align: left; width: 35%;">壓力構面與類別</th>
+                      <th style="border: 1px solid #000; padding: 8px; text-align: center; width: 20%;">構面總分</th>
+                      <th style="border: 1px solid #000; padding: 8px; text-align: left; width: 45%;">壓力解讀</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="(dim, dKey) in record.dimensions" :key="dKey">
-                      <td style="border: 1px solid #000; padding: 6px;"><strong>{{ dim.name }}</strong></td>
-                      <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">{{ dim.totalScore }} 分</td>
-                      <td style="border: 1px solid #000; padding: 6px; color: #333;">{{ dim.statusText }}</td>
+                      <td style="border: 1px solid #000; padding: 8px;"><strong>{{ dim.name }}</strong></td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ dim.totalScore }} 分</td>
+                      <td style="border: 1px solid #000; padding: 8px; color: #333;">{{ dim.statusText }}</td>
                     </tr>
                     <tr style="background: #eaf2f8; border-top: 2px solid #000;">
-                      <td style="border: 1px solid #000; padding: 6px; text-align: right;"><strong>量表整體總分：</strong></td>
-                      <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; font-size: 15px;">{{ record.totalScore }} 分</td>
-                      <td style="border: 1px solid #000; padding: 6px; color: #555;">(整體壓力評估：{{ record.stressLevel }})</td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: right;"><strong>量表整體總分：</strong></td>
+                      <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold; font-size: 15px;">{{ record.totalScore }} 分</td>
+                      <td style="border: 1px solid #000; padding: 8px; color: #555;">(整體壓力評估：{{ record.stressLevel }})</td>
                     </tr>
                   </tbody>
                 </table>
@@ -743,7 +750,7 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 SVG 雷達圖生成引擎
+// 🌟 SVG 雷達圖生成引擎 (字體放大，加強可讀性)
 function generateRadarSVG(values6, color = '#1f6f78') {
   if (!values6 || values6.length !== 6) return '';
   const cx = 180, cy = 180, R = 100, N = 6;
@@ -885,7 +892,7 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
   return result;
 }
 
-// 🌟 群體統計生成引擎 (包含各構面總分平均與整體總分平均)
+// 🌟 新增：群體統計生成引擎
 const groupScaleSummary = computed(() => {
   if (!scoreReportData.value.isScale || filteredScoreRecords.value.length === 0) return null;
 
@@ -1275,7 +1282,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .dark-btn { background-color: #2c3e50; }
 .secondary-btn { background-color: #95a5a6; }
 
-/* 🌟 強制身分標籤背景顏色 */
+/* 🌟 強制身分標籤背景顏色 (修正消失問題) */
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
 .role-badge.student { background-color: #3498db !important; } 
 .role-badge.teacher { background-color: #9b59b6 !important; }
@@ -1314,6 +1321,9 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .small-btn { padding: 8px 14px; font-size: 13px; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
+
+/* 上傳按鈕群組平行對齊 */
+.upload-btn-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-top: 15px; }
 
 /* 🌟 平時隱藏列印區域 */
 .print-only-scores, .printable-demo-printonly { display: none; }
