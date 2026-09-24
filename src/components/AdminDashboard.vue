@@ -91,7 +91,6 @@
                     </div>
                   </td>
                   <td style="text-align: center;">
-                    <!-- 🌟 量表不顯示解答狀態，一般測驗正常顯示 -->
                     <template v-if="stat.type !== 'scale'">
                       <span v-if="stat.show_answers" style="color: #2ecc71; font-weight: bold;">🔓 已公開</span>
                       <span v-else style="color: #e74c3c; font-weight: bold;">🔒 未公開</span>
@@ -101,7 +100,6 @@
                   <td style="text-align: center;">
                     <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
                       <button @click="openScoreModal(stat)" class="btn primary-btn small-btn" style="width: 100%; max-width: 140px;">📊 統計分析與匯出</button>
-                      <!-- 🌟 量表不顯示公開解答按鈕 -->
                       <template v-if="stat.type !== 'scale'">
                         <button v-if="!stat.show_answers" @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn success-btn small-btn" style="width: 100%; max-width: 140px;">一鍵公開解答</button>
                         <button v-else @click="toggleAnswersVisibility(stat.exam_id, stat.show_answers)" class="btn danger-btn small-btn" style="width: 100%; max-width: 140px;">關閉解答</button>
@@ -121,7 +119,7 @@
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷 / 評估量表</h3>
           <p class="desc">系統搭載 AI 容錯解析引擎，支援一般測驗卷與五點計分量表（如壓力量表）。</p>
-          <div style="margin-top: 15px; display: flex; gap: 15px;">
+          <div class="upload-btn-group" style="margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
             <div>
               <input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" />
               <label for="exam-upload" class="btn success-btn">📝 上傳一般測驗卷</label>
@@ -501,9 +499,9 @@
         </table>
 
         <div class="scale-record-box" v-if="groupScaleSummary">
+          <!-- 🌟 移除右上角贅餘總分 -->
           <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between; background-color: #f1f2f6; padding: 10px;">
             <span>分析對象：全體受測學員平均 (共 {{ groupScaleSummary.count }} 人)</span>
-            <span>整體平均總分：{{ groupScaleSummary.avgTotalScore }} 分</span>
           </h3>
           
           <p style="font-size: 13px; color: #555; margin: 10px 0 20px 0; line-height: 2;">
@@ -514,13 +512,11 @@
           </p>
 
           <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
-            <!-- 整體雷達圖 -->
             <div style="width: 38%; text-align: center; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
               <h4 style="margin: 0 0 10px 0; font-size: 16px;">🎯 全體壓力分佈平均雷達圖</h4>
               <div v-html="generateRadarSVG(groupScaleSummary.avgRadarScores, '#3498db')" style="width: 100%;"></div>
             </div>
 
-            <!-- 整體六大類數據表格 -->
             <div style="width: 62%; box-sizing: border-box;">
               <h4 style="margin: 0 0 10px 0; font-size: 16px;">📈 六大類壓力因子全體平均摘要</h4>
               <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px; table-layout: fixed; word-wrap: break-word;">
@@ -575,9 +571,9 @@
           </table>
 
           <div class="scale-record-box">
-            <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between;">
+            <!-- 🌟 移除右上角贅餘總分 -->
+            <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0;">
               <span>學員姓名：{{ record.studentName }} ({{ record.studentUnit || '未分組' }})</span>
-              <span>總分：{{ record.totalScore }} 分</span>
             </h3>
             
             <p style="font-size: 13px; color: #555; margin: 10px 0 20px 0; line-height: 2;">
@@ -588,7 +584,7 @@
             </p>
 
             <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
-              <!-- 左側：SVG 雷達圖 (放大標籤) -->
+              <!-- 左側：SVG 雷達圖 (字體放大，畫布與間距優化) -->
               <div style="width: 38%; text-align: center; box-sizing: border-box;">
                 <h4 style="margin: 0 0 10px 0;">🎯 個人壓力分佈雷達圖</h4>
                 <div v-html="generateRadarSVG(record.radarScores, '#e8862c')" style="width: 100%;"></div>
@@ -892,7 +888,7 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
   return result;
 }
 
-// 🌟 新增：群體統計生成引擎
+// 🌟 群體統計生成引擎
 const groupScaleSummary = computed(() => {
   if (!scoreReportData.value.isScale || filteredScoreRecords.value.length === 0) return null;
 
@@ -1226,7 +1222,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   display: flex; flex-direction: column; align-items: center; 
 }
 
-/* 深色模式防護盾 (明確鎖定字體顏色) */
+/* 深色模式防護盾 */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -1237,57 +1233,15 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-.desc, .empty-state, .sign-timestamp {
-  color: #34495e !important;
-  -webkit-text-fill-color: #34495e !important;
-  font-weight: bold !important;
-}
+.desc, .empty-state, .sign-timestamp { color: #34495e !important; -webkit-text-fill-color: #34495e !important; font-weight: bold !important; }
+.unsigned-text, .demo-signatures span { color: #7f8c8d !important; -webkit-text-fill-color: #7f8c8d !important; font-size: 13px !important; font-style: italic !important; }
+.form-input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; background-color: #ffffff !important; border: 1px solid #dcdde1; padding: 12px; border-radius: 6px; width: 100%; box-sizing: border-box; }
+.demo-text-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; }
+.btn { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+.primary-btn { background-color: #3498db; } .success-btn { background-color: #2ecc71; } .danger-btn { background-color: #e74c3c; } .dark-btn { background-color: #2c3e50; } .secondary-btn { background-color: #95a5a6; }
 
-.unsigned-text, .demo-signatures span {
-  color: #7f8c8d !important;
-  -webkit-text-fill-color: #7f8c8d !important;
-  font-size: 13px !important;
-  font-style: italic !important;
-}
-
-.form-input {
-  color: #000000 !important;
-  -webkit-text-fill-color: #000000 !important;
-  background-color: #ffffff !important;
-  border: 1px solid #dcdde1;
-  padding: 12px;
-  border-radius: 6px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.demo-text-box {
-  border: 1px solid #bdc3c7; 
-  padding: 15px; 
-  border-radius: 6px; 
-  font-size: 15px; 
-  line-height: 1.6; 
-  min-height: 80px;
-}
-
-.btn { 
-  color: #ffffff !important; 
-  -webkit-text-fill-color: #ffffff !important; 
-  padding: 10px 20px; border: none; border-radius: 6px; 
-  font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s;
-}
-.primary-btn { background-color: #3498db; }
-.success-btn { background-color: #2ecc71; }
-.danger-btn { background-color: #e74c3c; }
-.dark-btn { background-color: #2c3e50; }
-.secondary-btn { background-color: #95a5a6; }
-
-/* 🌟 強制身分標籤背景顏色 (修正消失問題) */
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
-.role-badge.student { background-color: #3498db !important; } 
-.role-badge.teacher { background-color: #9b59b6 !important; }
-.role-badge.supervisor { background-color: #e67e22 !important; } 
-.role-badge.admin { background-color: #34495e !important; }
+.role-badge.student { background-color: #3498db !important; } .role-badge.teacher { background-color: #9b59b6 !important; } .role-badge.supervisor { background-color: #e67e22 !important; } .role-badge.admin { background-color: #34495e !important; }
 
 /* 版面結構與卡片設計 */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
