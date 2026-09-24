@@ -119,7 +119,7 @@
         <div class="admin-card" v-if="previewQuestions.length === 0 && !editingExamId">
           <h3>➕ 匯入 Word 測驗卷 / 評估量表</h3>
           <p class="desc">系統搭載 AI 容錯解析引擎，支援一般測驗卷與五點計分量表（如壓力量表）。</p>
-          <div class="upload-btn-group" style="margin-top: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
+          <div style="margin-top: 15px; display: flex; gap: 15px;">
             <div>
               <input type="file" @change="handleExamUpload" accept=".docx" style="display: none" id="exam-upload" />
               <label for="exam-upload" class="btn success-btn">📝 上傳一般測驗卷</label>
@@ -350,7 +350,7 @@
         </div>
       </div>
 
-      <!-- ================= PDF 範本 ================= -->
+      <!-- ================= 網頁版 PDF 範本預覽 ================= -->
       <div v-show="activeTab === 'demo'" class="tab-content">
         <div class="admin-card no-print">
           <h3>📄 系統 PDF 匯出範本演示</h3>
@@ -358,31 +358,54 @@
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
         </div>
         
-        <div class="admin-card printable-demo no-print">
+        <!-- 🌟 將樣式強制 inline 寫死，確保網頁預覽版排版絕對不會消失 -->
+        <div class="admin-card no-print" style="background: white; padding: 25px; border-radius: 8px; border: 1px solid #e1e4e8; margin-bottom: 25px;">
           <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
             📘 實習生學習系統 - 心得反思紀錄
           </h2>
-          <div class="demo-info-grid">
-            <p><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
-            <p><strong>指導老師：</strong> 臨床指導教師</p>
-            <p><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
-            <p><strong>訓練日期：</strong> 2026-09-14</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px;">
+            <p style="margin: 0; color: #1a252f;"><strong>撰寫學員：</strong> 護理部 - 測試學員</p>
+            <p style="margin: 0; color: #1a252f;"><strong>指導老師：</strong> 臨床指導教師</p>
+            <p style="margin: 0; color: #1a252f;"><strong>訓練類別：</strong> 基層護理人員臨床專業能力訓練</p>
+            <p style="margin: 0; color: #1a252f;"><strong>訓練日期：</strong> 2026-09-14</p>
           </div>
-          <div class="demo-section">
-            <h4>📊 測驗成績紀錄</h4>
-            <div class="score-tags">
-              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課前)</span><span class="score-val score-high-badge" style="color:white !important;">90 分</span></div>
-              <div class="score-tag"><span class="exam-name">兒科實習測驗 (課後)</span><span class="score-val score-high-badge" style="color:white !important;">100 分</span></div>
+          
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1a252f;">📊 測驗成績紀錄</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff;">
+                <span style="font-weight: bold; font-size: 15px; color: #1a252f;">兒科實習測驗 (課前)</span>
+                <span style="background-color: #2ecc71; color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold;">90 分</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border: 1px solid #bdc3c7; border-radius: 6px; padding: 12px 16px; background: #ffffff;">
+                <span style="font-weight: bold; font-size: 15px; color: #1a252f;">兒科實習測驗 (課後)</span>
+                <span style="background-color: #2ecc71; color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold;">100 分</span>
+              </div>
             </div>
           </div>
-          <div class="demo-section"><h4>📚 學習內容重點摘要</h4><div class="demo-text-box">今日參與靜脈留置針注射技術與無菌操作規範實作。</div></div>
-          <div class="demo-section"><h4>💡 自我反思與心得</h4><div class="demo-text-box">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張。</div></div>
-          <div class="demo-section"><h4>👩‍⚕️ 臨床指導老師回饋</h4><div class="demo-text-box">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！</div></div>
-          <div class="demo-section"><h4>🏥 單位主管總評</h4><div class="demo-text-box">該員於本次訓練中展現出高度的學習熱忱與反思能力。</div></div>
-          <div class="demo-signatures">
-            <div class="sign-box">學員簽章：<br><span class="unsigned-text">(系統已認證)</span></div>
-            <div class="sign-box">老師簽章：<br><span class="unsigned-text">(系統已認證)</span></div>
-            <div class="sign-box">主管簽章：<br><span class="unsigned-text">(系統已認證)</span></div>
+          
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1a252f;">📚 學習內容重點摘要</h4>
+            <div style="border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; color: #1a252f;">今日參與靜脈留置針注射技術與無菌操作規範實作。</div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1a252f;">💡 自我反思與心得</h4>
+            <div style="border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; color: #1a252f;">首次在假人模型上進行實作時，因為怕扎錯位置而略顯緊張。</div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1a252f;">👩‍⚕️ 臨床指導老師回饋</h4>
+            <div style="border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; color: #1a252f;">學習態度非常積極，無菌操作的觀念與洗手時機都掌握得很正確，值得嘉許！</div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h4 style="margin: 0 0 10px 0; color: #1a252f;">🏥 單位主管總評</h4>
+            <div style="border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; color: #1a252f;">該員於本次訓練中展現出高度的學習熱忱與反思能力。</div>
+          </div>
+          
+          <div style="display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; font-weight: bold;">
+            <div style="text-align: center; color: #1a252f;">學員簽章：<br><span style="font-size: 13px; font-style: italic; font-weight: normal; color: #7f8c8d;">(系統已認證)</span></div>
+            <div style="text-align: center; color: #1a252f;">老師簽章：<br><span style="font-size: 13px; font-style: italic; font-weight: normal; color: #7f8c8d;">(系統已認證)</span></div>
+            <div style="text-align: center; color: #1a252f;">主管簽章：<br><span style="font-size: 13px; font-style: italic; font-weight: normal; color: #7f8c8d;">(系統已認證)</span></div>
           </div>
         </div>
       </div>
@@ -479,7 +502,7 @@
     <!-- ======================================================= -->
     <div class="print-only-scores" v-show="printMode === 'scores'">
 
-      <!-- 🌟🌟 新增：群體平均總結報告 (若為量表且有選取學員) 🌟🌟 -->
+      <!-- 🌟🌟 群體平均總結報告 (若為量表且有選取學員) 🌟🌟 -->
       <div v-if="scoreReportData.isScale && filteredScoreRecords.length > 0" class="scale-page-wrapper">
         <h1 style="text-align: center; font-size: 26px; font-weight: bold; margin: 0 0 10px 0; color: #000; letter-spacing: 2px;">
           單位整體評估分析報告
@@ -499,7 +522,6 @@
         </table>
 
         <div class="scale-record-box" v-if="groupScaleSummary">
-          <!-- 🌟 移除右上角贅餘總分 -->
           <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between; background-color: #f1f2f6; padding: 10px;">
             <span>分析對象：全體受測學員平均 (共 {{ groupScaleSummary.count }} 人)</span>
           </h3>
@@ -512,11 +534,13 @@
           </p>
 
           <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+            <!-- 整體雷達圖 -->
             <div style="width: 38%; text-align: center; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
               <h4 style="margin: 0 0 10px 0; font-size: 16px;">🎯 全體壓力分佈平均雷達圖</h4>
               <div v-html="generateRadarSVG(groupScaleSummary.avgRadarScores, '#3498db')" style="width: 100%;"></div>
             </div>
 
+            <!-- 整體六大類數據表格 -->
             <div style="width: 62%; box-sizing: border-box;">
               <h4 style="margin: 0 0 10px 0; font-size: 16px;">📈 六大類壓力因子全體平均摘要</h4>
               <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px; table-layout: fixed; word-wrap: break-word;">
@@ -571,7 +595,6 @@
           </table>
 
           <div class="scale-record-box">
-            <!-- 🌟 移除右上角贅餘總分 -->
             <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0;">
               <span>學員姓名：{{ record.studentName }} ({{ record.studentUnit || '未分組' }})</span>
             </h3>
@@ -584,13 +607,11 @@
             </p>
 
             <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
-              <!-- 左側：SVG 雷達圖 (字體放大，畫布與間距優化) -->
               <div style="width: 38%; text-align: center; box-sizing: border-box;">
                 <h4 style="margin: 0 0 10px 0;">🎯 個人壓力分佈雷達圖</h4>
                 <div v-html="generateRadarSVG(record.radarScores, '#e8862c')" style="width: 100%;"></div>
               </div>
 
-              <!-- 右側：六大類數據表格 -->
               <div style="width: 62%; box-sizing: border-box;">
                 <h4 style="margin: 0 0 10px 0;">📈 六大類壓力因子摘要</h4>
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 14px; table-layout: fixed; word-wrap: break-word;">
@@ -669,7 +690,7 @@
       </div>
     </div>
 
-    <!-- 🖨️ 隱藏版：列印專屬心得 PDF 範本 -->
+    <!-- 🖨️ 列印專屬：心得 PDF 範本 -->
     <div class="printable-demo-printonly" v-show="printMode === 'demo'">
       <h2 style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #000; font-size: 24px;">
         📘 實習生學習系統 - 心得反思紀錄
@@ -746,7 +767,7 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 SVG 雷達圖生成引擎 (字體放大，加強可讀性)
+// 🌟 SVG 雷達圖生成引擎
 function generateRadarSVG(values6, color = '#1f6f78') {
   if (!values6 || values6.length !== 6) return '';
   const cx = 180, cy = 180, R = 100, N = 6;
@@ -1222,7 +1243,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   display: flex; flex-direction: column; align-items: center; 
 }
 
-/* 深色模式防護盾 */
+/* 深色模式防護盾 (明確鎖定字體顏色) */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -1233,15 +1254,57 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-.desc, .empty-state, .sign-timestamp { color: #34495e !important; -webkit-text-fill-color: #34495e !important; font-weight: bold !important; }
-.unsigned-text, .demo-signatures span { color: #7f8c8d !important; -webkit-text-fill-color: #7f8c8d !important; font-size: 13px !important; font-style: italic !important; }
-.form-input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; background-color: #ffffff !important; border: 1px solid #dcdde1; padding: 12px; border-radius: 6px; width: 100%; box-sizing: border-box; }
-.demo-text-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; }
-.btn { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
-.primary-btn { background-color: #3498db; } .success-btn { background-color: #2ecc71; } .danger-btn { background-color: #e74c3c; } .dark-btn { background-color: #2c3e50; } .secondary-btn { background-color: #95a5a6; }
+.desc, .empty-state, .sign-timestamp {
+  color: #34495e !important;
+  -webkit-text-fill-color: #34495e !important;
+  font-weight: bold !important;
+}
 
+.unsigned-text, .demo-signatures span {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+  font-size: 13px !important;
+  font-style: italic !important;
+}
+
+.form-input {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #dcdde1;
+  padding: 12px;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.demo-text-box {
+  border: 1px solid #bdc3c7; 
+  padding: 15px; 
+  border-radius: 6px; 
+  font-size: 15px; 
+  line-height: 1.6; 
+  min-height: 80px;
+}
+
+.btn { 
+  color: #ffffff !important; 
+  -webkit-text-fill-color: #ffffff !important; 
+  padding: 10px 20px; border: none; border-radius: 6px; 
+  font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s;
+}
+.primary-btn { background-color: #3498db; }
+.success-btn { background-color: #2ecc71; }
+.danger-btn { background-color: #e74c3c; }
+.dark-btn { background-color: #2c3e50; }
+.secondary-btn { background-color: #95a5a6; }
+
+/* 🌟 強制身分標籤背景顏色 (修正消失問題) */
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
-.role-badge.student { background-color: #3498db !important; } .role-badge.teacher { background-color: #9b59b6 !important; } .role-badge.supervisor { background-color: #e67e22 !important; } .role-badge.admin { background-color: #34495e !important; }
+.role-badge.student { background-color: #3498db !important; } 
+.role-badge.teacher { background-color: #9b59b6 !important; }
+.role-badge.supervisor { background-color: #e67e22 !important; } 
+.role-badge.admin { background-color: #34495e !important; }
 
 /* 版面結構與卡片設計 */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
