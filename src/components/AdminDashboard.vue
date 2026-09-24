@@ -470,9 +470,82 @@
     </div>
 
     <!-- ======================================================= -->
-    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (顯示為個別總分與整體總分)       -->
+    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (群體平均 + 個人報告)              -->
     <!-- ======================================================= -->
     <div class="print-only-scores" v-show="printMode === 'scores'">
+
+      <!-- 🌟🌟 新增：群體平均總結報告 (若為量表且有選取學員) 🌟🌟 -->
+      <div v-if="scoreReportData.isScale && filteredScoreRecords.length > 0" class="scale-page-wrapper">
+        <h1 style="text-align: center; font-size: 26px; font-weight: bold; margin: 0 0 10px 0; color: #000; letter-spacing: 2px;">
+          單位整體評估分析報告
+        </h1>
+        
+        <table class="print-meta-table">
+          <tbody>
+            <tr>
+              <td class="print-meta-label">評估量表：</td><td class="print-meta-value">{{ scoreReportData.title }}</td>
+              <td class="print-meta-label">學年學期：</td><td class="print-meta-value">{{ reportMeta.semester || '______' }}</td>
+            </tr>
+            <tr>
+              <td class="print-meta-label">授課/指導：</td><td class="print-meta-value">{{ reportMeta.teacherName }}</td>
+              <td class="print-meta-label">院系/班級：</td><td class="print-meta-value">{{ reportMeta.department }} / {{ reportMeta.className }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="scale-record-box" v-if="groupScaleSummary">
+          <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between; background-color: #f1f2f6; padding: 10px;">
+            <span>分析對象：全體受測學員平均 (共 {{ groupScaleSummary.count }} 人)</span>
+            <span>整體平均總分：{{ groupScaleSummary.avgTotalScore }} 分</span>
+          </h3>
+          
+          <p style="font-size: 13px; color: #555; margin: 10px 0 20px 0; line-height: 2;">
+            * 群體評估結果：
+            <span :style="groupScaleSummary.avgTotalScore <= 77 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">31~77分(維持支持)</span> 、
+            <span :style="groupScaleSummary.avgTotalScore >= 78 && groupScaleSummary.avgTotalScore <= 108 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">78~108分(列入觀察)</span> 、
+            <span :style="groupScaleSummary.avgTotalScore >= 109 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">109~155分(高度壓力)</span>
+          </p>
+
+          <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+            <!-- 整體雷達圖 -->
+            <div style="width: 38%; text-align: center; box-sizing: border-box; display: flex; flex-direction: column; align-items: center;">
+              <h4 style="margin: 0 0 10px 0; font-size: 16px;">🎯 全體壓力分佈平均雷達圖</h4>
+              <div v-html="generateRadarSVG(groupScaleSummary.avgRadarScores, '#3498db')" style="width: 100%;"></div>
+            </div>
+
+            <!-- 整體六大類數據表格 -->
+            <div style="width: 62%; box-sizing: border-box;">
+              <h4 style="margin: 0 0 10px 0; font-size: 16px;">📈 六大類壓力因子全體平均摘要</h4>
+              <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px; table-layout: fixed; word-wrap: break-word;">
+                <thead>
+                  <tr style="background: #e8f4f8;">
+                    <th style="border: 1px solid #000; padding: 6px; text-align: left; width: 40%;">壓力構面與類別</th>
+                    <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 18%;">構面總分平均</th>
+                    <th style="border: 1px solid #000; padding: 6px; text-align: left; width: 42%;">群體壓力解讀</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(dim, dKey) in groupScaleSummary.avgDimensions" :key="'grp-'+dKey">
+                    <td style="border: 1px solid #000; padding: 6px;"><strong>{{ dim.name }}</strong></td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">{{ dim.totalScore }} 分</td>
+                    <td style="border: 1px solid #000; padding: 6px; color: #333;">{{ dim.statusText }}</td>
+                  </tr>
+                  <tr style="background: #d4e6f1; border-top: 2px solid #000;">
+                    <td style="border: 1px solid #000; padding: 6px; text-align: right;"><strong>量表整體總分平均：</strong></td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; font-size: 15px;">{{ groupScaleSummary.avgTotalScore }} 分</td>
+                    <td style="border: 1px solid #000; padding: 6px; color: #555;">(整體壓力平均：{{ groupScaleSummary.stressLevel }})</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="print-footer">
+          <div>單位主管/分析者簽章：_______________________</div>
+          <div></div>
+        </div>
+      </div>
 
       <!-- 🌟 量表：每位學員獨立渲染成一整頁 -->
       <div v-if="scoreReportData.isScale">
@@ -500,7 +573,7 @@
               <span>總分：{{ record.totalScore }} 分</span>
             </h3>
             
-            <p style="font-size: 13px; color: #555; margin: 10px 0 15px 0; line-height: 2;">
+            <p style="font-size: 13px; color: #555; margin: 10px 0 20px 0; line-height: 2;">
               * 評估標準與結果：
               <span :style="record.totalScore <= 77 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">31~77分(維持支持)</span> 、
               <span :style="record.totalScore >= 78 && record.totalScore <= 108 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">78~108分(列入觀察，每週追蹤)</span> 、
@@ -514,7 +587,7 @@
                 <div v-html="generateRadarSVG(record.radarScores, '#e8862c')" style="width: 100%;"></div>
               </div>
 
-              <!-- 右側：六大類數據表格 (顯示構面總分) -->
+              <!-- 右側：六大類數據表格 -->
               <div style="width: 62%; box-sizing: border-box;">
                 <h4 style="margin: 0 0 10px 0; font-size: 16px;">📈 六大類壓力因子摘要</h4>
                 <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px; table-layout: fixed; word-wrap: break-word;">
@@ -528,11 +601,9 @@
                   <tbody>
                     <tr v-for="(dim, dKey) in record.dimensions" :key="dKey">
                       <td style="border: 1px solid #000; padding: 6px;"><strong>{{ dim.name }}</strong></td>
-                      <!-- 🌟 顯示為構面總分 -->
                       <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">{{ dim.totalScore }} 分</td>
                       <td style="border: 1px solid #000; padding: 6px; color: #333;">{{ dim.statusText }}</td>
                     </tr>
-                    <!-- 🌟 加入整體總分行 -->
                     <tr style="background: #eaf2f8; border-top: 2px solid #000;">
                       <td style="border: 1px solid #000; padding: 6px; text-align: right;"><strong>量表整體總分：</strong></td>
                       <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold; font-size: 15px;">{{ record.totalScore }} 分</td>
@@ -546,7 +617,6 @@
 
           <div class="print-footer">
             <div>授課/指導教師簽章：_______________________</div>
-            <!-- 去除列印日期顯示以符合需求 -->
             <div></div>
           </div>
         </div>
@@ -814,6 +884,55 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
   }
   return result;
 }
+
+// 🌟 群體統計生成引擎 (包含各構面總分平均與整體總分平均)
+const groupScaleSummary = computed(() => {
+  if (!scoreReportData.value.isScale || filteredScoreRecords.value.length === 0) return null;
+
+  const count = filteredScoreRecords.value.length;
+  let sumTotalScore = 0;
+  let sumRadarScores = [0, 0, 0, 0, 0, 0];
+  let sumDimensions = {
+    dim1: { name: 'I. 實際護理病人之壓力', totalScore: 0, avgScore: 0 },
+    dim2: { name: 'II. 教師及護理人員之壓力', totalScore: 0, avgScore: 0 },
+    dim3: { name: 'III. 作業及工作量之壓力', totalScore: 0, avgScore: 0 },
+    dim4: { name: 'IV. 同學及生活之壓力', totalScore: 0, avgScore: 0 },
+    dim5: { name: 'V. 專業知識與技能之壓力', totalScore: 0, avgScore: 0 },
+    dim6: { name: 'VI. 實習環境之壓力', totalScore: 0, avgScore: 0 }
+  };
+
+  filteredScoreRecords.value.forEach(r => {
+    sumTotalScore += r.totalScore;
+    r.radarScores.forEach((val, i) => sumRadarScores[i] += val);
+    for (let k in sumDimensions) {
+      sumDimensions[k].totalScore += r.dimensions[k].totalScore;
+      sumDimensions[k].avgScore += parseFloat(r.dimensions[k].avgScore);
+    }
+  });
+
+  const avgTotalScore = Math.round(sumTotalScore / count);
+  let stressLevel = '維持支持與增能';
+  if (avgTotalScore >= 109) stressLevel = '高度壓力 (48-72小時內面談)';
+  else if (avgTotalScore >= 78) stressLevel = '列入觀察 (每週追蹤)';
+
+  const avgDimensions = {};
+  for (let k in sumDimensions) {
+    const avgTot = Math.round(sumDimensions[k].totalScore / count);
+    const avgAvg = (sumDimensions[k].avgScore / count).toFixed(1);
+    let statusText = '正常 (壓力輕微)';
+    if (avgAvg >= 4.0) statusText = '⚠️ 壓力偏高 (需重點關注)';
+    else if (avgAvg >= 3.0) statusText = '⚡ 中度壓力 (需適當引導)';
+    avgDimensions[k] = { name: sumDimensions[k].name, totalScore: avgTot, avgScore: avgAvg, statusText };
+  }
+
+  return {
+    count,
+    avgTotalScore,
+    stressLevel,
+    avgRadarScores: sumRadarScores.map(v => v / count),
+    avgDimensions
+  };
+});
 
 async function openScoreModal(stat) {
   Swal.fire({ title: '載入資料與繪製圖表中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
@@ -1100,7 +1219,7 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   display: flex; flex-direction: column; align-items: center; 
 }
 
-/* 深色模式防護盾 */
+/* 深色模式防護盾 (明確鎖定字體顏色) */
 .app-wrapper h1, .app-wrapper h2, .app-wrapper h3, .app-wrapper h4, 
 .app-wrapper p:not(.desc), .app-wrapper label, .app-wrapper th, 
 .app-wrapper td, .app-wrapper li, .app-wrapper .q-title, 
@@ -1111,15 +1230,57 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
   -webkit-text-fill-color: #1a252f !important;
 }
 
-.desc, .empty-state, .sign-timestamp { color: #34495e !important; -webkit-text-fill-color: #34495e !important; font-weight: bold !important; }
-.unsigned-text, .demo-signatures span { color: #7f8c8d !important; -webkit-text-fill-color: #7f8c8d !important; font-size: 13px !important; font-style: italic !important; }
-.form-input { color: #000000 !important; -webkit-text-fill-color: #000000 !important; background-color: #ffffff !important; border: 1px solid #dcdde1; padding: 12px; border-radius: 6px; width: 100%; box-sizing: border-box; }
-.demo-text-box { border: 1px solid #bdc3c7; padding: 15px; border-radius: 6px; font-size: 15px; line-height: 1.6; min-height: 80px; }
-.btn { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s; }
-.primary-btn { background-color: #3498db; } .success-btn { background-color: #2ecc71; } .danger-btn { background-color: #e74c3c; } .dark-btn { background-color: #2c3e50; } .secondary-btn { background-color: #95a5a6; }
+.desc, .empty-state, .sign-timestamp {
+  color: #34495e !important;
+  -webkit-text-fill-color: #34495e !important;
+  font-weight: bold !important;
+}
 
+.unsigned-text, .demo-signatures span {
+  color: #7f8c8d !important;
+  -webkit-text-fill-color: #7f8c8d !important;
+  font-size: 13px !important;
+  font-style: italic !important;
+}
+
+.form-input {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid #dcdde1;
+  padding: 12px;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.demo-text-box {
+  border: 1px solid #bdc3c7; 
+  padding: 15px; 
+  border-radius: 6px; 
+  font-size: 15px; 
+  line-height: 1.6; 
+  min-height: 80px;
+}
+
+.btn { 
+  color: #ffffff !important; 
+  -webkit-text-fill-color: #ffffff !important; 
+  padding: 10px 20px; border: none; border-radius: 6px; 
+  font-weight: bold; font-size: 15px; cursor: pointer; transition: all 0.2s;
+}
+.primary-btn { background-color: #3498db; }
+.success-btn { background-color: #2ecc71; }
+.danger-btn { background-color: #e74c3c; }
+.dark-btn { background-color: #2c3e50; }
+.secondary-btn { background-color: #95a5a6; }
+
+/* 🌟 強制身分標籤背景顏色 */
 .role-badge { padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; }
-.role-badge.student { background-color: #3498db !important; } .role-badge.teacher { background-color: #9b59b6 !important; } .role-badge.supervisor { background-color: #e67e22 !important; } .role-badge.admin { background-color: #34495e !important; }
+.role-badge.student { background-color: #3498db !important; } 
+.role-badge.teacher { background-color: #9b59b6 !important; }
+.role-badge.supervisor { background-color: #e67e22 !important; } 
+.role-badge.admin { background-color: #34495e !important; }
 
 /* 版面結構與卡片設計 */
 .admin-container { width: 100%; max-width: 1000px; font-family: "微軟正黑體", sans-serif; }
