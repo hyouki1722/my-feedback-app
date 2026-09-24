@@ -353,7 +353,6 @@
           <button @click="exportDemoToPDF" class="btn dark-btn" style="margin-top: 15px;">🖨️ 列印 / 匯出 PDF 範本</button>
         </div>
         
-        <!-- 用於網頁預覽的心得範本 -->
         <div class="admin-card printable-demo no-print">
           <h2 style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px; font-weight: 900; color: #2c3e50;">
             📘 實習生學習系統 - 心得反思紀錄
@@ -388,14 +387,14 @@
     <!-- 📊 任務/量表分析彈出視窗 (Modal)                            -->
     <!-- ======================================================= -->
     <div v-if="isScoreModalOpen" class="modal-overlay no-print" @click.self="closeScoreModal">
-      <div class="modal-content review-modal" style="max-width: 900px;">
+      <div class="modal-content review-modal" style="max-width: 950px; height: 90vh;">
         <div class="modal-header">
           <h3>📊 {{ scoreReportData.isScale ? '量表分析與填答報告' : '成績清單' }}：{{ scoreReportData.title }}</h3>
           <button @click="closeScoreModal" class="close-btn">✖</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="height: calc(100% - 70px); overflow-y: auto;">
           <div style="background: #f8f9fa; border: 1px solid #dcdde1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表與表頭設定 (支援預填)</h4>
+            <h4 style="margin: 0 0 15px 0; color: #2c3e50;">📝 報表標頭設定區 (列印用)</h4>
             <div class="form-row">
               <div class="form-group"><label>學年學期：</label><input v-model="reportMeta.semester" class="form-input" placeholder="例：112學年度上學期"></div>
               <div class="form-group"><label>課程名稱：</label><input v-model="reportMeta.courseName" class="form-input"></div>
@@ -413,6 +412,7 @@
             <button @click="printSelectedScores" class="btn dark-btn small-btn" :disabled="selectedScoreRecords.length === 0">🖨️ 匯出勾選學員之報表 (PDF)</button>
           </div>
 
+          <!-- 列表顯示 -->
           <div class="table-responsive">
             <table class="data-table">
               <thead>
@@ -425,7 +425,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(record, index) in scoreReportData.records" :key="index">
+                <tr v-for="(record, index) in scoreReportData.records" :key="index" :class="{'selected-row': selectedScoreRecords.includes(record.studentId)}">
                   <td style="text-align: center;"><input type="checkbox" class="custom-checkbox" :value="record.studentId" v-model="selectedScoreRecords" /></td>
                   <td>{{ record.studentUnit }}</td>
                   <td><strong>{{ record.studentName }}</strong></td>
@@ -471,43 +471,45 @@
     </div>
 
     <!-- ======================================================= -->
-    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (包含雷達圖與六大類表格分析)       -->
+    <!-- 🖨️ 隱藏版：正式 PDF 匯出格式 (修改落點標示與框線)               -->
     <!-- ======================================================= -->
     <div class="print-only-scores" v-show="printMode === 'scores'">
       <h1 style="text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 20px; color: #000;">
         {{ scoreReportData.isScale ? '護生實習壓力評估與分析報告' : '課程成績單' }}
       </h1>
       
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 20px; font-size: 15px;">
+      <table class="print-meta-table">
         <tbody>
           <tr>
-            <td style="border: 1px solid #000; padding: 10px; font-weight: bold; background: #f9f9f9; width: 120px;">課程/量表：</td>
-            <td style="border: 1px solid #000; padding: 10px;">{{ scoreReportData.title }}</td>
-            <td style="border: 1px solid #000; padding: 10px; font-weight: bold; background: #f9f9f9; width: 120px;">學年學期：</td>
-            <td style="border: 1px solid #000; padding: 10px;">{{ reportMeta.semester || '______' }}</td>
+            <td class="print-meta-label">課程/量表：</td><td class="print-meta-value">{{ scoreReportData.title }}</td>
+            <td class="print-meta-label">學年學期：</td><td class="print-meta-value">{{ reportMeta.semester || '______' }}</td>
           </tr>
           <tr>
-            <td style="border: 1px solid #000; padding: 10px; font-weight: bold; background: #f9f9f9;">授課/指導：</td>
-            <td style="border: 1px solid #000; padding: 10px;">{{ reportMeta.teacherName }}</td>
-            <td style="border: 1px solid #000; padding: 10px; font-weight: bold; background: #f9f9f9;">院系/班級：</td>
-            <td style="border: 1px solid #000; padding: 10px;">{{ reportMeta.department }} / {{ reportMeta.className }}</td>
+            <td class="print-meta-label">授課/指導：</td><td class="print-meta-value">{{ reportMeta.teacherName }}</td>
+            <td class="print-meta-label">院系/班級：</td><td class="print-meta-value">{{ reportMeta.department }} / {{ reportMeta.className }}</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 🌟 量表：顯示個人雷達圖 + 六大類壓力因子分析表格 -->
+      <!-- 🌟 量表：顯示 個人雷達圖 + 六大類壓力因子分析表格 -->
       <div v-if="scoreReportData.isScale">
-        <div v-for="record in filteredScoreRecords" :key="record.studentId" style="page-break-inside: avoid; margin-bottom: 40px; border: 2px solid #000; padding: 20px;">
+        <div v-for="record in filteredScoreRecords" :key="record.studentId" class="scale-record-box">
           <h3 style="border-bottom: 1px solid #000; padding-bottom: 8px; margin-top: 0; display: flex; justify-content: space-between;">
             <span>學員姓名：{{ record.studentName }} ({{ record.studentUnit || '未分組' }})</span>
-            <span>總分：{{ record.totalScore }} 分 [評估：{{ record.stressLevel }}]</span>
+            <span>總分：{{ record.totalScore }} 分</span>
           </h3>
           
-          <p style="font-size: 13px; color: #555; margin: 5px 0 15px 0;">* 評估：31-77分(維持支持)、78-108分(列入觀察，每週追蹤)、109-155分(高度壓力，48-72小時內面談)</p>
+          <!-- 🌟 自動落點標示：針對該學員分數加上粗框背景 -->
+          <p style="font-size: 13px; color: #555; margin: 10px 0 20px 0; line-height: 2;">
+            * 評估標準與結果：
+            <span :style="record.totalScore <= 77 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">31~77分(維持支持)</span> 、
+            <span :style="record.totalScore >= 78 && record.totalScore <= 108 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">78~108分(列入觀察，每週追蹤)</span> 、
+            <span :style="record.totalScore >= 109 ? 'font-weight: bold; color: #000; border: 2px solid #000; padding: 3px 6px; border-radius: 4px; background: #e0e0e0;' : 'padding: 3px 6px;'">109~155分(高度壓力，48~72小時內面談)</span>
+          </p>
 
-          <div style="display: flex; gap: 20px; align-items: flex-start; width: 100%; box-sizing: border-box;">
-            <!-- 左側：SVG 雷達圖 -->
-            <div style="width: 35%; text-align: center;">
+          <div style="display: flex; gap: 15px; align-items: flex-start; width: 100%; box-sizing: border-box;">
+            <!-- 左側：SVG 雷達圖 (縮小尺寸防止溢出) -->
+            <div style="width: 35%; text-align: center; box-sizing: border-box;">
               <h4 style="margin: 0 0 10px 0;">🎯 個人壓力分佈雷達圖</h4>
               <div v-html="generateRadarSVG(record.radarScores, '#e8862c')"></div>
             </div>
@@ -536,33 +538,33 @@
         </div>
       </div>
 
-      <!-- 🌟 一般測驗：顯示標準成績單表格 -->
+      <!-- 🌟 一般測驗：顯示 標準成績單表格 -->
       <div v-else>
-        <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 16px; margin-bottom: 40px;">
+        <table class="print-score-table">
           <thead>
             <tr>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; text-align: center; width: 60px;">序號</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; text-align: left;">學員帳號</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; text-align: left;">姓名</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; text-align: left;">實習單位</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; text-align: center;">分數</th>
+              <th style="width: 60px; text-align: center;">序號</th>
+              <th style="width: 20%;">學員帳號</th>
+              <th style="width: 20%;">姓名</th>
+              <th style="width: 30%;">實習單位</th>
+              <th style="width: 15%; text-align: center;">分數</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(record, index) in filteredScoreRecords" :key="record.studentId">
-              <td style="border: 1px solid #000; padding: 10px; text-align: center;">{{ index + 1 }}</td>
-              <td style="border: 1px solid #000; padding: 10px;">{{ record.studentEmail }}</td>
-              <td style="border: 1px solid #000; padding: 10px; font-weight: bold;">{{ record.studentName }}</td>
-              <td style="border: 1px solid #000; padding: 10px;">{{ record.studentUnit || reportMeta.department }}</td>
-              <td style="border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold;">{{ record.score }}</td>
+              <td style="text-align: center;">{{ index + 1 }}</td>
+              <td>{{ record.studentEmail }}</td>
+              <td style="font-weight: bold;">{{ record.studentName }}</td>
+              <td>{{ record.studentUnit || reportMeta.department }}</td>
+              <td style="text-align: center; font-weight: bold;">{{ record.score }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 16px; font-weight: bold;">
+      <div class="print-footer">
         <div>授課/指導教師簽章：_______________________</div>
-        <div style="margin-right: 50px;">日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
+        <div>日期：{{ formatPrintDate(reportMeta.printDate) }}</div>
       </div>
     </div>
 
@@ -611,9 +613,6 @@ const activeTab = ref('users'); const roleFilter = ref('all'); const users = ref
 const dispatchRecords = ref([]); const dispatchSelectedExam = ref(''); const dispatchSelectedUnit = ref('all'); const dispatchSelectedStudents = ref([]); const dispatchShowAnswers = ref(false) 
 const printMode = ref('')
 
-// ==========================================
-// 📊 量表分析與成績單匯出邏輯
-// ==========================================
 const isScoreModalOpen = ref(false)
 const scoreReportData = ref({ title: '', isScale: false, records: [] })
 const selectedScoreRecords = ref([])
@@ -642,10 +641,10 @@ function formatPrintDate(dateStr) {
   return `${parts[0]} 年 ${parts[1]} 月 ${parts[2]} 日`;
 }
 
-// 🌟 SVG 雷達圖生成引擎
+// 🌟 SVG 雷達圖生成引擎 (縮小尺寸防止溢出)
 function generateRadarSVG(values6, color = '#1f6f78') {
   if (!values6 || values6.length !== 6) return '';
-  const cx = 160, cy = 160, R = 100, N = 6;
+  const cx = 140, cy = 140, R = 85, N = 6;
   const pt = (i, r) => { 
     const a = -Math.PI / 2 + i * 2 * Math.PI / N; 
     return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; 
@@ -663,12 +662,12 @@ function generateRadarSVG(values6, color = '#1f6f78') {
   catNames.forEach((name, i) => {
     const [x, y] = pt(i, R);
     axes += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#aaa" stroke-width="1"/>`;
-    const [lx, ly] = pt(i, R + 25);
-    labels += `<text x="${lx}" y="${ly}" font-size="12" fill="#333" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${name}</text>`;
+    const [lx, ly] = pt(i, R + 22);
+    labels += `<text x="${lx}" y="${ly}" font-size="11" fill="#333" font-weight="bold" text-anchor="middle" dominant-baseline="middle">${name}</text>`;
   });
   
   const dataPts = values6.map((v, i) => pt(i, R * Math.min(Math.max(v, 0), 5) / 5).join(',')).join(' ');
-  return `<svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:260px; height:auto; display:block; margin: 0 auto;">
+  return `<svg viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:220px; height:auto; display:block; margin: 0 auto;">
     ${rings}${axes}
     <polygon points="${dataPts}" fill="${color}" fill-opacity="0.3" stroke="${color}" stroke-width="2"/>
     ${labels}
@@ -732,7 +731,7 @@ const dispatchStats = computed(() => {
 function showPendingStudents(stat) { if (stat.pending_names.length === 0) { Swal.fire('提示', '所有學員皆已完成！', 'success'); return } const namesHtml = stat.pending_names.map(name => `<span style="display:inline-block; margin: 5px; padding: 5px 10px; background:#ecf0f1; border-radius:4px; font-weight:bold; color: #2c3e50;">${name}</span>`).join(''); Swal.fire({ title: `尚未交卷名單 (${stat.pending_names.length} 人)`, html: `<div style="text-align: left; margin-top: 15px;">${namesHtml}</div>`, icon: 'info', confirmButtonText: '關閉' }) }
 async function toggleAnswersVisibility(examId, currentStatus) { const newStatus = !currentStatus; Swal.fire({ title: '更新中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const { error } = await supabase.from('exam_dispatch').update({ show_answers: newStatus }).eq('exam_id', examId); if (error) { Swal.fire('錯誤', error.message, 'error') } else { Toast.fire({ icon: 'success', title: newStatus ? '已全面公開解答' : '已關閉解答' }); await loadDispatches() } }
 
-// 🌟 核心：量表六大類壓力因子計算引擎
+// 🌟 核心：解決「全 0 分Bug」的排序對應與雷達圖計算引擎
 const DIMENSIONS_MAP = {
   dim1: { name: 'I. 實際護理病人之壓力', qList: [4, 3, 8, 12, 11, 2, 10, 9] },
   dim2: { name: 'II. 教師及護理人員之壓力', qList: [17, 18, 25, 14, 20, 1] },
@@ -787,7 +786,7 @@ function calculateScaleDimensions(answersJson, qOrderMap) {
 }
 
 async function openScoreModal(stat) {
-  Swal.fire({ title: '載入資料中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
+  Swal.fire({ title: '載入資料與繪製圖表中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } })
   const exam = examList.value.find(e => e.id === stat.exam_id) || {};
   const isScale = exam.type === 'scale';
 
@@ -809,6 +808,7 @@ async function openScoreModal(stat) {
       totalScore = Object.values(dimensions).reduce((sum, d) => sum + Number(d.totalScore), 0);
       if (totalScore >= 109) stressLevel = '高度壓力 (48-72小時內面談)';
       else if (totalScore >= 78) stressLevel = '列入觀察 (每週追蹤)';
+      
       radarScores = Object.values(dimensions).map(d => Number(d.avgScore));
     }
 
@@ -824,6 +824,7 @@ async function openScoreModal(stat) {
   reportMeta.value.examName = stat.title; reportMeta.value.teacherName = profile.value?.name || '';
   isScoreModalOpen.value = true; Swal.close()
 }
+
 function closeScoreModal() { isScoreModalOpen.value = false; scoreReportData.value = { title: '', isScale: false, records: [] }; selectedScoreRecords.value = []; }
 
 // ==========================================
@@ -1026,29 +1027,16 @@ async function editUser(user) {
   });
   if (formValues) { Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const finalUnit = formValues.unit ? formValues.unit : '未指定單位'; const { error } = await supabase.rpc('update_user_admin', { target_user_id: user.id, new_role: formValues.role, new_unit: finalUnit }); if (error) { Swal.fire('錯誤', `修改失敗: ${error.message}`, 'error'); } else { Toast.fire({ icon: 'success', title: '資料修改成功' }); await loadUsers(); } }
 }
+
 async function deleteUser(userId) { await supabase.rpc('delete_user_admin', { target_user_id: userId }); await loadUsers(); }
 function downloadTemplate() { const ws = XLSX.utils.json_to_sheet([{ "姓名": "王大明", "身分證字號": "A123456789", "Email": "test@hospital.com", "身分": "學員", "實習單位": "5B病房" }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "人員匯入範本"); XLSX.writeFile(wb, "系統人員匯入範本.xlsx") }
+
 const ROLE_MAP = { '學員': 'student', '受訓學員': 'student', '老師': 'teacher', '指導老師': 'teacher', '主管': 'supervisor', '單位主管': 'supervisor', '管理員': 'admin' }
-function handleFileUpload(event) {
+async function handleFileUpload(event) {
   const file = event.target.files[0]; if (!file) return; 
   const reader = new FileReader(); 
   reader.onload = async (e) => {
-    try { 
-      const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); 
-      Swal.fire({ title: '批次匯入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); 
-      const results = { success: 0, fail: 0 }; 
-      for (let i = 0; i < jsonData.length; i += 5) { 
-        const batch = jsonData.slice(i, i + 5); 
-        await Promise.all(batch.map(async (row) => { 
-          if (!row.Email || !row['姓名'] || !row['身分證字號']) { results.fail++; return; } 
-          const roleText = row['身分']?.toString().trim() || '學員'; const role = ROLE_MAP[roleText]; const unit = row['實習單位']?.toString().trim() || ''; 
-          if (!role) { results.fail++; return; } 
-          const { error } = await supabase.functions.invoke('create-user', { body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role, unit } }); 
-          error ? results.fail++ : results.success++ 
-        })) 
-      } 
-      await loadUsers(); Swal.fire({ icon: 'info', title: '匯入完成', html: `成功: ${results.success} 筆，失敗: ${results.fail} 筆` }) 
-    } catch (err) { Swal.fire('錯誤', '檔案解析失敗', 'error') } event.target.value = ''
+    try { const data = new Uint8Array(e.target.result); const workbook = XLSX.read(data, { type: 'array' }); const worksheet = workbook.Sheets[workbook.SheetNames[0]]; const jsonData = XLSX.utils.sheet_to_json(worksheet); Swal.fire({ title: '批次匯入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const results = { success: 0, fail: 0, failRows: [] }; for (let i = 0; i < jsonData.length; i += 5) { const batch = jsonData.slice(i, i + 5); await Promise.all(batch.map(async (row) => { if (!row.Email || !row['姓名'] || !row['身分證字號']) { results.fail++; return; } const roleText = row['身分']?.toString().trim() || '學員'; const role = ROLE_MAP[roleText]; const unit = row['實習單位']?.toString().trim() || ''; if (!role) { results.fail++; return; } const { error } = await supabase.functions.invoke('create-user', { body: { email: row.Email, password: row['身分證字號'].toString(), name: row['姓名'], role, unit } }); error ? results.fail++ : results.success++ })) } await loadUsers(); Swal.fire({ icon: 'info', title: '匯入完成', html: `成功: ${results.success} 筆，失敗: ${results.fail} 筆` }) } catch (err) { Swal.fire('錯誤', '檔案解析失敗', 'error') } event.target.value = ''
   }; reader.readAsArrayBuffer(file)
 }
 async function saveAssignment(sId) { await supabase.from('assignments').upsert({ student_id: sId, ...assignmentData.value[sId] }, { onConflict: 'student_id' }); Toast.fire({ icon: 'success', title: '儲存成功' }); }
@@ -1163,16 +1151,25 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #e74c3c; }
 
+/* 上傳按鈕群組平行對齊 */
+.upload-btn-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-top: 15px; }
+
+/* 心得範本細節 */
+.demo-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8f9fa; padding: 15px; border-radius: 6px; }
+.demo-section { margin-bottom: 20px; }
+.demo-signatures { display: flex; justify-content: space-between; margin-top: 40px; border-top: 2px solid #ecf0f1; padding-top: 20px; }
+.sign-box { font-weight: bold; font-size: 15px; display: flex; flex-direction: column; align-items: center; }
+
 /* 🌟 平時隱藏列印區域 */
 .print-only-scores, .printable-demo-printonly { display: none; }
 
 /* ============================================================ */
-/* 🖨️ PDF 列印引擎 (橫向與直向適應)                               */
+/* 🖨️ PDF 橫向完美列印引擎 (防破圖、防溢出設計)                   */
 /* ============================================================ */
 @media print {
-  @page { margin: 15mm; size: A4 landscape; }
+  @page { margin: 12mm; size: A4 landscape; }
 
-  /* 移除預設背景並釋放絕對定位，讓表格可以自然換頁延伸 */
+  /* 重置框架限制，釋放高度與寬度讓內容延展 */
   .app-wrapper { 
     position: static !important; 
     background: white !important; 
@@ -1180,30 +1177,39 @@ async function handleLogout() { sessionStorage.clear(); await supabase.auth.sign
     height: auto !important; 
     min-height: 0 !important; 
     display: block !important; 
+    width: 100% !important;
   }
   
   .admin-container { display: none !important; }
   .modal-overlay { display: none !important; }
 
-  /* 列印成績單時 */
+  /* 啟動匯出模式的隱藏版塊 */
   .print-mode-scores .print-only-scores { display: block !important; width: 100% !important; font-family: "標楷體", "DFKai-SB", serif !important; }
-  
-  /* 列印心得範本時 */
   .print-mode-demo .printable-demo-printonly { display: block !important; width: 100% !important; font-family: "標楷體", "DFKai-SB", serif !important; }
-
+  
   /* 強制黑白與去底色 */
-  .print-only-scores *, .printable-demo-printonly * { 
-    color: #000 !important; 
-    -webkit-text-fill-color: #000 !important; 
+  .print-only-scores *, .printable-demo-printonly * { color: #000 !important; -webkit-text-fill-color: #000 !important; }
+
+  /* 🌟 防溢出表格邊框設定 */
+  .scale-record-box {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 30px;
+    border: 2px solid #000;
+    padding: 15px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
-  .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+  .print-meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; box-sizing: border-box; border: 2px solid #000; }
   .print-meta-table td { border: 1px solid #000 !important; padding: 8px 12px !important; font-size: 14pt !important; }
   .print-meta-label { width: 120px; font-weight: bold; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-meta-value { width: calc(100% - 120px); }
 
-  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+  .print-score-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; box-sizing: border-box; }
   .print-score-table th { background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-score-table th, .print-score-table td { border: 1px solid #000 !important; padding: 10px !important; font-size: 13pt !important; text-align: left; }
+  
+  .print-footer { display: flex; justify-content: space-between; font-size: 14pt !important; margin-top: 40px; font-weight: bold; page-break-inside: avoid; }
 }
 </style>
